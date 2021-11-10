@@ -1,4 +1,4 @@
-#Basic info:
+## Information:
 The goal of this repository is to train an agent to perform an autonomous rendezvous in a predefined environment. 
 The agent is trained with a reinforcement learning algorithm from Stable-Baselines3.
 
