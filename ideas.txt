@@ -1,0 +1,13 @@
+This file contains ideas that have not yet been implemented in the code.
+
+# Render: Display some sort of warning when the chaser enters the keep-out-zone. Draw a red circle:
+
+    if self.absolute_position() < self.target_radius:
+        warning = rendering.make_circle(
+            radius=self.target_radius/2,
+            res=20,
+            filled=True
+        )
+        warning.set_color(1, 0.3, 0.3)
+        self.viewer.add_onetime(warning)
+

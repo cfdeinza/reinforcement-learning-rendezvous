@@ -1,0 +1,192 @@
+from stable_baselines3 import PPO
+from stable_baselines3.ppo import MlpPolicy
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv
+from custom_env import Rendezvous3DOF, Attitude
+from custom_callbacks import my_eval_callback
+import argparse
+
+"""
+Main script used for training or evaluating a PPO model.
+
+Written by C. F. De Inza Niemeijer.
+"""
+
+
+def load_env(args):
+    """
+    Create an instance of the environment and wrap it in the required Gym wrappers.
+    :param args: Namespace containing arguments.
+    :return: Wrapped environment.
+    """
+
+    env = None
+
+    if args.env == 'rdv':
+        env = Rendezvous3DOF()
+    elif args.env == 'att':
+        env = Attitude()
+    elif args.env == '':
+        print('Need to specify an environment.\nExiting')
+        exit()
+    else:
+        print(f'Environment "{args.env}" not recognized.\nExiting')
+        exit()
+
+    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
+    env = Monitor(env)
+    env = DummyVecEnv([lambda: env])
+
+    return env
+
+
+def load_model(args, env):
+    """
+    Load an existing PPO model if a valid file name is given. Otherwise, create a new PPO model.
+    """
+
+    mode = args.mode
+    model_name = args.model
+    model = None
+
+    if model_name == '':
+        if mode == 'train':
+            print('No model provided for training. Making new model...')
+            model = PPO(MlpPolicy, env, verbose=1)
+            # Note that the PPO class automatically wraps the Gym environment into a Monitor and a DummyVecEnv.
+        elif mode == 'test':
+            print('Need to specify a model for testing.\nExiting')
+            exit()
+        else:
+            print(f'Mode "{mode}" not recognized.\nExiting')
+            exit()
+    else:
+        print(f'Loading saved model "{model_name}"...')
+        try:
+            model = PPO.load(model_name, env=env)
+            print('Successfully loaded model')
+        except FileNotFoundError:
+            print(f'No such file "{model_name}".\nExiting')
+            exit()
+
+    return model
+
+
+def train(args, model):
+    """
+    Train the model for a given number of time steps.
+    Uses the EvalCallback to periodically evaluate and save the model.
+    By default, it runs 5 episodes on each evaluation.
+    """
+
+    steps = args.steps
+    save = args.save
+
+    if save == 1:
+        eval_env = model.env
+
+        callback = EvalCallback(
+            eval_env,  # Environment used for evaluation (must be identical to the training environment)
+            best_model_save_path='./models/',  # Path to the folder where the best model is saved (best_model.zip)
+            log_path='./logs/',     # Path to the folder where the the evaluations info is saved (evaluations.npz)
+            n_eval_episodes=1,      # Number of episodes tested in each evaluation
+            eval_freq=10000,        # Time steps between evaluations
+            deterministic=True,     # Stochastic or deterministic actions used for evaluations
+            render=False            # Render the evaluations
+        )
+        print(f'Argument <save> set to {save}. Model will be saved in {callback.best_model_save_path}')
+
+    else:
+        callback = None
+        print(f'Argument <save> is set to {save}. Model will not be saved.')
+
+    print('Training...')
+    model.learn(total_timesteps=steps, callback=callback)
+
+    return
+
+
+def evaluate(args, model):
+    """
+    Test the performance of the model for a given number of episodes.
+    Renders each episode and then prints the average reward (and its standard dev).
+    """
+
+    save = args.save
+
+    if save == 1:
+        callback = my_eval_callback
+    else:
+        callback = None
+
+    print('Evaluating...')
+    episodes = 1
+
+    mean_reward, std_reward = evaluate_policy(
+        model,
+        model.env,
+        n_eval_episodes=episodes,
+        render=True,
+        callback=callback)
+
+    print(f'Mean reward over {episodes} episodes: {mean_reward:.2f} +/- {std_reward:.2f}')
+
+    return
+
+
+def main(args):
+    """
+    Main function to run.
+    The arguments ("mode" and "model") are parsed from the command line.
+    """
+
+    # Create an instance of the environment: Rendezvous3DOF() or Attitude()
+    env = load_env(args)
+
+    # args.model = 'PPO_model'
+    model = load_model(args, env)  # Load/create the model
+
+    if args.mode == 'train':
+
+        train(args, model)
+
+    elif args.mode == 'eval':
+
+        evaluate(args, model)
+
+    else:
+
+        print(f'Mode "{args.mode}" not recognized.\nExiting')
+        exit()
+
+    pass
+
+
+def get_args():
+    """
+    Parses the arguments from the command line.
+    :return: Namespace containing the arguments.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode',  dest='mode',  type=str, default='train')   # 'train' or 'eval'
+    parser.add_argument('--model', dest='model', type=str, default='')      # Model filename
+    parser.add_argument('--steps', dest='steps', type=int, default=200000)  # Training steps
+    # Environment: 'rdv' for Rendezvous3DOF(), 'att' for Attitude() HACK: Not intuitive. Try something better.
+    parser.add_argument('--env',   dest='env',   type=str, default='')
+    # Save the results: 1 to save, otherwise does not save.
+    parser.add_argument('--save',  dest='save',  type=int, default=1)
+
+    args = parser.parse_args()
+
+    return args
+
+
+if __name__ == '__main__':
+    arguments = get_args()
+    # arguments.mode = 'eval'
+    # arguments.save = 0
+    # arguments.model = 'models\\best_model.zip'
+    # arguments.env = Rendezvous3DOF
+    main(arguments)
