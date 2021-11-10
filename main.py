@@ -6,7 +6,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from custom_env import Rendezvous3DOF, Attitude
 from custom_callbacks import my_eval_callback
-import argparse
+from arguments import get_args
 
 """
 Main script used for training or evaluating a PPO model.
@@ -82,9 +82,9 @@ def train(args, model):
     """
 
     steps = args.steps
-    save = args.save
+    save = not args.nosave
 
-    if save == 1:
+    if save:
         eval_env = model.env
 
         callback = EvalCallback(
@@ -100,7 +100,7 @@ def train(args, model):
 
     else:
         callback = None
-        print(f'Argument <save> is set to {save}. Model will not be saved.')
+        print(f'Note: The model will NOT be saved.')
 
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
@@ -114,12 +114,13 @@ def evaluate(args, model):
     Renders each episode and then prints the average reward (and its standard dev).
     """
 
-    save = args.save
+    save = not args.nosave
 
-    if save == 1:
+    if save:
         callback = my_eval_callback
     else:
         callback = None
+        print(f'Note: The trajectory will NOT be saved.')
 
     print('Evaluating...')
     episodes = 1
@@ -164,29 +165,10 @@ def main(args):
     pass
 
 
-def get_args():
-    """
-    Parses the arguments from the command line.
-    :return: Namespace containing the arguments.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--mode',  dest='mode',  type=str, default='train')   # 'train' or 'eval'
-    parser.add_argument('--model', dest='model', type=str, default='')      # Model filename
-    parser.add_argument('--steps', dest='steps', type=int, default=200000)  # Training steps
-    # Environment: 'rdv' for Rendezvous3DOF(), 'att' for Attitude() HACK: Not intuitive. Try something better.
-    parser.add_argument('--env',   dest='env',   type=str, default='')
-    # Save the results: 1 to save, otherwise does not save.
-    parser.add_argument('--save',  dest='save',  type=int, default=1)
-
-    args = parser.parse_args()
-
-    return args
-
-
 if __name__ == '__main__':
     arguments = get_args()
     # arguments.mode = 'eval'
-    # arguments.save = 0
-    # arguments.model = 'models\\best_model.zip'
-    # arguments.env = Rendezvous3DOF
+    # arguments.nosave = False
+    # arguments.model = r'models\best_model.zip'
+    # arguments.env = 'rdv'
     main(arguments)

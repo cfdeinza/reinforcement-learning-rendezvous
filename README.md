@@ -3,10 +3,10 @@ The goal of this repository is to train an agent to perform an autonomous rendez
 The agent is trained with a reinforcement learning algorithm from Stable-Baselines3.
 
 ## Contents:
-`custom_callbacks.py`: contains callback functions used during training.\
-`custom_env.py`: contains environments created according to the guidelines of OpenAI Gym.\
-`main.py`: the main script that is executed to train or evaluate a model.\
-`plot_*.py`: these scripts plot the trajectories of the different models.
+- `custom_callbacks.py`: contains callback functions used during training.\
+- `custom_env.py`: contains environments created according to the guidelines of OpenAI Gym.\
+- `main.py`: the main script that is executed to train or evaluate a model.\
+- `plot_*.py`: these scripts plot the trajectories of the different models.
 
 ## Stable-Baselines 3:
 [Stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/) is an open source project of DLR's Institute of Robotics and Mechatronics. 
