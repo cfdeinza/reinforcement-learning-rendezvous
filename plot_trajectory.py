@@ -19,11 +19,11 @@ from plot_attitude_trajectory import generate_slider
 def load_data(args):
     """
     Load the data from a pickle file.
-    :param args: Namespace with arguments
+    :param args: path to file. Namespace with arguments
     :return: dictionary with data
     """
-    path = args.dir + args.file
-    with open(path, 'rb') as handle:
+    # path = args.dir + args.file
+    with open(args, 'rb') as handle:
         data = pickle.load(handle)
     return data
 
@@ -31,7 +31,8 @@ def load_data(args):
 def anim(args):
     """
     Make a 3d plotly animation showing the trajectory of the chaser around the target.
-    :param args: Namespace containing arguments.
+    # :param args: Namespace containing arguments.
+    :param args: path to the pickle file.
     :return: None
     """
     # Animate the trajectory in 3d
@@ -119,9 +120,10 @@ def plot3d(args):
     """
 
     # Load the data:
-    path = args.dir + args.file
-    with open(path, 'rb') as handle:
-        data = pickle.load(handle)
+    # path = args.dir + args.file
+    # with open(path, 'rb') as handle:
+    #     data = pickle.load(handle)
+    data = load_data(args)
     chaser_x = data['state'][0]
     chaser_y = data['state'][1]
     chaser_z = data['state'][2]
@@ -330,17 +332,22 @@ def get_args():
 
 
 if __name__ == '__main__':
-    start = time.clock()
-    arguments = get_args()
-    if arguments.type == '3d':
-        plot3d(arguments)
-    elif arguments.type == '2d':
-        plot2d(arguments)
-    elif arguments.type == 'a':
-        anim(arguments)
-    else:
-        plot3d(arguments)
-        plot2d(arguments)
+    start = time.perf_counter()
+    path = 'logs/rdv_trajectory_0.pickle'
+    # plot3d(path)
+    anim(path)
+# if __name__ == '__main__':
+#     start = time.clock()
+#     arguments = get_args()
+#     if arguments.type == '3d':
+#         plot3d(arguments)
+#     elif arguments.type == '2d':
+#         plot2d(arguments)
+#     elif arguments.type == 'a':
+#         anim(arguments)
+#     else:
+#         plot3d(arguments)
+#         plot2d(arguments)
 
     print(f'Finished on {time.ctime()}. ({time.clock()-start} seconds)')
 
