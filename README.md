@@ -1,4 +1,4 @@
-#Basic info:
+## Information:
 The goal of this repository is to train an agent to perform an autonomous rendezvous in a predefined environment. 
 The agent is trained with a reinforcement learning algorithm from Stable-Baselines3.
 
@@ -14,7 +14,7 @@ It provides a library of reliable reinforcement learning algorithms implemented 
 It is an up-to-date version of [Stable-Baselines](https://stable-baselines.readthedocs.io/en/master/), 
 which is based on [OpenAI Baselines](https://github.com/openai/baselines).
 
-###Tutorials:
+### Tutorials:
 
 [RL Baselines3 Zoo](https://github.com/DLR-RM/rl-baselines3-zoo) is a collection of pre-trained Reinforcement Learning 
 agents using Stable-Baselines3. It also provides basic scripts for training, evaluating agents, tuning hyperparameters 
@@ -24,7 +24,7 @@ can be done using [Optuna](https://github.com/pfnet/optuna) or [PFRL](https://gi
 Consider using [*Weights and Biases*](https://wandb.ai/site) to track your experiments.\
 See this [link](https://stable-baselines3.readthedocs.io/en/master/guide/examples.html) for a list of tutorials implemented in Google Colab.
 
-####[Training, saving, and loading](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/saving_loading_dqn.ipynb):
+#### [Training, saving, and loading](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/saving_loading_dqn.ipynb):
 
 - First we need to define the model: `model = <ALG>(<policy_model>, <env>, *kwargs)`\
 For example: `model = DQN('MlpPolicy', 'LunarLander-v2', verbose=1, exploration_final_eps=0.1, target_update_interval=250)`
@@ -41,7 +41,7 @@ For example:
     print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
     ```
 
-####Wrappers:
+#### Wrappers:
 [Wrappers](https://github.com/openai/gym/tree/master/gym/wrappers) are used to transform an environment in a modular way.
 ```
 env = gym.make('Pong-v0')
@@ -59,7 +59,7 @@ Quick tips for writing your own wrappers:
 - Create a wrapped function for at least one of the following: `__init__(self, env)`, `step`, `reset`, `render`, `close`, or `seed`
 - Your layered function should take its input from the previous layer (`self.env`) and/or the inner layer (`self.unwrapped`)
 
-####[Multiprocessing](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/multiprocessing_rl.ipynb):
+#### [Multiprocessing](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/multiprocessing_rl.ipynb):
 
 - Multiprocessing can speed-up the training process by running several processes in parallel.
 - To multiprocess RL training, we have to wrap the environment into a `SubprocVecEnv` object, 
@@ -75,7 +75,7 @@ For example:
     ```
 - Then the model can be trained just like a single process model, but it will be faster.
 
-####Callbacks:
+#### Callbacks:
 
 A [callback](https://stable-baselines3.readthedocs.io/en/master/guide/callbacks.html) 
 is a set of functions that will be called at given stages of the training procedure. 
@@ -90,7 +90,7 @@ Other utilities:
 - StopTrainingOnRewardThreshold: Stop the training early based on reward threshold.
 - EveryNTimesteps: Trigger a callback every *n* timesteps.
 
-####[Monitor training](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/monitor_training.ipynb):
+#### [Monitor training](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/monitor_training.ipynb):
 
 - The `Monitor` class is a wrapper for Gym environments. It is used to know the episode reward, length, time and other data.\
 For example:
@@ -108,7 +108,7 @@ For example:
     ```
 - There are built-in plotting helpers in `stable_baselines3.common.results_plotter`
 
-####[Normalization](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/pybullet.ipynb):
+#### [Normalization](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/pybullet.ipynb):
 - Normalizing input features may be essential to successful training of an RL agent 
 (by default, images are scaled but not other types of input), for instance when training on PyBullet environments. 
 For that, the wrapper [`VecNormalize`](https://stable-baselines3.readthedocs.io/en/master/guide/vec_envs.html#stable_baselines3.common.vec_env.VecNormalize) 
@@ -137,7 +137,7 @@ exists and will compute a running average and standard deviation of input featur
     env.norm_reward = False
     ```
 
-####[Advanced saving and loading](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/advanced_saving_loading.ipynb):
+#### [Advanced saving and loading](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/advanced_saving_loading.ipynb):
 - When defining the model, you can automatically create an environment for evaluation by using the `create_eval_env` argument:
     ```
     model = SAC('MlpPolicy', 'Pendulum-v0', verbose=1, learning_rate=1e-3, create_eval_env=True)
@@ -154,7 +154,7 @@ then you can't continue training afterward.
     policy.save("sac_policy_pendulum.pkl")
     ```
 
-####Recording:
+#### Recording:
 Recording is very useful when training or evaluating on Google Colab. 
 Use the [VecVideoRecorder](https://stable-baselines.readthedocs.io/en/master/guide/vec_envs.html#vecvideorecorder) 
 wrapper to record a video of the episode. See the [getting_started notebook](https://colab.research.google.com/github/Stable-Baselines-Team/rl-colab-notebooks/blob/sb3/stable_baselines_getting_started.ipynb) 
