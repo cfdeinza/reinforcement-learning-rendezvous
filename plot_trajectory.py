@@ -22,8 +22,8 @@ def load_data(args):
     :param args: path to file. Namespace with arguments
     :return: dictionary with data
     """
-    # path = args.dir + args.file
-    with open(args, 'rb') as handle:
+    path = args.dir + args.file
+    with open(path, 'rb') as handle:
         data = pickle.load(handle)
     return data
 
@@ -120,9 +120,6 @@ def plot3d(args):
     """
 
     # Load the data:
-    # path = args.dir + args.file
-    # with open(path, 'rb') as handle:
-    #     data = pickle.load(handle)
     data = load_data(args)
     chaser_x = data['state'][0]
     chaser_y = data['state'][1]
@@ -255,9 +252,8 @@ def plot2d(args):
     """
 
     # Load the data:
-    path = args.dir + args.file
-    with open(path, 'rb') as handle:
-        data = pickle.load(handle)
+    # path = args.dir + args.file
+    data = load_data(args)
     # x = data['x']
     # y = data['y']
     # z = data['z']
@@ -326,16 +322,17 @@ def get_args():
     parser.add_argument('--dir', dest='dir', type=str, default='logs\\')  # Directory of the data file
     parser.add_argument('--file', dest='file', type=str, default='rdv_trajectory_0.pickle')  # Name of the file
     parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
-    args = parser.parse_args()
+    args = parser.parse_args(args=[])
 
     return args
 
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    path = 'logs/rdv_trajectory_0.pickle'
+    # path = 'logs/rdv_trajectory_0.pickle'
+    arguments = get_args()
     # plot3d(path)
-    anim(path)
+    anim(arguments)
 # if __name__ == '__main__':
 #     start = time.clock()
 #     arguments = get_args()
@@ -349,7 +346,7 @@ if __name__ == '__main__':
 #         plot3d(arguments)
 #         plot2d(arguments)
 
-    print(f'Finished on {time.ctime()}. ({time.clock()-start} seconds)')
+    print(f'Finished on {time.ctime()}. ({time.perf_counter()-start} seconds)')
 
 
 # def plot3d(args):
