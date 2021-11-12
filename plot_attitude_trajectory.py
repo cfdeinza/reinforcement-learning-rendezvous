@@ -262,7 +262,7 @@ def get_args():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--dir', dest='dir', type=str, default='logs\\')  # Directory of the data file
+    parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
     parser.add_argument('--file', dest='file', type=str, default='att_trajectory_0.pickle')  # Name of the data file
     parser.add_argument('--type', dest='type', type=str, default='3d')  # Type of plot (2d or 3d)
     args = parser.parse_args()

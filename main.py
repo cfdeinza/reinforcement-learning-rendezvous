@@ -94,9 +94,9 @@ def train(args, model):
             n_eval_episodes=1,      # Number of episodes tested in each evaluation
             eval_freq=10000,        # Time steps between evaluations
             deterministic=True,     # Stochastic or deterministic actions used for evaluations
-            render=False            # Render the evaluations
+            render=args.render      # Render the evaluations
         )
-        print(f'Argument <save> set to {save}. Model will be saved in {callback.best_model_save_path}')
+        print(f'The model will be saved in {callback.best_model_save_path}')
 
     else:
         callback = None
@@ -129,7 +129,7 @@ def evaluate(args, model):
         model,
         model.env,
         n_eval_episodes=episodes,
-        render=True,
+        render=args.render,
         callback=callback)
 
     print(f'Mean reward over {episodes} episodes: {mean_reward:.2f} +/- {std_reward:.2f}')

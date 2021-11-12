@@ -54,12 +54,12 @@ class Rendezvous3DOF(gym.Env):
 
         # Properties of the target:
         self.target_radius = 5                          # Radius of the target (m)
-        self.cone_half_angle = radians(30)              # Half-angle of the entry corridor (rad)
+        self.cone_half_angle = radians(20)              # Half-angle of the entry corridor (rad)
         self.w = radians(6)                             # Rotation rate of the target (rad/s)
         self.theta = 0                                  # Angle btw the corridor axis and its initial direction (rad)
 
         # Range of initial conditions for the chaser:
-        self.initial_position_range = 1     # Range of possible initial positions for each axis (m)
+        self.initial_position_range = 20    # Range of possible initial positions for each axis (m)
         self.initial_velocity_range = 0.1   # Range of possible initial velocities for each axis (m/s)
 
         # Attributes used in render():
@@ -68,7 +68,7 @@ class Rendezvous3DOF(gym.Env):
         self.viewer = None      # Viewer
         self.chaser_transform = None  # Chaser transform (Not sure if it needs to be here)
         self.viewer_bounds = max(np.abs(self.ideal_start)) \
-            + self.initial_position_range  # Max distance shown in the viewer (m)
+            + self.initial_position_range/2  # Max distance shown in the viewer (m)
 
         # Action space:
         self.action_space = spaces.Box(

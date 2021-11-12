@@ -319,7 +319,7 @@ def get_args():
     :return: Namespace containing the arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', dest='dir', type=str, default='logs\\')  # Directory of the data file
+    parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
     parser.add_argument('--file', dest='file', type=str, default='rdv_trajectory_0.pickle')  # Name of the file
     parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
     args = parser.parse_args(args=[])
@@ -329,22 +329,16 @@ def get_args():
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    # path = 'logs/rdv_trajectory_0.pickle'
     arguments = get_args()
-    # plot3d(path)
-    anim(arguments)
-# if __name__ == '__main__':
-#     start = time.clock()
-#     arguments = get_args()
-#     if arguments.type == '3d':
-#         plot3d(arguments)
-#     elif arguments.type == '2d':
-#         plot2d(arguments)
-#     elif arguments.type == 'a':
-#         anim(arguments)
-#     else:
-#         plot3d(arguments)
-#         plot2d(arguments)
+    if arguments.type == '3d':
+        plot3d(arguments)
+    elif arguments.type == '2d':
+        plot2d(arguments)
+    elif arguments.type == 'a':
+        anim(arguments)
+    else:
+        plot3d(arguments)
+        plot2d(arguments)
 
     print(f'Finished on {time.ctime()}. ({time.perf_counter()-start} seconds)')
 

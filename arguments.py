@@ -4,11 +4,12 @@ import argparse
     This file contains the arguments to parse at the command line.
     File main.py will call get_args, which then returns the arguments.
     The arguments are:
-        mode: "train" or "eval" (indicates whether to train or evaluate the model).
-        model: Name of an existing file (to load a previously saved model).
-        steps: Number of training steps.
-        env: Select the environment ("rdv" for Rendezvous3DOF, or "att" for Attitude).
-        nosave: Use this flag to not save the results.
+        --mode: "train" or "eval" (indicates whether to train or evaluate the model).
+        --model: Name of an existing file (to load a previously saved model).
+        --steps: Number of training steps.
+        --env: Select the environment ("rdv" for Rendezvous3DOF, or "att" for Attitude).
+        --nosave: Use this flag to NOT save the results.
+        --render: Use this flag to render the episodes.
 """
 
 
@@ -39,7 +40,6 @@ def get_args():
         default=200000,
         help='Select the number of training steps'
     )
-    # HACK: The following arguments are not intuitive. Try something better.
     parser.add_argument(
         '--env',
         dest='env',
@@ -56,6 +56,15 @@ def get_args():
         const=True,
         default=False,
         help='Use this flag to avoid saving the results.'
+    )
+    parser.add_argument(
+        '--render',
+        dest='render',
+        type=bool,
+        nargs='?',
+        const=True,
+        default=False,
+        help='Use this flag to render the episodes.'
     )
 
     args = parser.parse_args()
