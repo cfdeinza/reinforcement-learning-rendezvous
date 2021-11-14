@@ -59,7 +59,7 @@ class Rendezvous3DOF(gym.Env):
         self.theta = 0                                  # Angle btw the corridor axis and its initial direction (rad)
 
         # Range of initial conditions for the chaser:
-        self.initial_position_range = 20    # Range of possible initial positions for each axis (m)
+        self.initial_position_range = 10    # Range of possible initial positions for each axis (m)
         self.initial_velocity_range = 0.1   # Range of possible initial velocities for each axis (m/s)
 
         # Attributes used in render():
@@ -78,7 +78,8 @@ class Rendezvous3DOF(gym.Env):
         )
 
         # Observation space:
-        obs_limit = np.append(self.max_axial_distance, self.max_axial_speed)
+        # obs_limit = np.append(self.max_axial_distance, self.max_axial_speed)  # Not normalized!
+        obs_limit = np.array([1, 1, 1, 1, 1, 1])  # Limits for the normalized observation space
 
         self.observation_space = spaces.Box(
             low=np.float32(-obs_limit),
@@ -95,7 +96,7 @@ class Rendezvous3DOF(gym.Env):
         :return: Observation, Reward, Done, Info
         """
 
-        # TODO: Clip the action? (The lunar_lander env does it)
+        # Clip the action? (It might already be done automatically)
         # action = np.clip(action, self.action_space.low, self.action_space.high)
 
         # The action causes an immediate change in the chaser's velocity:
@@ -117,8 +118,9 @@ class Rendezvous3DOF(gym.Env):
         # Update the time step:
         self.t += self.dt
 
-        # Observation: the observation is equal to the state
-        obs = self.state
+        # Observation: the observation is equal to the normalized state
+        # obs = self.state
+        obs = self.normalize_state()
 
         # Reward: for now, the reward penalizes distance from the origin
         dist = self.absolute_position()
@@ -130,7 +132,8 @@ class Rendezvous3DOF(gym.Env):
         # rew = (1000 - dist)*1e-2 - np.linalg.norm(action)
         # rew = - np.linalg.norm(action)  # Should the action be part of the state?
 
-        # Done:
+        # Done: End the episode if the chaser leaves the observation state or if the max time is reached.
+        # TODO: Add a constraint for successful rendezvous. (e.g. dist < 2 AND vel < 0.1 AND chaser within cone)
         if ~self.observation_space.contains(obs) or (self.t >= self.t_max):
             done = True
 
@@ -175,7 +178,8 @@ class Rendezvous3DOF(gym.Env):
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
 
-        obs = self.state
+        # obs = self.state
+        obs = self.normalize_state()
 
         return obs
 
@@ -333,6 +337,27 @@ class Rendezvous3DOF(gym.Env):
         vel = np.linalg.norm(self.state[3:])
 
         return vel
+
+    def normalize_state(self, custom_range=None) -> np.ndarray:
+        """
+        Normalize the position and velocity of the chaser to values between -1 & 1 (or to some custom range).
+        Rationale: According to the tips in SB3, you should "always normalize your observation space when you can,
+        i.e. when you know the boundaries."
+        :param custom_range: The desired range [a, b] for the normalized state. Default is [-1, 1]
+        :return: The normalized state
+        """
+
+        if custom_range is None:
+            custom_range = [-1, 1]
+
+        a = custom_range[0]     # Lowest possible value in normalized range
+        b = custom_range[1]     # Highest possible value in normalized range
+        pos = self.state[0:3]   # Position
+        vel = self.state[3:]    # Velocity
+        norm_pos = a + (pos + self.max_axial_distance)*(b-a) / (2*self.max_axial_distance)
+        norm_vel = a + (vel + self.max_axial_speed)*(b-a) / (2*self.max_axial_speed)
+        norm_state = np.append(norm_pos, norm_vel)
+        return norm_state
 
     def clohessy_wiltshire(self, t, x0):
         """

@@ -9,15 +9,16 @@ The agent is trained with a reinforcement learning algorithm from Stable-Baselin
 - `plot_*.py`: these scripts plot the trajectories of the different models.
 
 ## Stable-Baselines 3:
-[Stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/) is an open source project of DLR's Institute of Robotics and Mechatronics. 
+[Stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/) (SB3) is an open source project of DLR's Institute of Robotics and Mechatronics. 
 It provides a library of reliable reinforcement learning algorithms implemented in PyTorch. 
 It is an up-to-date version of [Stable-Baselines](https://stable-baselines.readthedocs.io/en/master/), 
-which is based on [OpenAI Baselines](https://github.com/openai/baselines).
+which is based on [OpenAI Baselines](https://github.com/openai/baselines). For more information about the internal functioning of SB3, 
+see the [Developer guide](https://stable-baselines3.readthedocs.io/en/master/guide/developer.html).
 
 ### Tutorials:
 
 [RL Baselines3 Zoo](https://github.com/DLR-RM/rl-baselines3-zoo) is a collection of pre-trained Reinforcement Learning 
-agents using Stable-Baselines3. It also provides basic scripts for training, evaluating agents, tuning hyperparameters 
+agents using SB3. It also provides basic scripts for training, evaluating agents, tuning hyperparameters 
 and recording videos.\
 Deep reinforcement learning is very sensitive to the choice of hyperparamters. Automatic hyperparameter optimization 
 can be done using [Optuna](https://github.com/pfnet/optuna) or [PFRL](https://github.com/pfnet/pfrl).\

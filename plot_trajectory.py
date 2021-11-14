@@ -10,7 +10,7 @@ import argparse
 import pickle
 # from mpl_toolkits.mplot3d import Axes3D
 import plotly.graph_objects as go
-from math import sin, cos, pi, radians
+from math import sin, cos, pi, radians, degrees
 from scipy.spatial.transform import Rotation as R
 import time
 from plot_attitude_trajectory import generate_slider
@@ -42,9 +42,17 @@ def anim(args):
     z = data['state'][2, 1:]
 
     # Plot a sphere to represent the target:
-    target_radius = 5
+    if 'target_radius' in data:
+        target_radius = data['target_radius']
+    else:
+        target_radius = 5
+        print(f'Target radius not defined. Using default value: {target_radius} m')
+    if 'cone_half_angle' in data:
+        cone_half_angle = data['cone_half_angle']
+    else:
+        cone_half_angle = radians(30)
+        print(f'Corridor angle not defined. Using default value: {round(degrees(cone_half_angle), 2)} deg')
     rotation = R.from_quat([sin(pi / 4), 0, 0, cos(pi / 4)])  # Rotation that aligns the corridor with the +x axis.
-    cone_half_angle = radians(30)
     target_x, target_y, target_z = create_target(target_radius, cone_half_angle)
     target_x, target_y, target_z = rotate_target(target_x, target_y, target_z, rotation)
 
@@ -53,7 +61,7 @@ def anim(args):
         x=target_x,  # x_sphere,
         y=target_y,  # y_sphere,
         z=target_z,  # z_sphere,
-        opacity=1,
+        opacity=0.5,
         surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
         colorscale=[[0, 'rgb(100,25,25)'], [1, 'rgb(200,50,50)']],
         showscale=False,
@@ -133,9 +141,17 @@ def plot3d(args):
         name='Trajectory')
 
     # Plot a sphere to represent the target:
-    target_radius = 5
+    if 'target_radius' in data:
+        target_radius = data['target_radius']
+    else:
+        target_radius = 5
+        print(f'Target radius not defined. Using default value: {target_radius} m')
+    if 'cone_half_angle' in data:
+        cone_half_angle = data['cone_half_angle']
+    else:
+        cone_half_angle = radians(30)
+        print(f'Corridor angle not defined. Using default value: {round(degrees(cone_half_angle), 2)} deg')
     rotation = R.from_quat([sin(pi/4), 0, 0, cos(pi/4)])
-    cone_half_angle = radians(30)
     target_x, target_y, target_z = create_target(target_radius, cone_half_angle)
     target_x, target_y, target_z = rotate_target(target_x, target_y, target_z, rotation)
 
@@ -144,7 +160,7 @@ def plot3d(args):
         x=target_x,  # x_sphere,
         y=target_y,  # y_sphere,
         z=target_z,  # z_sphere,
-        opacity=1,
+        opacity=0.5,
         surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
         colorscale=[[0, 'rgb(100,25,25)'], [1, 'rgb(200,50,50)']],
         showscale=False,
@@ -320,7 +336,7 @@ def get_args():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
-    parser.add_argument('--file', dest='file', type=str, default='rdv_trajectory_0.pickle')  # Name of the file
+    parser.add_argument('--file', dest='file', type=str, default='eval_trajectory.pickle')  # Name of the file
     parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
     args = parser.parse_args(args=[])
 
