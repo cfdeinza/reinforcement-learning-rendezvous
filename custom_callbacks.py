@@ -24,18 +24,17 @@ def my_eval_callback(locals_, globals_) -> None:
     # print(locals_['i'])
     obj = locals_['env'].envs[0].env
     n = locals_['episode_counts'][0]  # The current evaluation episode
-    if (obj.t == obj.t_max-1) and (n == 0):
-        # trajectory = {'x': obj.path_x, 'y': obj.path_y, 'z': obj.path_z, 'action': obj.actions}
-        trajectory = {
-            'state': obj.trajectory,
-            'action': obj.actions,
-            'target_radius': obj.target_radius,
-            'cone_half_angle': obj.cone_half_angle
-        }
-        # TODO: Save all attributes with obj.__dict__ or vars(obj)
+    if (obj.t == obj.t_max-1) and (n == 0):  # TODO:Use a different conditional. This won't work if t_max is not reached
+        # data = {
+        #     'state': obj.trajectory,
+        #     'action': obj.actions,
+        #     'target_radius': obj.target_radius,
+        #     'cone_half_angle': obj.cone_half_angle
+        # }
+        data = vars(obj)
         name = f'logs/eval_trajectory_{n}.pickle'
         with open(name, 'wb') as handle:
-            pickle.dump(trajectory, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print(f'Saved trajectory data: {name}')
 
     return
