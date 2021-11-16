@@ -296,6 +296,8 @@ def plot2d(args):
     vx = states[3]
     vy = states[4]
     vz = states[5]
+    pos = states[0:3]
+    vel = states[3:]
 
     # Create a matplotlib figure with two subplots:
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
@@ -304,10 +306,16 @@ def plot2d(args):
     t = range(len(x))
     make_2d_plot(ax1, t, x, y, z,
                  labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Distance (m)', title='Position')
+    # Plot the overall distance from the target:
+    dist = np.linalg.norm(pos, axis=0)
+    ax1.plot(t, dist, 'k--', label='Overall'), ax1.legend()
 
     # Plot the velocity of the chaser over time:
     make_2d_plot(ax2, t, vx, vy, vz,
                  labels=[r'$v_x$', r'$v_y$', r'$v_z$'], xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
+    # Plot the overall speed of the chaser:
+    speed = np.linalg.norm(vel, axis=0)
+    ax2.plot(t, speed, 'k--', label='Overall'), ax2.legend()
 
     # Plot the actions of the chaser over time:
     if 'actions' in data:
@@ -320,6 +328,8 @@ def plot2d(args):
     t = range(len(action_x))
     make_2d_plot(ax3, t, action_x, action_y, action_z,
                  labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)', title='Action')
+    # Plot the overall control effort:
+    ax3.plot(t, np.linalg.norm(actions, axis=0), 'k--', label='Overall'), ax3.legend()
 
     plt.tight_layout()
     plt.show()
