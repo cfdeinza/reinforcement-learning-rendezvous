@@ -10,6 +10,7 @@ import argparse
         --env: Select the environment ("rdv" for Rendezvous3DOF, or "att" for Attitude).
         --nosave: Use this flag to NOT save the results.
         --render: Use this flag to render the episodes.
+        --render: Use this flag to enable gSDE (Generalized State Dependent Exploration).
 """
 
 
@@ -31,7 +32,7 @@ def get_args():
         dest='model',
         type=str,
         default='',
-        help='Provide the name of an existing model to evaluate or continue training'
+        help='Provide the name of an existing model to evaluate or to continue training'
     )
     parser.add_argument(
         '--steps',
@@ -47,7 +48,6 @@ def get_args():
         default='',
         help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment'
     )
-    # Save the results: 1 to save, otherwise does not save.
     parser.add_argument(
         '--nosave',
         dest='nosave',
@@ -65,6 +65,15 @@ def get_args():
         const=True,
         default=False,
         help='Use this flag to render the episodes.'
+    )
+    parser.add_argument(
+        '--sde',
+        dest='sde',
+        type=bool,
+        nargs='?',
+        const=True,
+        default=False,
+        help='Use this flag to enable gSDE (Generalized State Dependent Exploration).'
     )
 
     args = parser.parse_args()
