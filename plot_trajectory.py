@@ -22,7 +22,9 @@ def load_data(args):
     :param args: path to file. Namespace with arguments
     :return: dictionary with data
     """
-    path = args.dir + args.file
+    # path = args.dir + args.file
+    path = args.path
+    print(f'Loading file "{path}"...')
     with open(path, 'rb') as handle:
         data = pickle.load(handle)
     return data
@@ -37,9 +39,14 @@ def anim(args):
     """
     # Animate the trajectory in 3d
     data = load_data(args)
-    x = data['state'][0, 1:]
-    y = data['state'][1, 1:]
-    z = data['state'][2, 1:]
+    if 'trajectory' in data:
+        x = data['trajectory'][0, 1:]
+        y = data['trajectory'][0, 1:]
+        z = data['trajectory'][0, 1:]
+    else:
+        x = data['state'][0, 1:]
+        y = data['state'][1, 1:]
+        z = data['state'][2, 1:]
 
     # Plot a sphere to represent the target:
     if 'target_radius' in data:
@@ -129,9 +136,14 @@ def plot3d(args):
 
     # Load the data:
     data = load_data(args)
-    chaser_x = data['state'][0]
-    chaser_y = data['state'][1]
-    chaser_z = data['state'][2]
+    if 'trajectory' in data:
+        chaser_x = data['trajectory'][0]
+        chaser_y = data['trajectory'][1]
+        chaser_z = data['trajectory'][2]
+    else:
+        chaser_x = data['state'][0]
+        chaser_y = data['state'][1]
+        chaser_z = data['state'][2]
 
     # Plot the trajectory of the chaser:
     trajectory = go.Scatter3d(
@@ -274,7 +286,10 @@ def plot2d(args):
     # y = data['y']
     # z = data['z']
     # x[0], y[0], z[0] = np.nan, np.nan, np.nan
-    states = data['state']
+    if 'trajectory' in data:
+        states = data['trajectory']
+    else:
+        states = data['state']
     x = states[0]
     y = states[1]
     z = states[2]
@@ -295,7 +310,10 @@ def plot2d(args):
                  labels=[r'$v_x$', r'$v_y$', r'$v_z$'], xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
 
     # Plot the actions of the chaser over time:
-    actions = data['action']
+    if 'actions' in data:
+        actions = data['actions']
+    else:
+        actions = data['action']
     action_x = actions[0]
     action_y = actions[1]
     action_z = actions[2]
@@ -335,10 +353,11 @@ def get_args():
     :return: Namespace containing the arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
-    parser.add_argument('--file', dest='file', type=str, default='eval_trajectory.pickle')  # Name of the file
+    # parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
+    # parser.add_argument('--file', dest='file', type=str, default='eval_trajectory.pickle')  # Name of the file
+    parser.add_argument('--path', dest='path', type=str, default='logs/eval_trajectory.pickle')
     parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
-    args = parser.parse_args(args=[])
+    args = parser.parse_args()
 
     return args
 

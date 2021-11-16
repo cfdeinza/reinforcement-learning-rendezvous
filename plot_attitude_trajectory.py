@@ -297,4 +297,4 @@ if __name__ == '__main__':
         plot3d_animation(sta)
         plot2d(sta, act)
 
-print('Finished.')
+    print('Finished.')

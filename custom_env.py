@@ -59,7 +59,7 @@ class Rendezvous3DOF(gym.Env):
         self.theta = 0                                  # Angle btw the corridor axis and its initial direction (rad)
 
         # Range of initial conditions for the chaser:
-        self.initial_position_range = 10    # Range of possible initial positions for each axis (m)
+        self.initial_position_range = 2     # Range of possible initial positions for each axis (m)
         self.initial_velocity_range = 0.1   # Range of possible initial velocities for each axis (m/s)
 
         # Attributes used in render():
