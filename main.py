@@ -55,7 +55,7 @@ def load_model(args, env):
         if mode == 'train':
             print('No model provided for training. Making new model...')
             # model = PPO(MlpPolicy, env, verbose=1)
-            model = PPO(MlpPolicy, env, verbose=1, use_sde=args.sde)
+            model = PPO(MlpPolicy, env, verbose=1, use_sde=args.sde, sde_sample_freq=10)
             # MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64?). In SB3, the
             # term "policy" refers to the class that handles all the networks used for training (not only the network
             # used to predict actions).

@@ -40,9 +40,9 @@ def anim(args):
     # Animate the trajectory in 3d
     data = load_data(args)
     if 'trajectory' in data:
-        x = data['trajectory'][0, 1:]
-        y = data['trajectory'][0, 1:]
-        z = data['trajectory'][0, 1:]
+        x = data['trajectory'][0]
+        y = data['trajectory'][1]
+        z = data['trajectory'][2]
     else:
         x = data['state'][0, 1:]
         y = data['state'][1, 1:]
@@ -83,7 +83,7 @@ def anim(args):
                           showlegend=False)
 
     # Make figure:
-    lim = 50
+    lim = data['viewer_bounds']
     fig_dict = {
         'data': [target, chaser],
         'layout': {
@@ -186,7 +186,7 @@ def plot3d(args):
     fig.add_trace(target)
 
     # Update the figure's layout:
-    lim = 50
+    lim = data['viewer_bounds']
     fig.update_layout(
         scene=dict(
             xaxis=dict(nticks=8, range=[-lim, lim], zerolinecolor="black"),
@@ -326,8 +326,10 @@ def plot2d(args):
     action_y = actions[1]
     action_z = actions[2]
     t = range(len(action_x))
+    sum_of_actions = sum(np.abs(action_x) + np.abs(action_y) + np.abs(action_z))
     make_2d_plot(ax3, t, action_x, action_y, action_z,
-                 labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)', title='Action')
+                 labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)',
+                 title='Action, total ' + r'$\Delta V = $' + str(round(sum_of_actions, 2)))
     # Plot the overall control effort:
     ax3.plot(t, np.linalg.norm(actions, axis=0), 'k--', label='Overall'), ax3.legend()
 

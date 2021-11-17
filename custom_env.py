@@ -38,7 +38,7 @@ class Rendezvous3DOF(gym.Env):
         self.state = None   # Placeholder until the state is defined in reset()
         self.dt = 1         # Time interval between actions (s)
         self.t = None       # Current time step. (Placeholder until reset() is called)
-        self.t_max = 300    # Max time steps per episode
+        self.t_max = 300    # Max time per episode
 
         # Orbit properties:
         self.mu = 3.986004418e14    # Gravitational parameter of Earth (m3/s2)
@@ -54,7 +54,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Properties of the target:
         self.target_radius = 5                          # Radius of the target (m)
-        self.cone_half_angle = radians(20)              # Half-angle of the entry corridor (rad)
+        self.cone_half_angle = radians(30)              # Half-angle of the entry corridor (rad)
         self.w = radians(6)                             # Rotation rate of the target (rad/s)
         self.theta = 0                                  # Angle btw the corridor axis and its initial direction (rad)
 
@@ -148,7 +148,7 @@ class Rendezvous3DOF(gym.Env):
         }
 
         if done:
-            print(f"Final distance: {round(info['Distance'], 2)} m")
+            print(f"Final distance: {round(info['Distance'], 2)} m at t = {self.t}")
             # Save the array of states and actions in 'info' (this is used for the eval_callback)
             info['trajectory'] = self.trajectory[:, 1:]
             info['actions'] = self.actions[:, 1:]
