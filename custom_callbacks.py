@@ -15,29 +15,33 @@ This file contains custom callbacks. For more info on how to make custom callbac
 def my_eval_callback(locals_, globals_) -> None:
     """
     Callback passed to the evaluate_policy function in order to save the evaluated trajectories (actions and states).
-    I use 't' to check when each trajectory is finished, and then save the data with pickle. I would prefer to use the
-    'done' variable, but 'done' is True AFTER each trajectory is finished (and all the previous states and actions have
-    been deleted). If I were to use 'done' I would have to save the states and actions on every step, instead of at the
-    end.
+    If multiple trajectories are evaluated, only the first one is saved.
+    I use the 'done' variable to check when a trajectory is finished. Then I save  the whole instance of the environment
+    as a dictionary using the pickle module.
+    Note that 'self.trajectory' and 'self.actions' must be stored in 'info', otherwise they get deleted by the reset()
+    function before we can save them.
     """
     # info = locals_['info']
     # print(locals_['i'])
     obj = locals_['env'].envs[0].env
     n = locals_['episode_counts'][0]  # The current evaluation episode
-    if (obj.t == obj.t_max-1) and (n == 0):  # TODO:Use a different conditional. This won't work if t_max is not reached
-        # data = {
-        #     'state': obj.trajectory,
-        #     'action': obj.actions,
-        #     'target_radius': obj.target_radius,
-        #     'cone_half_angle': obj.cone_half_angle
-        # }
+    if (n == 0) & locals_['done']:
         data = vars(obj)
+        data['trajectory'] = locals_['info']['trajectory']
+        data['actions'] = locals_['info']['actions']
         name = f'logs/eval_trajectory_{n}.pickle'
         with open(name, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print(f'Saved trajectory data: {name}')
-
     return
+    # if (obj.t == obj.t_max-1) and (n == 0):
+    #     # data = {
+    #     #     'state': obj.trajectory,
+    #     #     'action': obj.actions,
+    #     #     'target_radius': obj.target_radius,
+    #     #     'cone_half_angle': obj.cone_half_angle
+    #     # }
+    #     data = vars(obj)
 
 
 class MyCustomCallback(BaseCallback):

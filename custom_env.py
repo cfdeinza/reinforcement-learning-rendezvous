@@ -149,9 +149,9 @@ class Rendezvous3DOF(gym.Env):
 
         if done:
             print(f"Final distance: {round(info['Distance'], 2)} m")
-            # Remove the first row of NaNs from the actions and trajectory arrays
-            self.trajectory = self.trajectory[:, 1:]
-            self.actions = self.actions[:, 1:]
+            # Save the array of states and actions in 'info' (this is used for the eval_callback)
+            info['trajectory'] = self.trajectory[:, 1:]
+            info['actions'] = self.actions[:, 1:]
 
         return obs, rew, done, info
 

@@ -365,7 +365,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
     # parser.add_argument('--file', dest='file', type=str, default='eval_trajectory.pickle')  # Name of the file
-    parser.add_argument('--path', dest='path', type=str, default='logs/eval_trajectory.pickle')
+    parser.add_argument('--path', dest='path', type=str, default='logs/eval_trajectory_0.pickle')
     parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
     args = parser.parse_args()
 

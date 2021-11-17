@@ -45,7 +45,7 @@ def get_args():
         '--env',
         dest='env',
         type=str,
-        default='',
+        default='rdv',
         help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment'
     )
     parser.add_argument(
