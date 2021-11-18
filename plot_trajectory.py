@@ -88,9 +88,9 @@ def anim(args):
         'data': [target, chaser],
         'layout': {
             'scene': dict(
-                xaxis=dict(range=[-lim, lim]), xaxis_showspikes=False,
-                yaxis=dict(range=[-lim, lim]), yaxis_showspikes=False,
-                zaxis=dict(range=[-lim, lim]), zaxis_showspikes=False),
+                xaxis=dict(range=[-lim, lim], zerolinecolor="black"), xaxis_showspikes=False,
+                yaxis=dict(range=[-lim, lim], zerolinecolor="black"), yaxis_showspikes=False,
+                zaxis=dict(range=[-lim, lim], zerolinecolor="black"), zaxis_showspikes=False),
             'width': 800,
             'scene_aspectmode': 'cube',
             'scene_camera': define_camera(),
@@ -189,9 +189,9 @@ def plot3d(args):
     lim = data['viewer_bounds']
     fig.update_layout(
         scene=dict(
-            xaxis=dict(nticks=8, range=[-lim, lim], zerolinecolor="black"),
-            yaxis=dict(nticks=8, range=[-lim, lim], zerolinecolor="black"),
-            zaxis=dict(nticks=8, range=[-lim, lim], zerolinecolor="black"),
+            xaxis=dict(range=[-lim, lim], zerolinecolor="black"),
+            yaxis=dict(range=[-lim, lim], zerolinecolor="black"),
+            zaxis=dict(range=[-lim, lim], zerolinecolor="black"),
             xaxis_title='x (m)', xaxis_showspikes=False,
             yaxis_title='y (m)', yaxis_showspikes=False,
             zaxis_title='z (m)', zaxis_showspikes=False),

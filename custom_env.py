@@ -127,8 +127,14 @@ class Rendezvous3DOF(gym.Env):
         # vel = self.absolute_velocity()
         rew = max(100 - dist, 0) * 1e-2  # range: 0-1
 
-        if (dist < self.target_radius) & (self.angle_from_corridor() < pi-self.cone_half_angle):
-            rew -= 1
+        # Reward for staying close to the corridor axis at all times:
+        # rew += (1 - self.angle_from_corridor()/pi) * 1e-1  # range: 0-0.1
+        if self.angle_from_corridor() < self.cone_half_angle:
+            rew += 0.1
+
+        # Penalize collision:
+        if (dist < self.target_radius) & (self.angle_from_corridor() > self.cone_half_angle):
+            rew -= 0.5
         # rew = (1000 - dist)*1e-2 - np.linalg.norm(action)
         # rew = - np.linalg.norm(action)  # Should the action be part of the state?
 
@@ -259,7 +265,8 @@ class Rendezvous3DOF(gym.Env):
         :return: Angle (rad)
         """
         x, y, z = self.state[0:3]
-        theta = atan2(sqrt(x**2 + z**2), y)
+        alpha = atan2(sqrt(x**2 + z**2), y)
+        theta = pi - alpha
         return theta
 
     def draw_grid(self, limits):
