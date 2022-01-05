@@ -83,7 +83,11 @@ def anim(args):
                           showlegend=False)
 
     # Make figure:
-    lim = data['viewer_bounds']
+    if 'viewer_bounds' in data:
+        lim = data['viewer_bounds']
+    else:
+        lim = 50
+        print(f'Plot limits not defined. Using default value: {lim} m')
     fig_dict = {
         'data': [target, chaser],
         'layout': {
