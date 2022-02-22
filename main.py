@@ -100,7 +100,7 @@ def train(args, model):
             deterministic=True,     # Stochastic or deterministic actions used for evaluations
             render=args.render      # Render the evaluations
         )
-        print(f'The model will be saved in {callback.best_model_save_path}')
+        print(f'The best model will be saved in {callback.best_model_save_path}')
 
     else:
         callback = None
@@ -108,6 +108,11 @@ def train(args, model):
 
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
+
+    if save:  # Save the model when training is complete
+        last_model_path = './models/last_model.zip'
+        model.save(last_model_path)
+        print(f'Saved the last model to "{last_model_path}"')
 
     return
 
