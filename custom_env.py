@@ -134,7 +134,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Penalize collision:
         if (dist < self.target_radius) & (self.angle_from_corridor() > self.cone_half_angle):
-            rew -= 0.5
+            rew -= 0.1
         # rew = (1000 - dist)*1e-2 - np.linalg.norm(action)
         # rew = - np.linalg.norm(action)  # Should the action be part of the state?
 
@@ -261,12 +261,12 @@ class Rendezvous3DOF(gym.Env):
     def angle_from_corridor(self):
         """
         Computes the angle that the chaser makes with the corridor axis.
-        For now, it assumes that the corridor is in the y direction. It needs to be generalized for any direction.
+        For now, it assumes that the corridor is in the -y direction. It needs to be generalized for any direction.
         :return: Angle (rad)
         """
-        x, y, z = self.state[0:3]
-        alpha = atan2(sqrt(x**2 + z**2), y)
-        theta = pi - alpha
+        x, y, z = self.state[0:3]  # Coordinates of the chaser
+        alpha = atan2(sqrt(x**2 + z**2), y)  # Compute the angle between the chaser and the y axis
+        theta = pi - alpha  # Compute the complementary angle (because the corridor is pointing in the -y direction)
         return theta
 
     def draw_grid(self, limits):
