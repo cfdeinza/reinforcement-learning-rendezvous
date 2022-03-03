@@ -124,7 +124,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Reward: for now, the reward penalizes distance from the origin
         dist = self.absolute_position()
-        # vel = self.absolute_velocity()
+        vel = self.absolute_velocity()
         rew = max(100 - dist, 0) * 1e-2  # range: 0-1
 
         # Reward for staying close to the corridor axis at all times:
@@ -139,10 +139,12 @@ class Rendezvous3DOF(gym.Env):
         # rew = - np.linalg.norm(action)  # Should the action be part of the state?
 
         # Done: End the episode if the chaser leaves the observation state or if the max time is reached.
-        # TODO: Add a constraint for successful rendezvous. (e.g. dist < 2 AND vel < 0.1 AND chaser within cone)
         if ~self.observation_space.contains(obs) or (self.t >= self.t_max):
             done = True
-
+        # Constraint for successful rendezvous:
+        elif (dist < 3) and (vel < 0.1) and (self.angle_from_corridor() > self.cone_half_angle):
+            rew += 2 * (self.t_max - self.t)
+            done = True
         else:
             done = False
 

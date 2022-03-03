@@ -18,13 +18,14 @@ import argparse
 
 def plot_learning(args):
 
-    path = args.dir + '/' + args.file
-
+    path = args.path
+    print(f'Loading file "{path}"...')
     with np.load(path)as data:
         time = data['timesteps']
         rew = data['results']
         rew_avg = np.mean(rew, axis=1)
 
+    print('Plotting figure...')
     fig = plt.figure(num=1, clear=True, figsize=(9, 9))
 
     plt.plot(time, rew_avg)
@@ -45,9 +46,9 @@ def plot_learning(args):
 def get_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--dir', dest='dir', type=str, default='logs')  # 'train' or 'test'
-    parser.add_argument('--file', dest='file', type=str, default='evaluations.npz')  # Model filename
-
+    # parser.add_argument('--dir', dest='dir', type=str, default='logs')  # 'train' or 'test'
+    # parser.add_argument('--file', dest='file', type=str, default='evaluations.npz')  # Model filename
+    parser.add_argument('--path', dest='path', type=str, default='logs/evaluations.npz')
     args = parser.parse_args()
 
     return args
