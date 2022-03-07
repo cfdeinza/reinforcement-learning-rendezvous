@@ -35,10 +35,11 @@ class Rendezvous3DOF(gym.Env):
 
         # The ideal starting state for the chaser (randomness is introduced in reset())
         self.ideal_start = np.array([0, -40, 0, 0, 0, 0])
-        self.state = None   # Placeholder until the state is defined in reset()
-        self.dt = 1         # Time interval between actions (s)
-        self.t = None       # Current time step. (Placeholder until reset() is called)
-        self.t_max = 300    # Max time per episode
+        self.state = None       # Placeholder until the state is defined in reset()
+        self.dt = 1             # Time interval between actions (s)
+        self.t = None           # Current time step. (Placeholder until reset() is called)
+        self.t_max = 300        # Max time per episode
+        self.collided = None    # boolean that shows if the chaser has collided with the target during the current ep.
 
         # Orbit properties:
         self.mu = 3.986004418e14    # Gravitational parameter of Earth (m3/s2)
@@ -134,6 +135,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Penalize collision:
         if (dist < self.target_radius) & (self.angle_from_corridor() > self.cone_half_angle):
+            self.collided = True
             rew -= 0.1
         # rew = (1000 - dist)*1e-2 - np.linalg.norm(action)
         # rew = - np.linalg.norm(action)  # Should the action be part of the state?
@@ -142,7 +144,8 @@ class Rendezvous3DOF(gym.Env):
         if ~self.observation_space.contains(obs) or (self.t >= self.t_max):
             done = True
         # Constraint for successful rendezvous:
-        elif (dist < 3) and (vel < 0.1) and (self.angle_from_corridor() > self.cone_half_angle):
+        elif (dist < 3) and (vel < 0.1) and (self.angle_from_corridor() < self.cone_half_angle) and \
+                (self.collided is False):
             rew += 2 * (self.t_max - self.t)
             done = True
         else:
@@ -185,6 +188,7 @@ class Rendezvous3DOF(gym.Env):
         self.trajectory = np.zeros((self.observation_space.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
+        self.collided = False
 
         # obs = self.state
         obs = self.normalize_state()
