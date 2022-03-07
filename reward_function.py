@@ -11,22 +11,22 @@ It is useful to visualize where the highest rewards are (because in theory that 
 """
 
 
-def distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+def distance(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
     Compute the distance from the origin.
-    :param a: x-values
-    :param b: y-values
+    :param x: x-values
+    :param y: y-values
     """
-    return np.sqrt(a**2 + b**2)
+    return np.sqrt(x**2 + y**2)
 
 
-def angle_from_corridor(a, b):
+def angle_from_corridor(x, y):
     """
-    Compute the angles between the points and the -y axis.
-    :param a: x-values
-    :param b: y-values
+    Compute the angles between the points and the -y axis. Based on the cosine rule, simplified for the -y axis.
+    :param x: x-values
+    :param y: y-values
     """
-    return np.arctan2(a, -b)  		# *180/pi
+    return np.arccos(-y / distance(x, y))  # np.arctan2(a, -b)
 
 
 def current_reward(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -51,20 +51,32 @@ def current_reward(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def desired_reward(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    # Distance component of the reward:
-    dist = distance(x, y)
-    rew_dist = (100 - dist) * 1e-3
+    # # Distance component of the reward:
+    # dist = distance(x, y)
+    # rew_dist = (100 - dist) * 1e-3
+    #
+    # # Collision component of the reward
+    # angle = angle_from_corridor(x_mesh, y_mesh)
+    # angle_mask = angle < cone_half_angle
+    # sigmoid = 0.1 * (1 / (1 + e ** (5 - dist)) - 1)  # The sigmoid function penalizes coming too close to the target
+    # theta = angle  # This is a coefficient for the sigmoid function to avoid penalizing the corridor
+    # theta[angle_mask] = (theta[angle_mask] / cone_half_angle) ** 2
+    # theta[~angle_mask] = 1
+    # rew_collision = sigmoid * theta
 
-    # Collision component of the reward
-    angle = angle_from_corridor(x_mesh, y_mesh)
-    angle_mask = np.abs(angle) < cone_half_angle
-    sigmoid = 0.1 * (1 / (1 + e ** (5 - dist)) - 1)  # The sigmoid function penalizes coming too close to the target
-    theta = abs(angle)  # This is a coefficient for the sigmoid function to avoid penalizing the corridor
-    theta[angle_mask] = (theta[angle_mask] / cone_half_angle) ** 2
-    theta[~angle_mask] = 1
-    rew_collision = sigmoid * theta
+    dist = distance(x_mesh, y_mesh)
+    angle = angle_from_corridor(x, y)
 
-    rew = rew_dist + rew_collision
+    # Distance component:
+    rew_distance = (1 - angle / pi) * (1 - dist / 100)**3
+
+    # Collision component:
+    sigmoid = 1 / (1 + e ** (5 - dist)) - 1  # Sigmoid function to penalize proximity to target
+    rew_collision = (angle / pi) * sigmoid  # Multiply sigmoid with angle to avoid penalizing corridor
+
+    k_distance = 1e-1  # Coefficient for the distance component
+    k_collision = 1  # Coefficient for the collision component
+    rew = k_distance * rew_distance + k_collision * rew_collision
     return rew
 
 
@@ -80,40 +92,14 @@ x_mesh, y_mesh = np.meshgrid(x_vals, y_vals)  # Meshgrid
 target_radius = 5
 cone_half_angle = radians(30)
 
-"""
-# Distance component of the reward:
-dist = distance(x_mesh, y_mesh)
-# rew_dist = (100 - dist) * 1e-2  # Current
-rew_dist = (100 - dist) * 1e-3
-
-# Angle component of the reward:
-rew_angle = np.zeros(x_mesh.shape)
-angle = angle_from_corridor(x_mesh, y_mesh)
-angle_mask = np.abs(angle) < cone_half_angle
-# rew_angle[angle_mask] += 0.1  # Current
-# rew_angle[angle_mask] += 0.1 * (cone_half_angle - np.abs(angle)[angle_mask])/cone_half_angle
-
-# Collision component of reward:
-# rew_collision = np.zeros(x.shape)
-sigmoid = 0.1 * (1 / (1 + e**(5-dist)) - 1)  # The sigmoid function penalizes coming too close to the target
-theta = abs(angle)  # This is a coefficient for the sigmoid function to avoid penalizing the corridor
-theta[angle_mask] = (theta[angle_mask]/cone_half_angle)**2
-theta[~angle_mask] = 1
-rew_collision = sigmoid * theta
-collision_mask = (dist < target_radius) & (np.abs(angle) > cone_half_angle)
-# rew_collision[collision_mask] -= 0.1  # Current
-
-# z = rew_dist + rew_angle + rew_collision
-"""
-
-z = current_reward(x_mesh, y_mesh)
+z = desired_reward(x_mesh, y_mesh)
 
 
 def plot_cone(limit, half_angle, axis=None):
     """Plot a 2d cone to represent the approach corridor."""
     x_cone = np.array([-1, 0, 1]) * limit * tan(half_angle)
     y_cone = np.array([-1, 0, -1]) * limit
-    z_cone = np.zeros(x_cone.shape) + np.mean(z)
+    z_cone = np.zeros(x_cone.shape)  # + np.mean(z)
     if axis is not None:
         axis.plot3D(x_cone, y_cone, z_cone, 'k-', linewidth=3)
     return x_cone, y_cone, z_cone
@@ -124,7 +110,7 @@ def plot_target(radius, axis=None):
     phi = np.linspace(0, 2*pi, 30)
     x_target = np.cos(phi) * radius
     y_target = np.sin(phi) * radius
-    z_target = np.zeros(x_target.shape) + np.mean(z)
+    z_target = np.zeros(x_target.shape)  # + np.mean(z)
     if axis is not None:
         axis.plot3D(x_target, y_target, z_target, 'k-', linewidth=3)
     return x_target, y_target, z_target
