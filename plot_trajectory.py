@@ -36,18 +36,14 @@ def plot_animation(args):
     :param args: path to the pickle file.
     :return: None
     """
-    # Animate the trajectory in 3d
-    data = load_data(args)
-    if 'trajectory' in data:
-        x = data['trajectory'][0]
-        y = data['trajectory'][1]
-        z = data['trajectory'][2]
-    else:
-        x = data['state'][0, 1:]
-        y = data['state'][1, 1:]
-        z = data['state'][2, 1:]
 
-    # Plot a sphere to represent the target:
+    # Retrieve trajectory data from pickle file:
+    data = load_data(args)
+    x = data['trajectory'][0]
+    y = data['trajectory'][1]
+    z = data['trajectory'][2]
+
+    # Check that the required info about the target is available:
     if 'target_radius' in data:
         target_radius = data['target_radius']
     else:
@@ -58,31 +54,36 @@ def plot_animation(args):
     else:
         cone_half_angle = radians(30)
         print(f'Corridor angle not defined. Using default value: {round(degrees(cone_half_angle), 2)} deg')
-    rotation = R.from_quat([sin(pi / 4), 0, 0, cos(pi / 4)])  # Rotation that aligns the corridor with the +x axis.
-    target_x, target_y, target_z = create_target_points(target_radius, cone_half_angle)
-    target_x, target_y, target_z = rotate_target_points(target_x, target_y, target_z, rotation)
+    if 'corridor_axis' in data:
+        corridor_vector = data['corridor_axis']
+    else:
+        corridor_vector = np.array([0, -1, 0])
+        print(f'Corridor axis not defined. Using default value: {corridor_vector}')
 
     # Make surface object for the target:
+    target_x, target_y, target_z = create_target_points(target_radius, cone_half_angle, corridor_vector)
     target = go.Surface(
-        x=target_x,  # x_sphere,
-        y=target_y,  # y_sphere,
-        z=target_z,  # z_sphere,
-        opacity=0.5,
+        x=target_x,
+        y=target_y,
+        z=target_z,
+        opacity=1,
         surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
         colorscale=[[0, 'rgb(100,25,25)'], [1, 'rgb(200,50,50)']],
         showscale=False,
         name='Target',
         showlegend=True)
 
-    # Make Scatter3d object for the trajectory (this trace will be updated in each frame)
+    # Make Scatter3d object for the trajectory
     chaser_trajectory = go.Scatter3d(x=x, y=y, z=z,
                                      line={'color': 'rgb(50,150,50)', 'dash': 'solid', 'width': 4},
                                      marker={'size': 2, 'color': 'rgb(50,50,50)'},
                                      name='Trajectory',
                                      showlegend=True)
+
+    # Make a cube to represent the chaser:
     chaser_body, chaser_edges = create_cube(x[-1], y[-1], z[-1], name='Chaser')
 
-    # Make figure:
+    # Make the figure:
     if 'viewer_bounds' in data:
         lim = data['viewer_bounds']
     else:
@@ -117,13 +118,33 @@ def plot_animation(args):
         'frames': []}
     fig = go.Figure(fig_dict)
 
+    # Compute corridor rotation:
+    if 'w_norm' in data and 'w_mag' in data:
+        w_norm = data['w_norm']
+        w_mag = data['w_mag']
+    else:
+        w_norm = np.array([0, 0, 1])
+        w_mag = 0
+        print('Target rotation not defined. Plotting static target instead.')
+    dt = data['dt']
+    euler_axis = w_norm * w_mag
+    theta = w_mag * dt
+    quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
+    rot = R.from_quat(quaternion)  # Rotation of the target during each time step
+
     # Create the frames:
     frames = []
     for i in range(0, len(x)):
+        # Update target:
+        target_x, target_y, target_z = rotate_target_points(target_x, target_y, target_z, rot)
+        current_target = go.Surface(x=target_x, y=target_y, z=target_z)
+        # Update trajectory:
         current_trajectory = go.Scatter3d(x=x[0:i+1], y=y[0:i+1], z=z[0:i+1])
-        current_body, current_edges = create_cube(x[i], y[i], z[i], name='Chaser')
-        frame = {"data": [current_trajectory, current_body, current_edges],
-                 "name": str(i), "traces": [1, 2, 3]}  # 'traces' indicates which trace we are updating.
+        # Update chaser:
+        current_body, current_edges = create_cube(x[i], y[i], z[i])
+        # Define new frame:
+        frame = {"data": [current_target, current_trajectory, current_body, current_edges],
+                 "name": str(i), "traces": [0, 1, 2, 3]}  # 'traces' indicates which trace we are updating.
         frames.append(frame)
     fig.frames = tuple(frames)
     sliders = generate_slider(fig)
@@ -210,12 +231,13 @@ def plot3d(args):
     return
 
 
-def create_target_points(r: float, angle: float) -> (np.ndarray, np.ndarray, np.ndarray):
+def create_target_points(r: float, angle: float, vec: np.ndarray=None) -> (np.ndarray, np.ndarray, np.ndarray):
     """
     This function creates the array of points for the target.
     The target is a sphere with a conical cut-out pointed in the +z direction.
     :param r: radius of the sphere
     :param angle: half-angle of the cone cut-out
+    :param vec: vector in the direction of the corridor axis
     :return: 3 numpy arrays (x, y, and z coordinates of the points on the sphere)
     """
 
@@ -230,6 +252,15 @@ def create_target_points(r: float, angle: float) -> (np.ndarray, np.ndarray, np.
     dist_from_z = np.sqrt(x_sphere[cone_mask] ** 2 + y_sphere[cone_mask] ** 2)  # Distance of each point from the z-axis
     z_sphere[cone_mask] = z_sphere[cone_mask] - r * (1 - dist_from_z / np.max(dist_from_z))
 
+    # Rotate the cone to match the direction of the corridor:
+    if vec is not None:
+        z_vec = np.array([0, 0, 1])  # Vector pointing in the +z direction (initial direction of the cone)
+        cross = np.cross(z_vec, vec)  # Cross product of the current cone direction and the desired corridor direction
+        euler_axis = cross / np.linalg.norm(cross)
+        theta = np.arccos(np.dot(z_vec, vec) / (np.linalg.norm(z_vec) * np.linalg.norm(vec)))
+        quat = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
+        rot = R.from_quat(quat)  # Rotation from the current cone direction to the desired corridor direction
+        x_sphere, y_sphere, z_sphere = rotate_target_points(x_sphere, y_sphere, z_sphere, rot)
     return x_sphere, y_sphere, z_sphere
 
 

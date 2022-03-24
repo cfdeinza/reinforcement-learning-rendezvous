@@ -11,8 +11,11 @@ from scipy.spatial.transform import Rotation as R
 import plotly.graph_objects as go
 
 """
-This file contains the custom environments created according to the guidelines of OpenAI Gym.
-Each environment is defined in a class.
+This file contains the custom environments used to train reinforcement learning models. 
+The environments were created following the guidelines specified by OpenAI Gym.
+Each environment is defined as a class:
+    -Rendezvous3DOF() simulates the rendezvous of a chaser and a passive target.
+    -Attitude() simulates an attitude control system.
 
 Written by C. F. De Inza Niemeijer
 """
@@ -33,13 +36,13 @@ class Rendezvous3DOF(gym.Env):
 
     def __init__(self):
 
-        # The ideal starting state for the chaser (randomness is introduced in reset())
+        # The ideal starting state for the chaser (randomness is introduced in reset()):
         self.ideal_start = np.array([0, -40, 0, 0, 0, 0])
         self.state = None       # Placeholder until the state is defined in reset()
-        self.dt = 1             # Time interval between actions (s)
-        self.t = None           # Current time step. (Placeholder until reset() is called)
-        self.t_max = 300        # Max time per episode
         self.collided = None    # boolean that shows if the chaser has collided with the target during the current ep.
+        self.t = None           # Current time step. (Placeholder until reset() is called)
+        self.dt = 1             # Time interval between actions (s)
+        self.t_max = 300        # Max time per episode
 
         # Orbit properties:
         self.mu = 3.986004418e14    # Gravitational parameter of Earth (m3/s2)
@@ -56,17 +59,18 @@ class Rendezvous3DOF(gym.Env):
         # Properties of the target:
         self.target_radius = 5                          # Radius of the target (m)
         self.cone_half_angle = radians(30)              # Half-angle of the entry corridor (rad)
-        self.w = radians(6)                             # Rotation rate of the target (rad/s)
-        self.theta = 0                                  # Angle btw the corridor axis and its initial direction (rad)
+        self.w_norm = np.array([0, 0, 1])               # Normalized angular velocity of the target (unitless)
+        self.w_mag = radians(0)                         # Magnitude of the angular velocity (rad/s)
+        self.corridor_axis = None                       # Direction of the corridor axis
 
         # Range of initial conditions for the chaser:
         self.initial_position_range = 2     # Range of possible initial positions for each axis (m)
         self.initial_velocity_range = 0.1   # Range of possible initial velocities for each axis (m/s)
 
         # Attributes used in render():
-        self.trajectory = None  # Array of states (7xn)
+        self.trajectory = None  # Array of states (6xn)
         self.actions = None     # Array of actions (3xn)
-        self.viewer = None      # Viewer
+        self.viewer = None      # Viewer window
         self.chaser_transform = None  # Chaser transform (Not sure if it needs to be here)
         self.viewer_bounds = max(np.abs(self.ideal_start)) \
             + self.initial_position_range/2  # Max distance shown in the viewer (m)
@@ -115,6 +119,13 @@ class Rendezvous3DOF(gym.Env):
             self.actions,
             action.reshape((self.action_space.shape[0], 1)),
             axis=1)
+
+        # Compute the new corridor orientation:
+        euler_axis = self.w_norm
+        theta = self.w_mag * self.dt
+        quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))  # Rotation quaternion
+        rotation = R.from_quat(quaternion)
+        self.corridor_axis = rotation.apply(self.corridor_axis)
 
         # Update the time step:
         self.t += self.dt
@@ -185,6 +196,7 @@ class Rendezvous3DOF(gym.Env):
         random_state = np.append(random_initial_position, random_initial_velocity)
 
         self.state = self.ideal_start + random_state
+        self.corridor_axis = np.array([0, 1, 0])  # TODO: Randomize initial corridor orientation?
         self.trajectory = np.zeros((self.observation_space.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
@@ -264,16 +276,20 @@ class Rendezvous3DOF(gym.Env):
 
     """ ======================================== Rendezvous3DOF Utils: ========================================= """
 
-    def angle_from_corridor(self):
+    def angle_from_corridor(self) -> np.float:
         """
-        Computes the angle that the chaser makes with the corridor axis.
-        For now, it assumes that the corridor is in the -y direction. It needs to be generalized for any direction.
-        :return: Angle (rad)
+        Computes the angle between the chaser and the corridor axis, using the geometric definition of the dot product:
+        cos(theta) = (u . v) / (|u|*|v|)
+        :return: angle (in radians) between the chaser and the corridor axis
         """
-        x, y, z = self.state[0:3]  # Coordinates of the chaser
-        alpha = atan2(sqrt(x**2 + z**2), y)  # Compute the angle between the chaser and the y axis
-        theta = pi - alpha  # Compute the complementary angle (because the corridor is pointing in the -y direction)
-        return theta
+
+        pos = self.state[0:3]       # Chaser position vector
+        axis = self.corridor_axis   # Corridor vector
+
+        # Apply the dot product formula:
+        angle = np.arccos(np.dot(pos, axis) / (np.linalg.norm(pos) * np.linalg.norm(axis)))
+
+        return angle
 
     def draw_grid(self, limits):
         """
