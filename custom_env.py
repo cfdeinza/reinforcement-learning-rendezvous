@@ -60,7 +60,7 @@ class Rendezvous3DOF(gym.Env):
         self.target_radius = 5                          # Radius of the target (m)
         self.cone_half_angle = radians(30)              # Half-angle of the entry corridor (rad)
         self.w_norm = np.array([0, 0, 1])               # Normalized angular velocity of the target (unitless)
-        self.w_mag = radians(0)                         # Magnitude of the angular velocity (rad/s)
+        self.w_mag = radians(3)                         # Magnitude of the angular velocity (rad/s)
         self.corridor_axis = None                       # Direction of the corridor axis
 
         # Range of initial conditions for the chaser:
@@ -170,7 +170,8 @@ class Rendezvous3DOF(gym.Env):
         }
 
         if done:
-            print(f"Final distance: {round(info['Distance'], 2)} m at t = {self.t}")
+            print(f"Final distance: {round(info['Distance'], 2)} m at t = {self.t} "
+                  f"{'(Collided)' if self.collided else ''}")
             # Save the array of states and actions in 'info' (this is used for the eval_callback)
             info['trajectory'] = self.trajectory[:, 1:]
             info['actions'] = self.actions[:, 1:]
@@ -196,7 +197,7 @@ class Rendezvous3DOF(gym.Env):
         random_state = np.append(random_initial_position, random_initial_velocity)
 
         self.state = self.ideal_start + random_state
-        self.corridor_axis = np.array([0, 1, 0])  # TODO: Randomize initial corridor orientation?
+        self.corridor_axis = np.array([0, -1, 0])  # TODO: Randomize initial corridor orientation?
         self.trajectory = np.zeros((self.observation_space.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps

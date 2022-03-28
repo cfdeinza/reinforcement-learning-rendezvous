@@ -68,7 +68,18 @@ def plot_animation(args):
         z=target_z,
         opacity=1,
         surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
-        colorscale=[[0, 'rgb(100,25,25)'], [1, 'rgb(200,50,50)']],
+        colorscale=[
+            [0, 'rgb(100,100,0)'],
+            [0.97, 'rgb(200,200,0)'],  # 250,100,100
+            [0.971, 'rgb(0,0,0)'],
+            [0.999, 'rgb(0,0,0)'],
+            [1, 'rgb(200,30,30)']
+        ],
+        # contours=dict(
+        #     x=dict(show=False, color='rgb(0,0,0)', start=-target_radius, end=target_radius, size=target_radius/5),
+        #     y=dict(show=False, color='rgb(0,0,0)', start=-target_radius, end=target_radius, size=target_radius/5),
+        #     z=dict(show=True, color='rgb(200,0,0)', start=-target_radius, end=target_radius, size=target_radius/5)
+        # ),
         showscale=False,
         name='Target',
         showlegend=True)
@@ -103,7 +114,7 @@ def plot_animation(args):
             'updatemenus': [{
                 "buttons": [
                     {
-                        "args": [None, {"frame": {"duration": 15},
+                        "args": [None, {"frame": {"duration": 0},
                                         'mode': 'immediate', "fromcurrent": True,
                                         "transition": {"duration": 0}}],
                         "label": "Play",
@@ -118,6 +129,10 @@ def plot_animation(args):
         'frames': []}
     fig = go.Figure(fig_dict)
 
+    # Update the time interval between the animation's frames:
+    dt = data['dt']
+    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = dt * 500
+
     # Compute corridor rotation:
     if 'w_norm' in data and 'w_mag' in data:
         w_norm = data['w_norm']
@@ -126,8 +141,7 @@ def plot_animation(args):
         w_norm = np.array([0, 0, 1])
         w_mag = 0
         print('Target rotation not defined. Plotting static target instead.')
-    dt = data['dt']
-    euler_axis = w_norm * w_mag
+    euler_axis = w_norm
     theta = w_mag * dt
     quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
     rot = R.from_quat(quaternion)  # Rotation of the target during each time step

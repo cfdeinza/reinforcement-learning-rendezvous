@@ -60,7 +60,7 @@ def load_model(args, env):
             # term "policy" refers to the class that handles all the networks used for training (not only the network
             # used to predict actions).
             # Note that the PPO class automatically wraps the Gym environment into a Monitor and a DummyVecEnv.
-        elif mode == 'test':
+        elif mode == 'eval':
             print('Need to specify a model for testing.\nExiting')
             exit()
         else:
