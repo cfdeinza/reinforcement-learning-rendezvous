@@ -23,12 +23,16 @@ def plot_learning(args):
     with np.load(path)as data:
         time = data['timesteps']
         rew = data['results']
-        rew_avg = np.mean(rew, axis=1)
+
+    rew_avg = np.mean(rew, axis=1)
+    max_rew = np.max(rew_avg)
+    max_time = time[np.argmax(rew_avg)]
 
     print('Plotting figure...')
     fig = plt.figure(num=1, clear=True, figsize=(9, 9))
 
     plt.plot(time, rew_avg)
+    plt.plot(max_time, max_rew, 'r.')
     plt.grid()
     plt.xlabel('Time steps')
     plt.ylabel('Average episode reward')

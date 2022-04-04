@@ -45,10 +45,10 @@ class Rendezvous3DOF(gym.Env):
         self.t_max = 300        # Max time per episode
 
         # Orbit properties:
-        self.mu = 3.986004418e14    # Gravitational parameter of Earth (m3/s2)
-        self.Re = 6371e3            # Radius of the Earth (m)
-        self.h = 800e3              # Altitude of the orbit (m)
-        self.r = self.Re + self.h   # Radius of the orbit (m)
+        self.mu = 3.986004418e14            # Gravitational parameter of Earth (m3/s2)
+        self.Re = 6371e3                    # Radius of the Earth (m)
+        self.h = 800e3                      # Altitude of the orbit (m)
+        self.r = self.Re + self.h           # Radius of the orbit (m)
         self.n = sqrt(self.mu / self.r**3)  # Mean motion of the orbit (rad/s)
 
         # Action and state constraints:
@@ -132,7 +132,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Observation: the observation is equal to the normalized state
         # obs = self.state
-        obs = self.normalize_state()
+        obs = self.normalize_state().astype(self.observation_space.dtype)
 
         # Reward: for now, the reward penalizes distance from the origin
         dist = self.absolute_position()
