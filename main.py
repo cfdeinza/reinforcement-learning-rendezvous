@@ -17,7 +17,7 @@ Written by C. F. De Inza Niemeijer.
 
 def load_env(args):
     """
-    Create an instance of the environment and wrap it in the required Gym wrappers.
+    Create an instance of the environment and wrap it in the required Gym wrappers.\n
     :param args: Namespace containing arguments.
     :return: Wrapped environment.
     """
@@ -44,7 +44,7 @@ def load_env(args):
 
 def load_model(args, env):
     """
-    Load an existing PPO model if a valid file name is given. Otherwise, create a new PPO model.
+    Load an existing PPO model if a valid file name is given. Otherwise, create a new PPO model.\n
     """
 
     mode = args.mode
@@ -82,7 +82,7 @@ def train(args, model):
     """
     Train the model for a given number of time steps.
     Uses the EvalCallback to periodically evaluate and save the model.
-    By default, it runs 5 episodes on each evaluation.
+    By default, it runs 5 episodes on each evaluation.\n
     """
 
     steps = args.steps
@@ -120,7 +120,7 @@ def train(args, model):
 def evaluate(args, model):
     """
     Test the performance of the model for a given number of episodes.
-    Renders each episode and then prints the average reward (and its standard dev).
+    Renders each episode and then prints the average reward (and its standard dev).\n
     """
 
     save = not args.nosave
@@ -149,7 +149,7 @@ def evaluate(args, model):
 def main(args):
     """
     Main function to run.
-    The arguments ("mode" and "model") are parsed from the command line.
+    The arguments ("mode" and "model") are parsed from the command line.\n
     """
 
     # Create an instance of the environment: Rendezvous3DOF() or Attitude()

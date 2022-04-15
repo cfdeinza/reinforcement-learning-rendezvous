@@ -96,7 +96,7 @@ class Rendezvous3DOF(gym.Env):
 
     def step(self, action: np.ndarray):
         """
-        Propagate the state of the system one step forward in time (t -> t+1).
+        Propagate the state of the system one step forward in time (t -> t+1).\n
         :param action: Action taken at time t. Shape: (3,).
         :return: Observation, Reward, Done, Info
         """
@@ -180,7 +180,7 @@ class Rendezvous3DOF(gym.Env):
 
     def reset(self):
         """
-        Reset the environment to a random state near the ideal starting position.
+        Reset the environment to a random state near the ideal starting position.\n
         :return: An observation of the state
         """
         random_initial_position = np.random.uniform(
@@ -210,7 +210,7 @@ class Rendezvous3DOF(gym.Env):
 
     def render(self, mode='human'):
         """
-        Renders the environment.
+        Renders the environment.\n
         :param mode: "human" renders the environment to the current display
         :return:
         """
@@ -265,7 +265,7 @@ class Rendezvous3DOF(gym.Env):
 
     def close(self):
         """
-        Close the viewer.
+        Close the viewer.\n
         :return:
         """
 
@@ -280,7 +280,7 @@ class Rendezvous3DOF(gym.Env):
     def angle_from_corridor(self) -> np.float:
         """
         Computes the angle between the chaser and the corridor axis, using the geometric definition of the dot product:
-        cos(theta) = (u . v) / (|u|*|v|)
+        cos(theta) = (u . v) / (|u|*|v|)\n
         :return: angle (in radians) between the chaser and the corridor axis
         """
 
@@ -294,7 +294,7 @@ class Rendezvous3DOF(gym.Env):
 
     def draw_grid(self, limits):
         """
-        Draw a grid to be rendered in the viewer.
+        Draw a grid to be rendered in the viewer.\n
         :param limits: A list containing the upper and lower limits of the viewer
         :return:
         """
@@ -322,6 +322,13 @@ class Rendezvous3DOF(gym.Env):
         return
 
     def draw_arrow(self, action, direction, length=10):
+        """
+        Draw an arrow on the viewer to represent the action taken by the agent.\n
+        :param action: the action taken by the agent
+        :param direction: either "vertical" or "horizontal"
+        :param length: length scale for the arrow
+        :return:
+        """
 
         x0, y0 = self.state[0:2]
         # inc = length * np.sign(action)
@@ -352,7 +359,7 @@ class Rendezvous3DOF(gym.Env):
 
     def absolute_position(self):
         """
-        Compute the magnitude of the chaser's position (i.e. distance from the origin).
+        Compute the magnitude of the chaser's position (i.e. distance from the origin).\n
         :return: pos
         """
         pos = np.linalg.norm(self.state[0:3])
@@ -361,7 +368,7 @@ class Rendezvous3DOF(gym.Env):
 
     def absolute_velocity(self):
         """
-        Compute the magnitude of the chaser's velocity w.r.t the target.
+        Compute the magnitude of the chaser's velocity w.r.t the target.\n
         :return: vel
         """
         vel = np.linalg.norm(self.state[3:])
@@ -372,7 +379,7 @@ class Rendezvous3DOF(gym.Env):
         """
         Normalize the position and velocity of the chaser to values between -1 & 1 (or to some custom range).
         Rationale: According to the tips in SB3, you should "always normalize your observation space when you can,
-        i.e. when you know the boundaries."
+        i.e. when you know the boundaries."\n
         :param custom_range: The desired range [a, b] for the normalized state. Default is [-1, 1]
         :return: The normalized state
         """
@@ -392,7 +399,7 @@ class Rendezvous3DOF(gym.Env):
     def clohessy_wiltshire(self, t, x0):
         """
         Uses the Clohessy Wiltshire model to find the state at time t,
-        given an initial state (x0) and a time length (t).
+        given an initial state (x0) and a time length (t).\n
         :param t: Time duration
         :param x0: Initial state
         :return: State at time t
@@ -420,7 +427,7 @@ class Rendezvous3DOF(gym.Env):
 class Attitude(gym.Env):
 
     """
-    This environment simulates the attitude control of a spacecraft.
+    This environment simulates the attitude control of a spacecraft.\n
     """
     # TODO: Use the error quaternion as the state?
 

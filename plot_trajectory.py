@@ -14,31 +14,36 @@ from math import sin, cos, pi, radians, degrees
 from scipy.spatial.transform import Rotation as R
 import time
 from plot_attitude_trajectory import generate_slider
+from os import path as os_path
 
 
 def load_data(args):
     """
-    Load the data from a pickle file.
-    :param args: path to file. Namespace with arguments
+    Load the data from a pickle file.\n
+    :param args: path to file.
     :return: dictionary with data
     """
     path = args.path
+
+    if len(path) == 0:
+        print('Please use the "--path" argument to specify the path to the trajectory file.\nExiting')
+        exit()
+
     print(f'Loading file "{path}"...')
     with open(path, 'rb') as handle:
         data = pickle.load(handle)
     return data
 
 
-def plot_animation(args):
+def plot_animation(args, data):
     """
-    Make a 3d plotly animation showing the trajectory of the chaser around the target.
-    # :param args: Namespace containing arguments.
-    :param args: path to the pickle file.
+    Make a 3d plotly animation showing the trajectory of the chaser around the target.\n
+    :param args: Namespace containing the arguments from the command line.
+    :param data: Dictionary containing the trajectory data.
     :return: None
     """
 
-    # Retrieve trajectory data from pickle file:
-    data = load_data(args)
+    # Chaser position data:
     x = data['trajectory'][0]
     y = data['trajectory'][1]
     z = data['trajectory'][2]
@@ -70,16 +75,11 @@ def plot_animation(args):
         surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
         colorscale=[
             [0, 'rgb(100,100,0)'],
-            [0.97, 'rgb(200,200,0)'],  # 250,100,100
+            [0.97, 'rgb(200,200,0)'],
             [0.971, 'rgb(0,0,0)'],
             [0.999, 'rgb(0,0,0)'],
             [1, 'rgb(200,30,30)']
         ],
-        # contours=dict(
-        #     x=dict(show=False, color='rgb(0,0,0)', start=-target_radius, end=target_radius, size=target_radius/5),
-        #     y=dict(show=False, color='rgb(0,0,0)', start=-target_radius, end=target_radius, size=target_radius/5),
-        #     z=dict(show=True, color='rgb(200,0,0)', start=-target_radius, end=target_radius, size=target_radius/5)
-        # ),
         showscale=False,
         name='Target',
         showlegend=True)
@@ -163,84 +163,15 @@ def plot_animation(args):
     fig.frames = tuple(frames)
     sliders = generate_slider(fig)
     fig.update_layout(sliders=sliders)
-    fig.show()
 
-    return
+    if args.save:  # Save the animation as an html file
+        _, dataname = os_path.split(args.path)
+        filename = str(dataname.split('.')[0]) + '_anim.html'
+        fig.write_html(os_path.join('plots', filename))
+        print(f'Animation saved in: "plots\{filename}"')
 
-
-def plot3d(args):
-    """
-    Make a 3d plotly figure showing the trajectory of the chaser around the target.
-    :param args: Namespace containing the directory and name of the pickle file.
-    :return: None
-    """
-
-    # Load the data:
-    data = load_data(args)
-    if 'trajectory' in data:
-        chaser_x = data['trajectory'][0]
-        chaser_y = data['trajectory'][1]
-        chaser_z = data['trajectory'][2]
-    else:
-        chaser_x = data['state'][0]
-        chaser_y = data['state'][1]
-        chaser_z = data['state'][2]
-
-    # Plot the trajectory of the chaser:
-    trajectory = go.Scatter3d(
-        x=chaser_x, y=chaser_y, z=chaser_z,
-        line={'color': 'rgb(50,150,50)', 'dash': 'solid', 'width': 4},
-        marker={'size': 2, 'color': 'rgb(50,50,50)'},
-        name='Trajectory')
-
-    # Plot a sphere to represent the target:
-    if 'target_radius' in data:
-        target_radius = data['target_radius']
-    else:
-        target_radius = 5
-        print(f'Target radius not defined. Using default value: {target_radius} m')
-    if 'cone_half_angle' in data:
-        cone_half_angle = data['cone_half_angle']
-    else:
-        cone_half_angle = radians(30)
-        print(f'Corridor angle not defined. Using default value: {round(degrees(cone_half_angle), 2)} deg')
-    rotation = R.from_quat([sin(pi/4), 0, 0, cos(pi/4)])
-    target_x, target_y, target_z = create_target_points(target_radius, cone_half_angle)
-    target_x, target_y, target_z = rotate_target_points(target_x, target_y, target_z, rotation)
-
-    # Make surface object:
-    target = go.Surface(
-        x=target_x,  # x_sphere,
-        y=target_y,  # y_sphere,
-        z=target_z,  # z_sphere,
-        opacity=0.5,
-        surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
-        colorscale=[[0, 'rgb(100,25,25)'], [1, 'rgb(200,50,50)']],
-        showscale=False,
-        # hovertext='Target',
-        name='Target',
-        showlegend=True)
-
-    # Create the figure:
-    fig = go.Figure()
-    fig.add_trace(trajectory)
-    fig.add_trace(target)
-
-    # Update the figure's layout:
-    lim = data['viewer_bounds']
-    fig.update_layout(
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], zerolinecolor="black"),
-            yaxis=dict(range=[-lim, lim], zerolinecolor="black"),
-            zaxis=dict(range=[-lim, lim], zerolinecolor="black"),
-            xaxis_title='x (m)', xaxis_showspikes=False,
-            yaxis_title='y (m)', yaxis_showspikes=False,
-            zaxis_title='z (m)', zaxis_showspikes=False),
-        showlegend=True, width=800, margin=dict(r=10, l=10, b=10, t=10), scene_aspectmode='cube',
-        scene_camera=define_camera()
-    )
-
-    fig.show()
+    if args.show:  # Display the animation
+        fig.show()
 
     return
 
@@ -248,7 +179,7 @@ def plot3d(args):
 def create_target_points(r: float, angle: float, vec: np.ndarray=None) -> (np.ndarray, np.ndarray, np.ndarray):
     """
     This function creates the array of points for the target.
-    The target is a sphere with a conical cut-out pointed in the +z direction.
+    The target is a sphere with a conical cut-out pointed in the +z direction.\n
     :param r: radius of the sphere
     :param angle: half-angle of the cone cut-out
     :param vec: vector in the direction of the corridor axis
@@ -280,7 +211,7 @@ def create_target_points(r: float, angle: float, vec: np.ndarray=None) -> (np.nd
 
 def rotate_target_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) -> (np.ndarray, np.ndarray, np.ndarray):
     """
-    This function rotates a given set of points representing the target.
+    This function rotates a given set of points representing the target.\n
     :param x: x-coordinates of the points
     :param y: y-coordinates of the points
     :param z: z-coordinates of the points
@@ -302,7 +233,7 @@ def rotate_target_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) ->
 
 def create_cube(pos_x, pos_y, pos_z, width=1, name=None) -> (go.Mesh3d, go.Scatter3d):
     """
-    This function creates a cube on a given location.
+    This function creates a cube on a given location.\n
     :param pos_x: x-position of the center of the cube
     :param pos_y: y-position of the center of the cube
     :param pos_z: z-position of the center of the cube
@@ -340,7 +271,7 @@ def create_cube(pos_x, pos_y, pos_z, width=1, name=None) -> (go.Mesh3d, go.Scatt
 
 def define_camera(up: list=None, center: list=None, eye: list=None) -> dict:
     """
-    Create a dictionary that defines the camera settings for a plotly 3d figure.
+    Create a dictionary that defines the camera settings for a plotly 3d figure.\n
     :param up: Determines the 'up' direction on the page.
     :param center: The projection of the center point lies at the center of the view.
     :param eye: Determines the position of the camera.
@@ -361,47 +292,36 @@ def define_camera(up: list=None, center: list=None, eye: list=None) -> dict:
     return camera
 
 
-def plot2d(args):
+def plot2d(args, data):
     """
-    Plot a 2d matplotlib figure to show the position and the control inputs of the chaser over time.
-    :param args: Namespace containing the directory and filename of the pickle file.
+    Plot a 2d matplotlib figure to show the position and the control inputs of the chaser over time.\n
+    :param args: Namespace containing the arguments from the command line.
+    :param data: Dictionary containing the trajectory data.
     :return: None
     """
 
-    # Load the data:
-    # path = args.dir + args.file
-    data = load_data(args)
-    # x = data['x']
-    # y = data['y']
-    # z = data['z']
-    # x[0], y[0], z[0] = np.nan, np.nan, np.nan
     if 'trajectory' in data:
         states = data['trajectory']
     else:
         states = data['state']
-    x = states[0]
-    y = states[1]
-    z = states[2]
-    vx = states[3]
-    vy = states[4]
-    vz = states[5]
-    pos = states[0:3]
-    vel = states[3:]
+    x, y, z = states[0], states[1], states[2]
+    vx, vy, vz = states[3], states[4], states[5]
+    pos, vel = states[0:3], states[3:]
 
     # Create a matplotlib figure with two subplots:
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
 
     # Plot the position of the chaser over time:
     t = range(len(x))
-    make_2d_plot(ax1, t, x, y, z,
-                 labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Distance (m)', title='Position')
+    plot_components(ax1, t, x, y, z,
+                    labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Distance (m)', title='Position')
     # Plot the overall distance from the target:
     dist = np.linalg.norm(pos, axis=0)
     ax1.plot(t, dist, 'k--', label='Overall'), ax1.legend()
 
     # Plot the velocity of the chaser over time:
-    make_2d_plot(ax2, t, vx, vy, vz,
-                 labels=[r'$v_x$', r'$v_y$', r'$v_z$'], xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
+    plot_components(ax2, t, vx, vy, vz,
+                    labels=[r'$v_x$', r'$v_y$', r'$v_z$'], xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
     # Plot the overall speed of the chaser:
     speed = np.linalg.norm(vel, axis=0)
     ax2.plot(t, speed, 'k--', label='Overall'), ax2.legend()
@@ -411,27 +331,35 @@ def plot2d(args):
         actions = data['actions']
     else:
         actions = data['action']
-    action_x = actions[0]
-    action_y = actions[1]
-    action_z = actions[2]
+    action_x, action_y, action_z = actions[0], actions[1], actions[2]
     t = range(len(action_x))
     sum_of_actions = sum(np.abs(action_x) + np.abs(action_y) + np.abs(action_z))
-    make_2d_plot(ax3, t, action_x, action_y, action_z,
-                 labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)',
-                 title='Action, total ' + r'$\Delta V = $' + str(round(sum_of_actions, 2)))
+    plot_components(ax3, t, action_x, action_y, action_z,
+                    labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)',
+                    title='Actions. Total ' + r'$\Delta V = $' + str(round(sum_of_actions, 2)))
     # Plot the overall control effort:
     ax3.plot(t, np.linalg.norm(actions, axis=0), 'k--', label='Overall'), ax3.legend()
 
     plt.tight_layout()
-    plt.show()
-    plt.close()
+
+    if args.save:  # Save the 2d plot as a png file
+        _, dataname = os_path.split(args.path)
+        filename = str(dataname.split('.')[0]) + '_2d.png'
+        plt.savefig(os_path.join('plots', filename))
+        print(f'2d plot saved in: "plots\{filename}"')
+
+    if args.show:  # Display the 2d plot
+        plt.show()
+        plt.close()
 
     return
 
 
-def make_2d_plot(ax: plt.Axes, x, y1, y2, y3, labels: list=None, xlabel: str=None, ylabel: str=None, title: str=None):
+def plot_components(ax: plt.Axes, x, y1, y2, y3,
+                    labels: list=None, xlabel: str=None, ylabel: str=None, title: str=None):
     """
-    Plot 3 sets of data onto a set of axes. Useful for plotting the individual components of a 3-dimensional quantity.
+    Plot 3 sets of data onto a set of axes.
+    Useful for plotting the individual components of a 3-dimensional quantity.\n
     :param ax: Axes object to plot the data on
     :param x: x-axis data
     :param y1: first y-axis data
@@ -460,14 +388,18 @@ def make_2d_plot(ax: plt.Axes, x, y1, y2, y3, labels: list=None, xlabel: str=Non
 
 def get_args():
     """
-    Get the arguments (to run the script from the command line).
+    Get the arguments (to run the script from the command line).\n
     :return: Namespace containing the arguments.
     """
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--dir', dest='dir', type=str, default='logs/')  # Directory of the data file
-    # parser.add_argument('--file', dest='file', type=str, default='eval_trajectory.pickle')  # Name of the file
-    parser.add_argument('--path', dest='path', type=str, default='logs/eval_trajectory_0.pickle')
-    parser.add_argument('--type', dest='type', type=str, default='a')  # Type of plot (2d or 3d)
+    parser.add_argument('--path', dest='path', type=str, default='',
+                        help='Path to the data file.')
+    parser.add_argument('--type', dest='type', type=str, default='all',
+                        help='Type of plot. Default creates animation and 2d plot ')
+    parser.add_argument('--save', dest='save', type=bool, nargs='?', const=True, default=False,
+                        help='Use this flag to save the plots.')
+    parser.add_argument('--show', dest='show', type=bool, nargs='?', const=True, default=False,
+                        help='Use this flag to show the plots.')
     args = parser.parse_args()
 
     return args
@@ -476,68 +408,17 @@ def get_args():
 if __name__ == '__main__':
     start = time.perf_counter()
     arguments = get_args()
-    if arguments.type == '3d':
-        plot3d(arguments)
-    elif arguments.type == '2d':
-        plot2d(arguments)
-    elif arguments.type == 'a':
-        plot_animation(arguments)
+    trajectory_data = load_data(arguments)
+    if not arguments.show:
+        print('"--show" was not called. Plots will not be displayed.')
+    if not arguments.save:
+        print('"--save" was not called. Plots will not be saved.')
+    if arguments.type == '2d':
+        plot2d(arguments, trajectory_data)
+    elif arguments.type == 'anim':
+        plot_animation(arguments, trajectory_data)
     else:
-        plot3d(arguments)
-        plot2d(arguments)
+        plot_animation(arguments, trajectory_data)
+        plot2d(arguments, trajectory_data)
 
-    print(f'Finished on {time.ctime()}. ({time.perf_counter()-start} seconds)')
-
-
-# def plot3d(args):
-#     """
-#     [This function is no longer in use because it uses matplotlib (not good for 3d plots). I switched to plotly]
-#     Plot the trajectory of a Rendezvous3DOF() environment.
-#     :param args: Namespace containing the location and name of the pickle file.
-#     :return:
-#     """
-#
-#     path = args.dir + args.file
-#
-#     with open(path, 'rb') as handle:
-#         data = pickle.load(handle)
-#
-#     fig = plt.figure(figsize=(10, 8))
-#     ax = Axes3D(fig)
-#
-#     actions = data['action']
-#     # states = data['state']
-#     # x = states[0]
-#     # y = states[1]
-#     # z = states[2]
-#     x = data['x']
-#     y = data['y']
-#     z = data['z']
-#     # x[0], y[0], z[0] = np.nan, np.nan, np.nan
-#     lim = 50
-#
-#     # Draw sphere to represent the target:
-#     r = 5
-#     u, v = np.mgrid[0:2*np.pi:30j, 0:np.pi:30j]
-#     sphere_x = np.cos(u) * np.sin(v) * r
-#     sphere_y = np.sin(u) * np.sin(v) * r
-#     sphere_z = np.cos(v) * r
-#     ax.plot_surface(sphere_x, sphere_y, sphere_z, color="r")
-#
-#     # Plot the trajectory of the chaser:
-#     ax.plot3D(xs=x, ys=y, zs=z, label='Trajectory')
-#     ax.plot3D(xs=x[0], ys=y[0], zs=z[0], marker='o', color='green', label='Start')
-#     ax.plot3D(xs=x[-1], ys=y[-1], zs=z[-1], marker='*', color='black', label='End')
-#
-#     ax.set_xlim(-lim, lim), ax.set_xlabel('x (m)')
-#     ax.set_ylim(-lim, lim), ax.set_ylabel('y (m)')
-#     ax.set_zlim(-lim, lim), ax.set_zlabel('z (m)')
-#     ax.legend()
-#     # ax.set_aspect('equal')
-#     ax.set_box_aspect((1, 1, 1))
-#     ax.view_init(elev=30, azim=-45)
-#     print('(3d plot: Use right-click to zoom)')
-#     plt.show()
-#     plt.close()
-#
-#     return
+    print(f'Finished on {time.ctime()}. ({round(time.perf_counter()-start, 2)} seconds)')

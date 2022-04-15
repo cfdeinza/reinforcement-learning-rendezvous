@@ -13,7 +13,7 @@ It is useful to visualize where the highest rewards are (because in theory that 
 
 def distance(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
-    Compute the distance from the origin.
+    Compute the distance from the origin.\n
     :param x: x-values
     :param y: y-values
     """
@@ -22,7 +22,7 @@ def distance(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 def angle_from_corridor(x, y):
     """
-    Compute the angles between the points and the -y axis. Based on the cosine rule, simplified for the -y axis.
+    Compute the angles between the points and the -y axis. Based on the cosine rule, simplified for the -y axis.\n
     :param x: x-values
     :param y: y-values
     """
@@ -96,7 +96,9 @@ z = desired_reward(x_mesh, y_mesh)
 
 
 def plot_cone(limit, half_angle, axis=None):
-    """Plot a 2d cone to represent the approach corridor."""
+    """
+    Plot a 2d cone to represent the approach corridor.\n
+    """
     x_cone = np.array([-1, 0, 1]) * limit * tan(half_angle)
     y_cone = np.array([-1, 0, -1]) * limit
     z_cone = np.zeros(x_cone.shape)  # + np.mean(z)
