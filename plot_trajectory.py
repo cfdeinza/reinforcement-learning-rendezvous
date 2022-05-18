@@ -65,24 +65,24 @@ def plot_animation(args, data):
         corridor_vector = np.array([0, -1, 0])
         print(f'Corridor axis not defined. Using default value: {corridor_vector}')
 
-    # Make surface object for the target:
-    target_x, target_y, target_z = create_target_points(target_radius, cone_half_angle, corridor_vector)
+    # Make surface object for the Keep-out zone:
+    koz_x, koz_y, koz_z = create_koz_points(target_radius, cone_half_angle, corridor_vector)
     target = go.Surface(
-        x=target_x,
-        y=target_y,
-        z=target_z,
+        x=koz_x,
+        y=koz_y,
+        z=koz_z,
         opacity=1,
-        surfacecolor=target_x ** 2 + target_y ** 2 + target_z ** 2,
-        colorscale=[
-            [0, 'rgb(100,100,0)'],
-            [0.97, 'rgb(200,200,0)'],
-            [0.971, 'rgb(0,0,0)'],
-            [0.999, 'rgb(0,0,0)'],
-            [1, 'rgb(200,30,30)']
-        ],
+        opacityscale=[[0, 1], [0.99, 0.5], [1, 0.2]],
+        surfacecolor=koz_x ** 2 + koz_y ** 2 + koz_z ** 2,
+        colorscale=[[0, 'rgb(100,20,20)'], [1, 'rgb(200,30,30)']],
         showscale=False,
-        name='Target',
+        name='Keep-out zone',
         showlegend=True)
+
+    # Make a cube to represent the target body:
+    target_x, target_y, target_z = create_cube_points(0, 0, 0, width=1)
+    target_color = 'rgb(60,60,150)'
+    target_body, target_edges = create_cube(target_x, target_y, target_z, name='Target', face_color=target_color)
 
     # Make Scatter3d object for the trajectory
     chaser_trajectory = go.Scatter3d(x=x, y=y, z=z,
@@ -92,7 +92,8 @@ def plot_animation(args, data):
                                      showlegend=True)
 
     # Make a cube to represent the chaser:
-    chaser_body, chaser_edges = create_cube(x[-1], y[-1], z[-1], name='Chaser')
+    chaser_x, chaser_y, chaser_z = create_cube_points(x[-1], y[-1], z[-1])
+    chaser_body, chaser_edges = create_cube(chaser_x, chaser_y, chaser_z, name='Chaser')
 
     # Make the figure:
     if 'viewer_bounds' in data:
@@ -101,7 +102,7 @@ def plot_animation(args, data):
         lim = 50
         print(f'Plot limits not defined. Using default value: {lim} m')
     fig_dict = {
-        'data': [target, chaser_trajectory, chaser_body, chaser_edges],
+        'data': [target, chaser_trajectory, chaser_body, chaser_edges, target_body, target_edges],
         'layout': {
             'scene': dict(
                 xaxis=dict(range=[-lim, lim], zerolinecolor="black"), xaxis_showspikes=False,
@@ -149,16 +150,20 @@ def plot_animation(args, data):
     # Create the frames:
     frames = []
     for i in range(0, len(x)):
-        # Update target:
-        target_x, target_y, target_z = rotate_target_points(target_x, target_y, target_z, rot)
-        current_target = go.Surface(x=target_x, y=target_y, z=target_z)
-        # Update trajectory:
+        # Update the keep-out zone:
+        koz_x, koz_y, koz_z = rotate_points(koz_x, koz_y, koz_z, rot)
+        current_koz = go.Surface(x=koz_x, y=koz_y, z=koz_z)
+        # Update the target:
+        target_x, target_y, target_z = rotate_points(target_x, target_y, target_z, rot)
+        target_body, target_edges = create_cube(target_x, target_y, target_z, face_color=target_color)
+        # Update the trajectory:
         current_trajectory = go.Scatter3d(x=x[0:i+1], y=y[0:i+1], z=z[0:i+1])
-        # Update chaser:
-        current_body, current_edges = create_cube(x[i], y[i], z[i])
+        # Update the chaser:
+        chaser_x, chaser_y, chaser_z = create_cube_points(x[i], y[i], z[i])
+        current_body, current_edges = create_cube(chaser_x, chaser_y, chaser_z)
         # Define new frame:
-        frame = {"data": [current_target, current_trajectory, current_body, current_edges],
-                 "name": str(i), "traces": [0, 1, 2, 3]}  # 'traces' indicates which trace we are updating.
+        frame = {"data": [current_koz, current_trajectory, current_body, current_edges, target_body, target_edges],
+                 "name": str(i), "traces": [0, 1, 2, 3, 4, 5]}  # 'traces' indicates which trace we are updating.
         frames.append(frame)
     fig.frames = tuple(frames)
     sliders = generate_slider(fig)
@@ -176,13 +181,13 @@ def plot_animation(args, data):
     return
 
 
-def create_target_points(r: float, angle: float, vec: np.ndarray=None) -> (np.ndarray, np.ndarray, np.ndarray):
+def create_koz_points(r: float, angle: float, vec: np.ndarray=None) -> (np.ndarray, np.ndarray, np.ndarray):
     """
     This function creates the array of points for the target.
     The target is a sphere with a conical cut-out pointed in the +z direction.\n
     :param r: radius of the sphere
     :param angle: half-angle of the cone cut-out
-    :param vec: vector in the direction of the corridor axis
+    :param vec: vector in the direction of the corridor axis. If not given, corridor points into z-axis.
     :return: 3 numpy arrays (x, y, and z coordinates of the points on the sphere)
     """
 
@@ -205,13 +210,13 @@ def create_target_points(r: float, angle: float, vec: np.ndarray=None) -> (np.nd
         theta = np.arccos(np.dot(z_vec, vec) / (np.linalg.norm(z_vec) * np.linalg.norm(vec)))
         quat = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
         rot = R.from_quat(quat)  # Rotation from the current cone direction to the desired corridor direction
-        x_sphere, y_sphere, z_sphere = rotate_target_points(x_sphere, y_sphere, z_sphere, rot)
+        x_sphere, y_sphere, z_sphere = rotate_points(x_sphere, y_sphere, z_sphere, rot)
     return x_sphere, y_sphere, z_sphere
 
 
-def rotate_target_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) -> (np.ndarray, np.ndarray, np.ndarray):
+def rotate_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) -> (np.ndarray, np.ndarray, np.ndarray):
     """
-    This function rotates a given set of points representing the target.\n
+    This function rotates a given set of points.\n
     :param x: x-coordinates of the points
     :param y: y-coordinates of the points
     :param z: z-coordinates of the points
@@ -231,36 +236,54 @@ def rotate_target_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) ->
     return new_x, new_y, new_z
 
 
-def create_cube(pos_x, pos_y, pos_z, width=1, name=None) -> (go.Mesh3d, go.Scatter3d):
+def create_cube_points(pos_x, pos_y, pos_z, width=1) -> (np.ndarray, np. ndarray, np.ndarray):
     """
-    This function creates a cube on a given location.\n
+    This function creates a set of points in the shape of a cube centered on a given location.\n
     :param pos_x: x-position of the center of the cube
     :param pos_y: y-position of the center of the cube
     :param pos_z: z-position of the center of the cube
     :param width: width of the cube
-    :param name: name shown in the legend of the plot
-    :return: two graph objects (one for the surface of the cube and one for the edges)
+    :return: 3 ndarrays (x, y, and z coordinates of the points)
     """
     d = width / 2
+    x = np.array([-d, -d, d, d, -d, -d, d, d]) + pos_x
+    y = np.array([-d, d, d, -d, -d, d, d, -d]) + pos_y
+    z = np.array([-d, -d, -d, -d, d, d, d, d]) + pos_z
+    return x, y, z
+
+
+def create_cube(x_points, y_points, z_points, name=None, face_color=None) -> (go.Mesh3d, go.Scatter3d):
+    """
+    This function creates a cube from a given set of points.\n
+    :param x_points: x-coordinates of the points
+    :param y_points: y-coordinates of the points
+    :param z_points: z-coordinates of the points
+    :param name: name shown in the legend of the plot
+    :param face_color: color code for the faces of the cube, in rgb(#,#,#) format
+    :return: two graph objects (one for the surface of the cube and one for the edges)
+    """
+    if face_color is None:
+        face_color = 'rgb(50,50,50)'
     mesh = go.Mesh3d(
         # 8 vertices of the cube:
-        x=np.array([-d, -d,  d,  d, -d, -d, d,  d]) + pos_x,
-        y=np.array([-d,  d,  d, -d, -d,  d, d, -d]) + pos_y,
-        z=np.array([-d, -d, -d, -d,  d,  d, d,  d]) + pos_z,
+        x=x_points,
+        y=y_points,
+        z=z_points,
         # i, j and k give the vertices of the mesh triangles:
         i=[7, 0, 0, 0, 4, 4, 6, 6, 4, 0, 3, 2],
         j=[3, 4, 1, 2, 5, 6, 5, 2, 0, 1, 6, 3],
         k=[0, 7, 2, 3, 6, 7, 1, 1, 5, 5, 7, 6],
-        color='rgb(50,50,50)',
-        opacity=0.6,
+        color=face_color,
+        opacity=1,
         flatshading=True,
         name=name,
         showlegend=True
     )
+    ind = [0, 3, 2, 1, 0, 4, 7, 3, 7, 6, 2, 6, 5, 1, 5, 4]  # indices of the points to join with lines
     lines = go.Scatter3d(
-        x=np.array([-d, d, d, -d, -d, -d, d, d, d, d, d, d, -d, -d, -d, -d]) + pos_x,
-        y=np.array([-d, -d, d, d, -d, -d, -d, -d, -d, d, d, d, d, d, d, -d]) + pos_y,
-        z=np.array([-d, -d, -d, -d, -d,  d,  d, -d,  d,  d, -d,  d,  d, -d,  d,  d]) + pos_z,
+        x=[x_points[i] for i in ind],
+        y=[y_points[i] for i in ind],
+        z=[z_points[i] for i in ind],
         mode='lines',
         hoverinfo=None,
         showlegend=False,

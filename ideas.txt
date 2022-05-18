@@ -11,3 +11,9 @@ This file contains ideas that have not yet been implemented in the code.
         warning.set_color(1, 0.3, 0.3)
         self.viewer.add_onetime(warning)
 
+
+# Receding bubble reward function:
+    Reward function only penalizes fuel consumption.
+    Have an imaginary bubble around the target. The bubble decreases in size over time.
+    If the chaser exits the bubble, the episode ends. This incentivizes the chaser to go near the target
+    to keep the episode going. Penalize collision? Docking bonus?
