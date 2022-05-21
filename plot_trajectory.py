@@ -80,9 +80,11 @@ def plot_animation(args, data):
         showlegend=True)
 
     # Make a cube to represent the target body:
-    target_x, target_y, target_z = create_cube_points(0, 0, 0, width=1)
+    # target_x, target_y, target_z = create_cube_points(0, 0, 0, width=1)
+    target_x, target_y, target_z = create_sat_points(0, 0, 0)
     target_color = 'rgb(60,60,150)'
-    target_body, target_edges = create_cube(target_x, target_y, target_z, name='Target', face_color=target_color)
+    # target_body, target_edges = create_cube(target_x, target_y, target_z, name='Target', face_color=target_color)
+    target_body, target_edges = create_sat(target_x, target_y, target_z, name='Target')
 
     # Make Scatter3d object for the trajectory
     chaser_trajectory = go.Scatter3d(x=x, y=y, z=z,
@@ -132,7 +134,7 @@ def plot_animation(args, data):
 
     # Update the time interval between the animation's frames:
     dt = data['dt']
-    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = dt * 500
+    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = dt * 200
 
     # Compute corridor rotation:
     if 'w_norm' in data and 'w_mag' in data:
@@ -155,7 +157,8 @@ def plot_animation(args, data):
         current_koz = go.Surface(x=koz_x, y=koz_y, z=koz_z)
         # Update the target:
         target_x, target_y, target_z = rotate_points(target_x, target_y, target_z, rot)
-        target_body, target_edges = create_cube(target_x, target_y, target_z, face_color=target_color)
+        # target_body, target_edges = create_cube(target_x, target_y, target_z, face_color=target_color)
+        target_body, target_edges = create_sat(target_x, target_y, target_z)
         # Update the trajectory:
         current_trajectory = go.Scatter3d(x=x[0:i+1], y=y[0:i+1], z=z[0:i+1])
         # Update the chaser:
@@ -284,6 +287,67 @@ def create_cube(x_points, y_points, z_points, name=None, face_color=None) -> (go
         x=[x_points[i] for i in ind],
         y=[y_points[i] for i in ind],
         z=[z_points[i] for i in ind],
+        mode='lines',
+        hoverinfo=None,
+        showlegend=False,
+        line=dict(color='black')
+    )
+    return mesh, lines
+
+
+def create_sat_points(pos_x, pos_y, pos_z):
+    w, h, d = 1.5, 1.5, 1
+    pw, ph, pd = 2*2.5*w, 0.8*h, 0.1*d
+    jw, jh, jd = 0.1*2*w, 0.2*h, 0.2*d
+    x = np.array([w, -w, -w, w,                     # body (-y)
+                  w, -w, -w, w,                     # body (+y)
+                  w+jw, w, w, w+jw,                 # joint (+x)
+                  w+jw+pw, w+jw, w+jw, w+jw+pw,     # panel (+x)
+                  -w-jw, -w, -w, -w-jw,             # join (-x)
+                  -w-jw-pw, -w-jw, -w-jw, -w-jw-pw  # panel (-x)
+                  ]) / 2 + pos_x
+    y = np.array([-d, -d, -d, -d,   # body (-y)
+                  d, d, d, d,       # body (+y)
+                  0, 0, 0, 0,       # joint (+x)
+                  0, 0, 0, 0,       # panel (+x)
+                  0, 0, 0, 0,       # joint (-x)
+                  0, 0, 0, 0        # panel (-x)
+                  ]) / 2 + pos_y
+    z = np.array([h, h, -h, -h,         # body (-y)
+                  h, h, -h, -h,         # body (+y)
+                  jh, jh, -jh, -jh,     # joint (+x)
+                  ph, ph, -ph, -ph,     # panel (+x)
+                  jh, jh, -jh, -jh,     # joint (-x)
+                  ph, ph, -ph, -ph      # panel (-x)
+                  ]) / 2 + pos_z
+    return x, y, z
+
+
+def create_sat(x_points, y_points, z_points, name=None):
+    b = 'rgb(255,240,0)'  # color for body
+    p = 'rgb(0, 230, 250)'  # color for panel
+    mesh = go.Mesh3d(
+        x=x_points,
+        y=y_points,
+        z=z_points,
+        # i, j and k give the vertices of the mesh triangles:
+        # first 12 triangles are for the cube,
+        # then 2 for right joint, 2 for right panel, 2 for left joint, 2 for left panel
+        # | -y | +y  | +z  | -z  | +x  | -x  |joint| panel | joint | panel |
+        i=[0, 0, 4, 4, 0, 0, 6, 6, 0, 0, 1, 1, 8, 8, 12, 12, 16, 16, 20, 20],
+        j=[1, 3, 5, 7, 1, 4, 7, 2, 3, 4, 2, 5, 9, 11, 13, 15, 17, 19, 21, 23],
+        k=[2, 2, 6, 6, 5, 5, 3, 3, 7, 7, 6, 6, 10, 10, 14, 14, 18, 18, 22, 22],
+        facecolor=[b, b, b, b, b, b, b, b, b, b, b, b, b, b, p, p, b, b, p, p],
+        opacity=1,
+        flatshading=True,
+        name=name,
+    )
+    ind = [0, 3, 2, 1, 0, 4, 7, 3, 7, 6, 2, 6, 5, 1, 5, 4]  # indices of the points to join with lines
+    ind2 = [10, 11, 14, 15, 12, 13, 8, 9, 17, 16, 21, 20, 23, 22, 19, 18]
+    lines = go.Scatter3d(
+        x=[x_points[i] for i in ind] + [0] + [x_points[i] for i in ind2],
+        y=[y_points[i] for i in ind] + [0] + [y_points[i] for i in ind2],
+        z=[z_points[i] for i in ind] + [0] + [z_points[i] for i in ind2],
         mode='lines',
         hoverinfo=None,
         showlegend=False,
