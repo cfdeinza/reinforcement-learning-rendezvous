@@ -36,9 +36,13 @@ class Rendezvous3DOF(gym.Env):
 
     def __init__(self):
 
-        # The ideal starting state for the chaser (randomness is introduced in reset()):
-        self.ideal_start = np.array([0, -40, 0, 0, 0, 0])
+        # The ideal starting state of the system (randomness is introduced in reset()):
+        self.ideal_start_pos = np.array([0, -40, 0])
+        self.ideal_start_vel = np.array([0, 0, 0])
+        self.ideal_start_corridor = np.array([0, -1, 0])
         self.state = None       # Placeholder until the state is defined in reset()
+        self.pos = None         # Chaser position (m)
+        self.vel = None         # Chaser velocity (m)
         self.collided = None    # boolean that shows if the chaser has collided with the target during the current ep.
         self.t = None           # Current time step. (Placeholder until reset() is called)
         self.dt = 1             # Time interval between actions (s)
@@ -72,7 +76,7 @@ class Rendezvous3DOF(gym.Env):
         self.actions = None     # Array of actions (3xn)
         self.viewer = None      # Viewer window
         self.chaser_transform = None  # Chaser transform (Not sure if it needs to be here)
-        self.viewer_bounds = max(np.abs(self.ideal_start)) \
+        self.viewer_bounds = max(np.abs(self.ideal_start_pos)) \
             + self.initial_position_range/2  # Max distance shown in the viewer (m)
 
         # Action space:
@@ -82,14 +86,14 @@ class Rendezvous3DOF(gym.Env):
             shape=(3,)
         )
 
-        # Observation space:
+        # Observation space: pos (3,), vel (3,), corridor_axis (3,)
         # obs_limit = np.append(self.max_axial_distance, self.max_axial_speed)  # Not normalized!
-        obs_limit = np.array([1, 1, 1, 1, 1, 1])  # Limits for the normalized observation space
+        obs_limit = np.array([1] * 9)  # Limits for the normalized observation space
 
         self.observation_space = spaces.Box(
             low=np.float32(-obs_limit),
             high=np.float32(obs_limit),
-            shape=(6,)
+            shape=(9,)
         )
 
         return
@@ -105,10 +109,19 @@ class Rendezvous3DOF(gym.Env):
         # action = np.clip(action, self.action_space.low, self.action_space.high)
 
         # The action causes an immediate change in the chaser's velocity:
-        state_after_impulse = self.state + np.append(np.zeros((3,)), action)
+        vel_after_impulse = self.vel + action
 
         # Compute the new state:
-        self.state = self.clohessy_wiltshire(self.dt, state_after_impulse)
+        self.pos, self.vel = self.clohessy_wiltshire(self.dt, np.concatenate((self.pos, vel_after_impulse)))
+
+        # Compute the new corridor orientation:
+        euler_axis = self.w_norm
+        theta = self.w_mag * self.dt
+        quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))  # Rotation quaternion
+        rotation = R.from_quat(quaternion)
+        self.corridor_axis = rotation.apply(self.corridor_axis)
+
+        self.state = np.concatenate((self.pos, self.vel, self.corridor_axis))
 
         # Save the new values:
         self.trajectory = np.append(
@@ -119,13 +132,6 @@ class Rendezvous3DOF(gym.Env):
             self.actions,
             action.reshape((self.action_space.shape[0], 1)),
             axis=1)
-
-        # Compute the new corridor orientation:
-        euler_axis = self.w_norm
-        theta = self.w_mag * self.dt
-        quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))  # Rotation quaternion
-        rotation = R.from_quat(quaternion)
-        self.corridor_axis = rotation.apply(self.corridor_axis)
 
         # Update the time step:
         self.t += self.dt
@@ -170,8 +176,10 @@ class Rendezvous3DOF(gym.Env):
         }
 
         if done:
-            print(f"Final distance: {round(info['Distance'], 2)} m at t = {self.t} "
-                  f"{'(Collided)' if self.collided else ''}")
+            print(f"Episode end. "
+                  f"dist: {str(round(info['Distance'], 1)).rjust(5, ' ')} m at "
+                  f"t = {str(self.t).rjust(3, ' ')} "
+                  f"{' (Collided) ' if self.collided else ''}")
             # Save the array of states and actions in 'info' (this is used for the eval_callback)
             info['trajectory'] = self.trajectory[:, 1:]
             info['actions'] = self.actions[:, 1:]
@@ -194,10 +202,12 @@ class Rendezvous3DOF(gym.Env):
             size=(3,)
         )
 
-        random_state = np.append(random_initial_position, random_initial_velocity)
+        random_initial_corridor = np.array([0, 0, 0])
 
-        self.state = self.ideal_start + random_state
-        self.corridor_axis = np.array([0, -1, 0])  # TODO: Randomize initial corridor orientation?
+        self.pos = self.ideal_start_pos + random_initial_position
+        self.vel = self.ideal_start_vel + random_initial_velocity
+        self.corridor_axis = self.ideal_start_corridor + random_initial_corridor  # TODO: Randomize initial corr axis
+        self.state = np.concatenate((self.pos, self.vel, self.corridor_axis))
         self.trajectory = np.zeros((self.observation_space.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
@@ -214,7 +224,6 @@ class Rendezvous3DOF(gym.Env):
         :param mode: "human" renders the environment to the current display
         :return:
         """
-        # TODO: switch to plotly?
         screen_width = 700
         screen_height = 700
 
@@ -257,8 +266,8 @@ class Rendezvous3DOF(gym.Env):
         self.draw_arrow(self.actions[1, -1], 'vertical', length=30)
 
         # Update the chaser position:
-        pos_x = self.state[0]
-        pos_y = self.state[1]
+        pos_x = self.pos[0]
+        pos_y = self.pos[1]
         self.chaser_transform.set_translation(pos_x, pos_y)  # newx, newy
 
         return self.viewer.render(return_rgb_array=mode == "rgb_array")
@@ -284,7 +293,7 @@ class Rendezvous3DOF(gym.Env):
         :return: angle (in radians) between the chaser and the corridor axis
         """
 
-        pos = self.state[0:3]       # Chaser position vector
+        pos = self.pos              # Chaser position vector
         axis = self.corridor_axis   # Corridor vector
 
         # Apply the dot product formula:
@@ -330,7 +339,7 @@ class Rendezvous3DOF(gym.Env):
         :return:
         """
 
-        x0, y0 = self.state[0:2]
+        x0, y0 = self.pos[0:2]
         # inc = length * np.sign(action)
         # inc = np.sign(action) * ((high - low)*abs(action) + 4)
 
@@ -362,7 +371,8 @@ class Rendezvous3DOF(gym.Env):
         Compute the magnitude of the chaser's position (i.e. distance from the origin).\n
         :return: pos
         """
-        pos = np.linalg.norm(self.state[0:3])
+
+        pos = np.linalg.norm(self.pos)
 
         return pos
 
@@ -371,13 +381,14 @@ class Rendezvous3DOF(gym.Env):
         Compute the magnitude of the chaser's velocity w.r.t the target.\n
         :return: vel
         """
-        vel = np.linalg.norm(self.state[3:])
+
+        vel = np.linalg.norm(self.vel)
 
         return vel
 
     def normalize_state(self, custom_range=None) -> np.ndarray:
         """
-        Normalize the position and velocity of the chaser to values between -1 & 1 (or to some custom range).
+        Returns the state of the system normalized to values between -1 & 1 (or to some custom range).
         Rationale: According to the tips in SB3, you should "always normalize your observation space when you can,
         i.e. when you know the boundaries."\n
         :param custom_range: The desired range [a, b] for the normalized state. Default is [-1, 1]
@@ -389,11 +400,12 @@ class Rendezvous3DOF(gym.Env):
 
         a = custom_range[0]     # Lowest possible value in normalized range
         b = custom_range[1]     # Highest possible value in normalized range
-        pos = self.state[0:3]   # Position
-        vel = self.state[3:]    # Velocity
+        pos = self.pos          # Chaser position
+        vel = self.vel          # Chaser velocity
         norm_pos = a + (pos + self.max_axial_distance)*(b-a) / (2*self.max_axial_distance)
         norm_vel = a + (vel + self.max_axial_speed)*(b-a) / (2*self.max_axial_speed)
-        norm_state = np.append(norm_pos, norm_vel)
+        norm_state = np.concatenate((norm_pos, norm_vel, self.corridor_axis))
+        # Corridor axis does not need normalization
         return norm_state
 
     def clohessy_wiltshire(self, t, x0):
@@ -401,7 +413,7 @@ class Rendezvous3DOF(gym.Env):
         Uses the Clohessy Wiltshire model to find the state at time t,
         given an initial state (x0) and a time length (t).\n
         :param t: Time duration
-        :param x0: Initial state
+        :param x0: Initial position and velocity (6,)
         :return: State at time t
         """
 
@@ -421,7 +433,7 @@ class Rendezvous3DOF(gym.Env):
         # State at time t:
         xt = np.matmul(stm, x0)
 
-        return xt
+        return xt[0:3], xt[3:]
 
 
 class Attitude(gym.Env):
