@@ -17,3 +17,29 @@ This file contains ideas that have not yet been implemented in the code.
     Have an imaginary bubble around the target. The bubble decreases in size over time.
     If the chaser exits the bubble, the episode ends. This incentivizes the chaser to go near the target
     to keep the episode going. Penalize collision? Docking bonus?
+
+# Old reward function:
+    rew = max(100 - dist, 0) * 1e-2  # range: 0-1
+
+    # Reward for staying close to the corridor axis at all times:
+    # rew += (1 - self.angle_from_corridor()/pi) * 1e-1  # range: 0-0.1
+    if self.angle_from_corridor() < self.cone_half_angle:
+        rew += 0.1
+
+    # Penalize collision:
+    if (dist < self.target_radius) & (self.angle_from_corridor() > self.cone_half_angle):
+        self.collided = True
+        rew -= 0.1
+    # rew = (1000 - dist)*1e-2 - np.linalg.norm(action)
+    # rew = - np.linalg.norm(action)  # Should the action be part of the state?
+
+    # Done: End the episode if the chaser leaves the observation state or if the max time is reached.
+    if ~self.observation_space.contains(obs) or (self.t >= self.t_max):
+        done = True
+    # Constraint for successful rendezvous:
+    elif (dist < 3) and (vel < 0.1) and (self.angle_from_corridor() < self.cone_half_angle) and \
+            (self.collided is False):
+        rew += 2 * (self.t_max - self.t)
+        done = True
+    else:
+        done = False

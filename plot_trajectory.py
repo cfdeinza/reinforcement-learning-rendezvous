@@ -72,7 +72,7 @@ def plot_animation(args, data):
         y=koz_y,
         z=koz_z,
         opacity=1,
-        opacityscale=[[0, 1], [0.99, 0.5], [1, 0.2]],
+        opacityscale=[[0, 1], [0.99, 0.9], [1, 0.1]],
         surfacecolor=koz_x ** 2 + koz_y ** 2 + koz_z ** 2,
         colorscale=[[0, 'rgb(100,20,20)'], [1, 'rgb(200,30,30)']],
         showscale=False,

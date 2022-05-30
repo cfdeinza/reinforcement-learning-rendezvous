@@ -20,33 +20,36 @@ def get_args():
     :return: Namespace containing the arguments.
     """
     parser = argparse.ArgumentParser()
+
+    default_mode = 'train'
     parser.add_argument(
         '--mode',
         dest='mode',
         type=str,
-        default='train',
-        help='Use \'train\' to train the model, \'eval\' to evaluate the model'
+        default=default_mode,
+        help=f'Use \'train\' to train the model, \'eval\' to evaluate the model. Default is \'{default_mode}\'.'
     )
     parser.add_argument(
         '--model',
         dest='model',
         type=str,
         default='',
-        help='Provide the name of an existing model to evaluate or to continue training'
+        help='Provide the name of an existing model to evaluate or to continue training.'
     )
+    default_steps = 200_000
     parser.add_argument(
         '--steps',
         dest='steps',
         type=int,
-        default=200000,
-        help='Select the number of training steps'
+        default=default_steps,
+        help=f'Select the number of training steps. Default is {default_steps}.'
     )
     parser.add_argument(
         '--env',
         dest='env',
         type=str,
         default='rdv',
-        help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment'
+        help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment.'
     )
     parser.add_argument(
         '--nosave',
