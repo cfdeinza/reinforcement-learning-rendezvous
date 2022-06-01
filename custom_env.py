@@ -40,8 +40,9 @@ class Rendezvous3DOF(gym.Env):
         self.collided = None    # boolean that shows if the chaser has collided with the target during the current ep.
         self.t = None           # Current time step. (Placeholder until reset() is called)
         self.dt = 1             # Time interval between actions (s)
-        self.t_max = 300        # Max time per episode
+        self.t_max = 120        # Max time per episode
         self.bubble_radius = None
+        self.bubble_decrease_rate = 0.3  # Give the target enough time to turn once?
 
         # Orbit properties:
         self.mu = 3.986004418e14            # Gravitational parameter of Earth (m3/s2)
@@ -80,6 +81,7 @@ class Rendezvous3DOF(gym.Env):
             high=np.float32(np.ones((3,)) * self.max_delta_v),
             shape=(3,)
         )
+        # self.action_space = spaces.MultiDiscrete([3, 3, 3])
 
         # Observation space: pos (3,), vel (3,), corridor_axis (3,)
         # obs_limit = np.append(self.max_axial_distance, self.max_axial_speed)  # Not normalized!
@@ -104,6 +106,7 @@ class Rendezvous3DOF(gym.Env):
         # action = np.clip(action, self.action_space.low, self.action_space.high)
 
         # The action causes an immediate change in the chaser's velocity:
+        # action = (action - 1) * self.max_delta_v  # for discrete action space
         vel_after_impulse = self.vel + action
 
         # Compute the new state:
@@ -133,7 +136,7 @@ class Rendezvous3DOF(gym.Env):
 
         # Update the bubble:
         if self.bubble_radius > self.target_radius:
-            self.bubble_radius -= 0.5
+            self.bubble_radius -= self.bubble_decrease_rate
 
         # Observation: the observation is equal to the normalized state
         # obs = self.state
@@ -150,7 +153,7 @@ class Rendezvous3DOF(gym.Env):
         # Reward:
 
         # Fuel efficiency:
-        rew = 1 - np.linalg.norm(action) / sqrt(3)  # 1 - ( |u| / u_max )
+        rew = 1 - np.linalg.norm(action) / sqrt(3 * self.max_delta_v**2)  # 1 - ( |u| / u_max )
 
         if dist < self.target_radius:
             # Inside corridor:
@@ -160,9 +163,9 @@ class Rendezvous3DOF(gym.Env):
                     vel_tangential = np.sqrt(vel ** 2 - vel_radial ** 2)
                     # Success:
                     if (vel_radial < 0.1) and (vel_tangential < self.w_mag * self.target_radius):
-                        done = True  # TODO: try to keep the episode going (see if chaser can rotate with target)
-                        rew += 500
-                        print('Success!')
+                        # done = True
+                        rew += 10  # 500
+                        # print('Success!')
             # Collided:
             else:
                 self.collided = True
@@ -212,7 +215,7 @@ class Rendezvous3DOF(gym.Env):
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
         self.collided = False
-        self.bubble_radius = self.absolute_position() + 5
+        self.bubble_radius = self.absolute_position() + self.target_radius
 
         # obs = self.state
         obs = self.normalize_state()
@@ -345,13 +348,13 @@ class Rendezvous3DOF(gym.Env):
         # inc = np.sign(action) * ((high - low)*abs(action) + 4)
 
         if direction == 'horizontal':
-            inc = length * action / self.action_space.high[0]
+            inc = length * action  # / self.action_space.high[0]
             # norm_action = action / self.action_space.high[0]
             # inc = length
             x_points = [x0, x0 + inc, x0 + inc*0.9, x0 + inc, x0 + inc*0.9]
             y_points = [y0, y0, y0 + inc*0.05, y0, y0 - inc*0.05]
         elif direction == 'vertical':
-            inc = length * action / self.action_space.high[1]
+            inc = length * action  # / self.action_space.high[1]
             # norm_action = action / self.action_space.high[1]
             # inc = length
             x_points = [x0, x0, x0 - inc*0.05, x0, x0 + inc*0.05]
