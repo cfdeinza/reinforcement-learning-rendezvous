@@ -4,6 +4,7 @@ import numpy as np
 from math import sin, cos, radians, sqrt
 from gym.envs.classic_control import rendering
 from scipy.spatial.transform import Rotation as scipyRot
+from collections import OrderedDict
 
 """
 This file contains the custom environment used to train reinforcement learning models. 
@@ -40,7 +41,7 @@ class Rendezvous3DOF(gym.Env):
         self.collided = None    # boolean that shows if the chaser has collided with the target during the current ep.
         self.t = None           # Current time step. (Placeholder until reset() is called)
         self.dt = 1             # Time interval between actions (s)
-        self.t_max = 120        # Max time per episode
+        self.t_max = 180        # Max time per episode
         self.bubble_radius = None
         self.bubble_decrease_rate = 0.3  # Give the target enough time to turn once?
 
@@ -82,9 +83,9 @@ class Rendezvous3DOF(gym.Env):
             shape=(3,)
         )
         # self.action_space = spaces.MultiDiscrete([3, 3, 3])
+        # self.action_space = spaces.MultiBinary(6)
 
         # Observation space: pos (3,), vel (3,), corridor_axis (3,)
-        # obs_limit = np.append(self.max_axial_distance, self.max_axial_speed)  # Not normalized!
         obs_limit = np.array([1] * 9)  # Limits for the normalized observation space
 
         self.observation_space = spaces.Box(
@@ -92,6 +93,13 @@ class Rendezvous3DOF(gym.Env):
             high=np.float32(obs_limit),
             shape=(9,)
         )
+
+        # Dictionary observation space:
+        # self.observation_space = spaces.Dict({
+        #     'pos': spaces.Box(low=-1, high=1, shape=(3,)),
+        #     'vel': spaces.Box(low=-1, high=1, shape=(3,)),
+        #     'cor': spaces.Box(low=-1, high=1, shape=(3,))
+        # })
 
         return
 
@@ -106,7 +114,9 @@ class Rendezvous3DOF(gym.Env):
         # action = np.clip(action, self.action_space.low, self.action_space.high)
 
         # The action causes an immediate change in the chaser's velocity:
-        # action = (action - 1) * self.max_delta_v  # for discrete action space
+        # action = (action - 1) * self.max_delta_v  # for multi-discrete action space
+        # action = np.rint(action * 1 / self.max_delta_v) * self.max_delta_v  # to turn continuous thrust into on/off
+        # action = (action[0:3] - action[3:]) * self.max_delta_v  # for multi-binary action space
         vel_after_impulse = self.vel + action
 
         # Compute the new state:
@@ -124,11 +134,11 @@ class Rendezvous3DOF(gym.Env):
         # Save the new values:
         self.trajectory = np.append(
             self.trajectory,
-            self.state.reshape((self.observation_space.shape[0], 1)),
+            self.state.reshape((len(self.state), 1)),
             axis=1)
         self.actions = np.append(
             self.actions,
-            action.reshape((self.action_space.shape[0], 1)),
+            action.reshape((action.shape[0], 1)),
             axis=1)
 
         # Update the time step:
@@ -139,15 +149,16 @@ class Rendezvous3DOF(gym.Env):
             self.bubble_radius -= self.bubble_decrease_rate
 
         # Observation: the observation is equal to the normalized state
-        # obs = self.state
-        obs = self.normalize_state().astype(self.observation_space.dtype)
+        # obs = self.normalized_state().astype(self.observation_space.dtype)
+        obs = self.get_current_observation().astype(self.observation_space.dtype)
 
         # Done condition:
         dist = self.absolute_position()
         vel = self.absolute_velocity()
 
         done = False
-        if ~self.observation_space.contains(obs) or (self.t >= self.t_max) or dist > self.bubble_radius:
+
+        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius):
             done = True
 
         # Reward:
@@ -211,15 +222,14 @@ class Rendezvous3DOF(gym.Env):
         self.vel = self.ideal_start_vel + random_initial_velocity
         self.corridor_axis = self.ideal_start_corridor + random_initial_corridor  # TODO: Randomize initial corr axis
         self.state = np.concatenate((self.pos, self.vel, self.corridor_axis))
-        self.trajectory = np.zeros((self.observation_space.shape[0], 1)) * np.nan
+        self.trajectory = np.zeros((self.state.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
         self.t = 0  # Reset time steps
         self.collided = False
         self.bubble_radius = self.absolute_position() + self.target_radius
 
-        # obs = self.state
-        obs = self.normalize_state()
-
+        # obs = self.normalized_state()
+        obs = self.get_current_observation().astype(self.observation_space.dtype)
         return obs
 
     def render(self, mode='human'):
@@ -389,13 +399,11 @@ class Rendezvous3DOF(gym.Env):
 
         return vel
 
-    def normalize_state(self, custom_range=None) -> np.ndarray:
+    def normalized_pos(self, custom_range=None) -> np.ndarray:
         """
-        Returns the state of the system normalized to values between -1 & 1 (or to some custom range).
-        Rationale: According to the tips in SB3, you should "always normalize your observation space when you can,
-        i.e. when you know the boundaries."\n
+        Returns the position coordinates of the chaser, normalized to values between -1 and 1 (or a custom range).\n
         :param custom_range: The desired range [a, b] for the normalized state. Default is [-1, 1]
-        :return: The normalized state
+        :return: Normalized position coordinates
         """
 
         if custom_range is None:
@@ -404,12 +412,44 @@ class Rendezvous3DOF(gym.Env):
         a = custom_range[0]     # Lowest possible value in normalized range
         b = custom_range[1]     # Highest possible value in normalized range
         pos = self.pos          # Chaser position
-        vel = self.vel          # Chaser velocity
         norm_pos = a + (pos + self.max_axial_distance)*(b-a) / (2*self.max_axial_distance)
+        return norm_pos
+
+    def normalized_vel(self, custom_range=None) -> np.ndarray:
+
+        """
+        Returns the velocity components of the chaser, normalized to values between -1 and 1 (or a custom range).\n
+        :param custom_range: The desired range [a, b] for the normalized state. Default is [-1, 1]
+        :return: Normalized velocity components
+        """
+
+        if custom_range is None:
+            custom_range = [-1, 1]
+
+        a = custom_range[0]     # Lowest possible value in normalized range
+        b = custom_range[1]     # Highest possible value in normalized range
+        vel = self.vel          # Chaser velocity
         norm_vel = a + (vel + self.max_axial_speed)*(b-a) / (2*self.max_axial_speed)
-        norm_state = np.concatenate((norm_pos, norm_vel, self.corridor_axis))
-        # Corridor axis does not need normalization
-        return norm_state
+        return norm_vel
+
+    def get_current_observation(self):
+        """
+        Create an observation based on the current state. Works for Box and Dict observation spaces.\n
+        :return: observation
+        """
+
+        if isinstance(self.observation_space, gym.spaces.box.Box):
+            obs = np.concatenate((self.normalized_pos(), self.normalized_vel(), self.corridor_axis))
+        elif isinstance(self.observation_space, gym.spaces.dict.Dict):
+            obs = OrderedDict([
+                ('pos', self.normalized_pos()),
+                ('vel', self.normalized_vel()),
+                ('cor', self.corridor_axis)
+            ])
+        else:
+            raise TypeError(f'Observation space type is incompatible: {type(self.observation_space)}')
+
+        return obs
 
     def clohessy_wiltshire(self, t, x0):
         """

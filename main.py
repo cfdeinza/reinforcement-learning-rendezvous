@@ -79,6 +79,24 @@ def load_model(args, env):
     return model
 
 
+def lr_schedule(initial_value: float):
+    """
+    Learning rate scheduler. Default learning rate for PPO is 3e-4.\n
+    :param initial_value: Initial learning rate.
+    :return: Callback function that computes current learning rate
+    """
+
+    def func(progress_remaining: float) -> float:
+        """
+        Computes current learning rate based on progress remaining.\n
+        :param progress_remaining: value that will decrease from 1 to 0.
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
+
+
 def train(args, model):
     """
     Train the model for a given number of time steps.

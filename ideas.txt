@@ -1,5 +1,8 @@
 This file contains ideas that have not yet been implemented in the code.
 
+# Consider expanding the initial position range in the x and z directions.
+# (So the agent might learn the controls in those directions better. Right now its always close to zero)
+
 # Render: Display some sort of warning when the chaser enters the keep-out-zone. Draw a red circle:
 
     if self.absolute_position() < self.target_radius:
@@ -11,6 +14,13 @@ This file contains ideas that have not yet been implemented in the code.
         warning.set_color(1, 0.3, 0.3)
         self.viewer.add_onetime(warning)
 
+# From SB3 examples:
+    - Multiprocessing: use vectorized environments to stack multiple independent environments into a single environment.
+    It allows us to train n environments per step, instead of just one. To enable multiprocessing, use SuprocVecEnv instead of DummyVecEnv.
+    It allows "significant speed-up when the environment is computationally complex."
+    - Dictionary observations: for observations that cannot be directly concatenated. Note that their PPO algorithm does not accept dict actions.
+    - Hindsight experience replay (HER): off-policy algorithm? It learns from previous mistakes?
+    - Learning rate schedule: Change learning rate based on training completion. It could make the learning more stable.
 
 # Receding bubble reward function:
     Reward function only penalizes fuel consumption.
@@ -43,3 +53,55 @@ This file contains ideas that have not yet been implemented in the code.
         done = True
     else:
         done = False
+
+# Convert actions from a Discrete(27) space into meaningful delta V actions:
+    def convert_discrete_action(self, discrete_action):
+        actions = np.array([
+            [0, 0, 0],      # 0
+            [0, 0, 1],      # U
+            [0, 0, -1],     # D
+            [-1, 0, 0],     # L
+            [1, 0, 0],      # R
+            [0, 1, 0],      # F
+            [0, -1, 0],     # B
+            [-1, 0, 1],     # UL
+            [1, 0, 1],      # UR
+            [0, 1, 1],      # UF
+            [0, -1, 1],     # UB
+            [-1, 0, -1],    # DL
+            [1, 0, -1],     # DR
+            [0, 1, -1],     # DF
+            [0, -1, -1],    # DB
+            [-1, 1, 0],     # LF
+            [-1, -1, 0],    # LB
+            [1, 1, 0],      # RF
+            [1, -1, 0],     # RB
+            [-1, 1, 1],     # ULF
+            [-1, -1, 1],    # ULB
+            [1, -1, 1],     # URB
+            [1, 1, 1],      # URF
+            [-1, 1, -1],    # DLF
+            [-1, -1, -1],   # DLB
+            [1, -1, -1],    # DRB
+            [1, 1, -1]      # DRF
+        ])
+        return actions[discrete_action] * self.max_delta_v
+
+# Get a random sample from the action space, and process it as necessary (based on its type):
+    def get_action_sample(self):
+        """
+        Get a sample from the action space. Works for MultiBinary(6), and MultiDiscrete([3, 3, 3]) action spaces.\n
+        :return: action sample
+        """
+        action = self.action_space.sample()
+
+        if isinstance(self.action_space, gym.spaces.multi_binary.MultiBinary):
+            action = (action[0:3] - action[3:]) * self.max_delta_v
+        elif isinstance(self.action_space, gym.spaces.multi_discrete.MultiDiscrete):
+            action = (action - 1) * self.max_delta_v
+        elif isinstance(self.action_space, gym.spaces.box.Box):
+            action = action
+        else:
+            raise TypeError(f'Action space type is incompatible: {type(self.action_space)}')
+
+        return action

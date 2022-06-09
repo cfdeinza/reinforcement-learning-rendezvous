@@ -134,7 +134,7 @@ def plot_animation(args, data):
 
     # Update the time interval between the animation's frames:
     dt = data['dt']
-    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = dt * 200
+    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 0  # dt * 200
 
     # Compute corridor rotation:
     if 'w_norm' in data and 'w_mag' in data:
@@ -289,6 +289,7 @@ def create_cube(x_points, y_points, z_points, name=None, face_color=None) -> (go
         z=[z_points[i] for i in ind],
         mode='lines',
         hoverinfo=None,
+        name=name,
         showlegend=False,
         line=dict(color='black')
     )
