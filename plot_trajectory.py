@@ -10,11 +10,13 @@ import argparse
 import pickle
 # from mpl_toolkits.mplot3d import Axes3D
 import plotly.graph_objects as go
-from math import sin, cos, pi, radians, degrees
-from scipy.spatial.transform import Rotation as R
+from math import cos, pi, radians, degrees
+from scipy.spatial.transform import Rotation as scipyRot
 import time
 from plot_attitude_trajectory import generate_slider
 from os import path as os_path
+import os
+from PIL import Image
 
 
 def load_data(args):
@@ -33,6 +35,129 @@ def load_data(args):
     with open(path, 'rb') as handle:
         data = pickle.load(handle)
     return data
+
+
+def save_images(data):
+    """
+    Save images of every point in the trajectory.\n
+    :param data: Dictionary containing the trajectory data.
+    :return: None
+    """
+
+    # Chaser position data:
+    x = data['trajectory'][0]
+    y = data['trajectory'][1]
+    z = data['trajectory'][2]
+
+    # Check that the required info about the target is available:
+    if 'target_radius' in data:
+        target_radius = data['target_radius']
+    else:
+        target_radius = 5
+        print(f'Target radius not defined. Using default value: {target_radius} m')
+    if 'cone_half_angle' in data:
+        cone_half_angle = data['cone_half_angle']
+    else:
+        cone_half_angle = radians(30)
+        print(f'Corridor angle not defined. Using default value: {round(degrees(cone_half_angle), 2)} deg')
+
+    # Make the figure:
+    if 'viewer_bounds' in data:
+        lim = data['viewer_bounds']
+    else:
+        lim = 50
+        print(f'Plot limits not defined. Using default value: {lim} m')  
+
+    if not os.path.exists('images'):
+        os.mkdir('images')
+
+    # Compute corridor rotation:
+    if 'w_norm' in data and 'w_mag' in data:
+        w_norm = data['w_norm']
+        w_mag = data['w_mag']
+    else:
+        w_norm = np.array([0, 0, 1])
+        w_mag = 0
+        print('Target rotation not defined. Plotting static target instead.')
+    euler_axis = w_norm
+    dt = data['dt']
+    theta = w_mag * dt
+    quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
+    rot = scipyRot.from_quat(quaternion)  # Rotation of the target during each time step
+
+    # Make a satellite to represent the target body:
+    target_x, target_y, target_z = create_sat_points(0, 0, 0)
+    target_body, target_edges = create_sat(target_x, target_y, target_z, name='Target')
+
+    # Create the images:
+
+    if not os.path.exists('images'):
+        os.mkdir('images')
+
+    for i in range(0, len(x)):
+        corridor_axis = data['trajectory'][6:, i]
+        # Make surface object for the Keep-out zone:
+        koz_x, koz_y, koz_z = create_koz_points(target_radius, cone_half_angle, corridor_axis)
+        koz = go.Surface(
+            x=koz_x,
+            y=koz_y,
+            z=koz_z,
+            opacity=1,
+            opacityscale=[[0, 1], [0.99, 0.9], [1, 0.1]],
+            surfacecolor=koz_x ** 2 + koz_y ** 2 + koz_z ** 2,
+            colorscale=[[0, 'rgb(100,20,20)'], [1, 'rgb(200,30,30)']],
+            showscale=False,
+            name='Keep-out zone',
+            showlegend=False)
+
+        # Make Scatter3d object for the trajectory
+        chaser_trajectory = go.Scatter3d(x=x[0:i], y=y[0:i], z=z[0:i],
+                                         mode='lines',
+                                         line={'color': 'rgb(50,150,50)', 'dash': 'solid', 'width': 4},
+                                         # marker={'size': 2, 'color': 'rgb(50,50,50)'},
+                                         name='Trajectory',
+                                         showlegend=False)
+
+        # Make a cube to represent the chaser:
+        chaser_x, chaser_y, chaser_z = create_cube_points(x[i], y[i], z[i])
+        chaser_body, chaser_edges = create_cube(chaser_x, chaser_y, chaser_z, name='Chaser')
+
+        fig_dict = {
+            'data': [koz, chaser_trajectory, chaser_body, chaser_edges, target_body, target_edges],
+            'layout': {
+                'scene': dict(
+                    xaxis=dict(range=[-lim, lim], zerolinecolor="black"), xaxis_showspikes=False,
+                    yaxis=dict(range=[-lim, lim], zerolinecolor="black"), yaxis_showspikes=False,
+                    zaxis=dict(range=[-lim, lim], zerolinecolor="black"), zaxis_showspikes=False),
+                'width': 800,
+                'scene_aspectmode': 'cube',
+                'scene_camera': define_camera(),
+                # 'title': 'Rendezvous trajectory',
+            }}
+        fig = go.Figure(fig_dict)
+        fig.write_image(os.path.join('images', f'img{i}.png'))
+
+        target_x, target_y, target_z = rotate_points(target_x, target_y, target_z, rot)
+        target_body, target_edges = create_sat(target_x, target_y, target_z)
+
+    return
+
+
+def save_gif(start_img: int = 0, end_img: int = 179):
+    """
+    Save the images of the trajectory as a gif file in plots\\out.gif.
+    To crop the gif, check out https://ezgif.com/crop \n
+    :param start_img: # of the first image to be included in the gif.
+    :param end_img: # of the last image to be included in the gif.
+    :return: None
+    """
+    images = []
+    for i in range(start_img, end_img+1):
+        images.append(Image.open(os.path.join('images', f'img{i}.png')))
+
+    print('saving gif...')
+    images[0].save(os.path.join('plots', 'out.gif'), save_all=True, append_images=images[1:], duration=100, loop=0)
+    return
 
 
 def plot_animation(args, data):
@@ -82,14 +207,15 @@ def plot_animation(args, data):
     # Make a cube to represent the target body:
     # target_x, target_y, target_z = create_cube_points(0, 0, 0, width=1)
     target_x, target_y, target_z = create_sat_points(0, 0, 0)
-    target_color = 'rgb(60,60,150)'
+    # target_color = 'rgb(60,60,150)'
     # target_body, target_edges = create_cube(target_x, target_y, target_z, name='Target', face_color=target_color)
     target_body, target_edges = create_sat(target_x, target_y, target_z, name='Target')
 
     # Make Scatter3d object for the trajectory
     chaser_trajectory = go.Scatter3d(x=x, y=y, z=z,
+                                     mode='lines',
                                      line={'color': 'rgb(50,150,50)', 'dash': 'solid', 'width': 4},
-                                     marker={'size': 2, 'color': 'rgb(50,50,50)'},
+                                     # marker={'size': 2, 'color': 'rgb(50,50,50)'},
                                      name='Trajectory',
                                      showlegend=True)
 
@@ -107,9 +233,9 @@ def plot_animation(args, data):
         'data': [target, chaser_trajectory, chaser_body, chaser_edges, target_body, target_edges],
         'layout': {
             'scene': dict(
-                xaxis=dict(range=[-lim, lim], zerolinecolor="black"), xaxis_showspikes=False,
-                yaxis=dict(range=[-lim, lim], zerolinecolor="black"), yaxis_showspikes=False,
-                zaxis=dict(range=[-lim, lim], zerolinecolor="black"), zaxis_showspikes=False),
+                xaxis=dict(range=[-lim, lim]), xaxis_showspikes=False,  # zerolinecolor="black"
+                yaxis=dict(range=[-lim, lim]), yaxis_showspikes=False,
+                zaxis=dict(range=[-lim, lim]), zaxis_showspikes=False),
             'width': 800,
             'scene_aspectmode': 'cube',
             'scene_camera': define_camera(),
@@ -135,6 +261,8 @@ def plot_animation(args, data):
     # Update the time interval between the animation's frames:
     dt = data['dt']
     fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 0  # dt * 200
+    # fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 30
+    # fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 5
 
     # Compute corridor rotation:
     if 'w_norm' in data and 'w_mag' in data:
@@ -147,7 +275,7 @@ def plot_animation(args, data):
     euler_axis = w_norm
     theta = w_mag * dt
     quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
-    rot = R.from_quat(quaternion)  # Rotation of the target during each time step
+    rot = scipyRot.from_quat(quaternion)  # Rotation of the target during each time step
 
     # Create the frames:
     frames = []
@@ -212,12 +340,12 @@ def create_koz_points(r: float, angle: float, vec: np.ndarray=None) -> (np.ndarr
         euler_axis = cross / np.linalg.norm(cross)
         theta = np.arccos(np.dot(z_vec, vec) / (np.linalg.norm(z_vec) * np.linalg.norm(vec)))
         quat = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
-        rot = R.from_quat(quat)  # Rotation from the current cone direction to the desired corridor direction
+        rot = scipyRot.from_quat(quat)  # Rotation from the current cone direction to the desired corridor direction
         x_sphere, y_sphere, z_sphere = rotate_points(x_sphere, y_sphere, z_sphere, rot)
     return x_sphere, y_sphere, z_sphere
 
 
-def rotate_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: R) -> (np.ndarray, np.ndarray, np.ndarray):
+def rotate_points(x: np.ndarray, y: np.ndarray, z: np.ndarray, rot: scipyRot) -> (np.ndarray, np.ndarray, np.ndarray):
     """
     This function rotates a given set of points.\n
     :param x: x-coordinates of the points
@@ -280,7 +408,7 @@ def create_cube(x_points, y_points, z_points, name=None, face_color=None) -> (go
         opacity=1,
         flatshading=True,
         name=name,
-        showlegend=True
+        showlegend=False
     )
     ind = [0, 3, 2, 1, 0, 4, 7, 3, 7, 6, 2, 6, 5, 1, 5, 4]  # indices of the points to join with lines
     lines = go.Scatter3d(
@@ -370,7 +498,9 @@ def define_camera(up: list=None, center: list=None, eye: list=None) -> dict:
     if center is None:
         center = [0, 0, 0]
     if eye is None:
-        eye = [1.25, -1.25, 1.25]
+        eye = [1.25, -1.25, 1.25]  # default
+        # eye = [0.52, -0.52, 0.52]  # more zoomed-in
+        # eye = [-0.2, -0.2, 0.4]  # even more zoomed-in
 
     camera = dict(
         up=dict(x=up[0], y=up[1], z=up[2]),
@@ -496,17 +626,27 @@ def get_args():
 if __name__ == '__main__':
     start = time.perf_counter()
     arguments = get_args()
-    trajectory_data = load_data(arguments)
     if not arguments.show:
         print('"--show" was not called. Plots will not be displayed.')
     if not arguments.save:
         print('"--save" was not called. Plots will not be saved.')
-    if arguments.type == '2d':
+    if arguments.type == 'images':
+        trajectory_data = load_data(arguments)
+        save_images(trajectory_data)
+    elif arguments.type == 'gif':
+        print('run savegif()')
+        save_gif()
+    elif arguments.type == '2d':
+        trajectory_data = load_data(arguments)
         plot2d(arguments, trajectory_data)
     elif arguments.type == 'anim':
+        trajectory_data = load_data(arguments)
         plot_animation(arguments, trajectory_data)
-    else:
+    elif arguments.type == 'all':
+        trajectory_data = load_data(arguments)
         plot_animation(arguments, trajectory_data)
         plot2d(arguments, trajectory_data)
+    else:
+        print('--type unknown')
 
     print(f'Finished on {time.ctime()}. ({round(time.perf_counter()-start, 2)} seconds)')
