@@ -1,11 +1,11 @@
 ## Information:
-The goal of this repository is to train an agent to perform an autonomous rendezvous in a predefined environment. 
+The purpose of this repository is to train an agent to perform an autonomous rendezvous in an MDP environment. 
 The agent is trained with a reinforcement learning algorithm from Stable-Baselines3.
 
 ## Contents:
-- `custom_callbacks.py`: contains callback functions used during training.\
-- `custom_env.py`: contains environments created according to the guidelines of OpenAI Gym.\
-- `main.py`: the main script that is executed to train or evaluate a model.\
+- `custom_callbacks.py`: contains callback functions used during training.
+- `custom_env.py`: contains a custom rendezvous environment created according to the guidelines of OpenAI Gym.
+- `main.py`: the main script that is executed to train or evaluate a model.
 - `plot_*.py`: these scripts plot the trajectories of the different models.
 
 ## Stable-Baselines 3:
