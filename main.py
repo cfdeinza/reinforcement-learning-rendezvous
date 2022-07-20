@@ -9,6 +9,10 @@ from attitude_env import Attitude
 from custom_callbacks import my_eval_callback
 from arguments import get_args
 
+from gym.envs.classic_control import PendulumEnv
+import gym
+
+
 """
 Main script used for training or evaluating a PPO model.
 
@@ -27,6 +31,9 @@ def load_env(args):
 
     if args.env == 'rdv':
         env = Rendezvous3DOF()
+        # env = Rendezvous3DOF(config=None)
+        # env = PendulumEnv()  # this has no 'done' condition
+        # env = gym.make('Pendulum-v1')
     elif args.env == 'att':
         env = Attitude()
     elif args.env == '':

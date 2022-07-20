@@ -144,6 +144,69 @@ model.base_model.summary()
 
 ### Configuring the experiments:
 As we saw before, we can configure our training process using the `config` argument on our trainer. 
+RLlib configuration splits into two parts: algorithm-specific configuration and common configuration. 
+Algorithm-specific configuration becomes more important once you have everything else in your model figured out, 
+and you really want to optimize the algorithm's performance, but RLlib provides you with good defaults to get started. 
+Common configuration can be further split into the following types:
+- Resource configuration: specify the resources used for the training process, such as number of GPUs.
+- Debugging and Logging configuration: how the information is logged and how you access it.
+- Rollout worker and evaluation configuration: how many workers are used for rollouts during training and evaluation.
+- Environment configuration: specify your environment and its parameters.
+
+Some [common configuration parameters](https://docs.ray.io/en/latest/rllib/rllib-training.html#common-parameters) are:
+- `gamma = 0.99` (discount factor)
+- `lr = 0.001` (learning rate)
+- `train_batch_size = 200`
+- `optimizer = {}` (arguments for the policy optimizer)
+- `env: None` (environment class)
+- `env_task_fn = None` (for [curriculum learning](https://docs.ray.io/en/latest/rllib/rllib-training.html#curriculum-learning))
+- `render_env = False`
+- `record_env = False` (stores videos of the env)
+- `framework` (deep learning framework, either tf, tf2, tfe, or torch)
+- `explore = True`
+- `exploration_config = {"type": "StochasticSampling"}` (type of exploration) (see [this link](https://docs.ray.io/en/latest/rllib/rllib-training.html#customizing-exploration-behavior) for more info)
+- `evaluation_interval = None` (evaluate every n training_iterations)
+- `evaluation_duration = None`
+- `evaluation_duration_unit = "episodes"` (episodes or timesteps)
+- `model = MODEL_DEFAULTS`
+
+See [this link](https://docs.ray.io/en/latest/rllib/rllib-models.html#default-model-config-settings) or [models/catalog.py](https://github.com/ray-project/ray/blob/master/rllib/models/catalog.py) 
+for more information on the model configuration settings. 
+It lets you choose the size of the neural network, the activation functions, add convolutional or LSTM layers, as seen in the example below (taken from [tuned examples](https://github.com/ray-project/ray/blob/master/rllib/tuned_examples/ppo/repeatafterme-ppo-lstm.yaml)). 
+For more information on custom recurrent networks, see [this link](https://docs.ray.io/en/latest/rllib/rllib-models.html#implementing-custom-recurrent-networks). 
+```yaml
+config:
+        # Make env partially observable.
+        env_config:
+          config:
+            repeat_delay: 2
+        num_workers: 0
+        num_envs_per_worker: 20
+        model:
+            use_lstm: true
+            lstm_cell_size: 64
+            max_seq_len: 20
+            fcnet_hiddens: [64]
+            vf_share_layers: true
+```
+
+The [PPO-specific](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#proximal-policy-optimization-ppo) configuration parameters are:
+- `lr_schedule = None`
+- `use_critic = True`
+- `use_gae = True`
+- `lambda_ = 1.0`
+- `kl_coeff = 0.2`
+- `sgd_minibatch_size = 128`
+- `num_sgd_iter = 30`
+- `shuffle_sequences = True`
+- `vf_loss_coeff = 0.0`
+- `entropy_coeff = 0.0`
+- `entropy_coeff_schedule = None`
+- `clip_param = 0.3`
+- `vf_clip_param = 10.0`
+- `grad_clip = None`
+- `kl_target = 0.01`
+Note that these parameters differ slightly from the [Stable Baselines 3 parameters](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html#parameters).
 
 ### Curriculum learning:
 One of the most interesting features of RLlib is to provide a trainer with a *curriculum* to learn from. 
@@ -171,5 +234,78 @@ config = {
 ```
 
 ### Other advanced topics:
-- You can use *parametric action spaces* to "mask-out" undesired actions from the action space for each point in time.
+- You can use [parametric action spaces](https://docs.ray.io/en/latest/rllib/rllib-models.html#variable-length-parametric-action-spaces) to "mask-out" undesired actions from the action space for each point in time.
 - You can also have variable observation spaces.
+
+## Ray Train:
+Ray also comes with the Ray Train library, which provides an extensive suite of machine learning training integrations 
+and allows them to scale seamlessly. 
+
+Machine learning often requires a lot of heavy computation. It might take too long to finish training. 
+Training can be accelerated by processing data with increased throughput. Some machine learning models, such as neural 
+networks, can parallelize parts of the computation process to speed up training (this applies specifically to the 
+gradient computation in neural networks).
+
+Ray Train is a library for distributed training on Ray. It offers key tools for different parts of the training workflow, 
+from feature processing, to scalable training, to integrations with ML tracking tools, to export mechanisms for models. 
+In a typical ML pipeline you will use the following key components of Ray Train:
+- Preprocessors: process dataset objects into consumable features for trainers.
+- Trainers: wrapper classes around third-party training frameworks.
+- Models: each trainer can produce a model.
+
+## Ray Tune:
+Ray Tune is a Python library for experiment execution and hyperparameter tuning. Specifically, it was built to find good hyperparameters for machine learning models. 
+It has an enormous suite of algorithms for tackling hyperparameter optimization (HPO).
+```python
+from ray import tune
+import math
+import time
+
+# We simulate an expensive training funtion that takes two hyperparameters (x and y) from a config
+def training_function(config):
+    x, y = config["x"], config["y"]
+    time.sleep(10)
+    score = objective(x, y)
+    tune.report(score=score)  # after training, we report back the score
+    return
+
+# This is an example objective that computes the mean of the squares of x and y, 
+# but we can make this objective whatever we want (like total reward, or some other indicator of performance)
+def objective(x, y):
+    return math.sqrt((x**2 + y**2)/2)
+
+# We use tune.run to initialize hyperparameter optimization on our training_function
+result = tune.run(
+    training_function,
+    config={
+        "x": tune.grid_search([-1, -.5, 0, .5, 1]), # for each param we have to provide a parameter space to search over
+        "y": tune.grid_search([-1, -.5, 0, .5, 1])
+    }
+)
+
+print(result.get_best_config(metric="score", mode="min"))  # we have to specify if we want to min or max the objective
+```
+In the example above, we performed a grid search to check every possible combination of parameters. 
+There is a total of 25 possible combinations, since there are 5 possible values for both x and y. 
+The training function takes 10 seconds to run every time, so in total it would take over 4 minutes (250 seconds) to 
+test all the combinations sequentially. But because Ray is smart about parallelizing the workload, it only takes about 
+35 seconds. However, grid search becomes infeasible for experiments with longer training functions and more 
+hyperparameters. In such situations, we need to use more elaborate HPO methods. Ray Tune supports algorithms from 
+practically every notable HPO tool available, including Hyperopt, Optuna, Nevergrad, Ax, SigOpt and many others. 
+Furthermore, all RLlib algorithms can be tuned with Ray Tune. It can also be used to register you environments so that 
+you can refer to them by name.
+
+Some features of Tune are:
+- Search algorithms: Wrappers (`tune.suggest`) around open-source optimization libraries for efficient hyperparameter selection.
+    - Random search and grid search: the default and most basic way to do hyperparameter search.
+    - Bayesian optimization
+    - BOHB: Bayesian Optimization HyperBand (both terminates bad trials and also uses Bayesian optimization to improve 
+    the hyperparameter search)
+    - many others
+- Trial schedulers: some hyperparameter optimization algorithms in Tune are written as "scheduling algorithms" (`tune.schedulers`), 
+which can terminate bad trials, pause trials, clone trials, and alter hyperparameters of a running trial.
+    - ASHA: recommended over the standard HyperBand scheduler (better parallelism and avoids straggler issues)
+    - HyperBand: early stopping algorithm
+    - Median Stopping Rule: stops a trial if its performance falls below the median of other trials
+    - Population based training: low-performing trials clone the checkpoints of top performers and perturb the configurations to discover even better variants
+- ExperimentAnalysis: evaluate your model and retrieve the best one

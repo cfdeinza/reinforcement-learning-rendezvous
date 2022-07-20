@@ -4,6 +4,7 @@ from scipy.spatial.transform import Rotation as scipyRot
 import plotly.graph_objects as go
 import pickle
 import matplotlib.pyplot as plt
+from utils import angle_between_vectors
 
 
 # Compute corridor rotation:
@@ -32,7 +33,7 @@ def load_data(args):
 
 def get_trajectory_data(data):
     """
-    Check if trajectory data is present. If not replace with default values.\n
+    Check if environment properties are present. If not replace with default values.\n
     :param data: Dictionary containing trajectory data.
     :return: Dictionary containing trajectory data.
     """
@@ -250,8 +251,10 @@ def create_sat_points(pos_x, pos_y, pos_z, vec: np.ndarray=None):
 
     # Rotate the body to match the direction of the corridor:
     if vec is not None:
-        vec_0 = np.array([0, -1, 0])  # Vector pointing in the -y direction (initial direction of the cone)
-        cross = np.cross(vec_0, vec)  # Cross product of the current cone direction and the desired corridor direction
+        vec_0 = np.array([0, -1, 0])  # Vector pointing in the -y direction (initial direction of the target)
+        cross = np.cross(vec_0, vec)  # Cross product of the initial target direction and the desired corridor direction
+        # print(f'Target: {cross}, {np.linalg.norm(cross)}')
+        # print(f'Target: {vec}, {np.degrees(angle_between_vectors(vec_0, vec))}')
         euler_axis = cross / np.linalg.norm(cross)
         theta = np.arccos(np.dot(vec_0, vec) / (np.linalg.norm(vec_0) * np.linalg.norm(vec)))
         quat = np.append(euler_axis * np.sin(theta / 2), np.cos(theta / 2))

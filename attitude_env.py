@@ -108,14 +108,15 @@ class Attitude(gym.Env):
         self.t += self.dt
 
         # Observation: the observation is equal to the state
-        obs = self.state
+        obs = self.state.astype(self.observation_space.dtype)
 
         # Reward:
         q_error = self.error_quaternion()  # Error quaternion (the rotation btw the current and desired attitude)
         rew = 8 - np.sum(np.abs(q_error - np.array([0, 0, 0, 1])))
 
         # Done:
-        if ~self.observation_space.contains(obs) or (self.t >= self.t_max):
+        # print(f'in obs_space: {self.observation_space.contains(obs)}')
+        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max):
             done = True
 
         else:
@@ -128,6 +129,8 @@ class Attitude(gym.Env):
             't': self.t
         }
 
+        self.render()
+
         if done:
             # Render the episode:
             self.fig.frames = tuple(self.ax)
@@ -137,6 +140,10 @@ class Attitude(gym.Env):
             # Remove the first row of NaNs from the actions and trajectory arrays
             self.trajectory = self.trajectory[:, 1:]
             self.actions = self.actions[:, 1:]
+            info['trajectory'] = self.trajectory
+            info['actions'] = self.actions
+            # print(len(self.fig.frames))
+            # print(f't: {self.t}')
 
         return obs, rew, done, info
 

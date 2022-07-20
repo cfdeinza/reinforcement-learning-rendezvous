@@ -6,3 +6,4 @@ wb*/
 wandb*/
 train_wandb.py
 *.html
+ray_tutorials/

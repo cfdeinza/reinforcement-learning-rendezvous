@@ -105,3 +105,10 @@ This file contains ideas that have not yet been implemented in the code.
             raise TypeError(f'Action space type is incompatible: {type(self.action_space)}')
 
         return action
+
+
+# Different way to rotate body points: (does not work for KOZ)
+    points = np.vstack((x, y, z)).T
+    print(points.shape)
+    new_points = rot.apply(points)
+    new_x, new_y, new_z = new_points.T

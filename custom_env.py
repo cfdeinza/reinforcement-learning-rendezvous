@@ -5,6 +5,8 @@ from math import sin, cos, radians, sqrt
 from gym.envs.classic_control import rendering
 from scipy.spatial.transform import Rotation as scipyRot
 from collections import OrderedDict
+from utils import angle_between_vectors, perpendicular_vector, rotate_vector_about_axis
+# from ray.rllib.env.env_context import EnvContext
 
 """
 This file contains the custom environment used to train reinforcement learning models. 
@@ -29,12 +31,14 @@ class Rendezvous3DOF(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, pos0=None, vel0=None, corr0=None, randomize=True):
+        # add "config: EnvContext" param to train rllib (evaluating still does not work)
 
         # The ideal starting state of the system (randomness is introduced in reset()):
-        self.ideal_start_pos = np.array([0, -40, 0])
-        self.ideal_start_vel = np.array([0, 0, 0])
-        self.ideal_start_corridor = np.array([0, -1, 0])
+        self.ideal_start_pos = np.array([0, -40, 0]) if pos0 is None else pos0
+        self.ideal_start_vel = np.array([0, 0, 0]) if vel0 is None else vel0
+        self.ideal_start_corridor = np.array([0, -1, 0]) if corr0 is None else corr0
+        self.randomize_start = randomize  # Whether or not to randomize the initial conditions
         self.state = None       # Placeholder until the state is defined in reset()
         self.pos = None         # Chaser position (m)
         self.vel = None         # Chaser velocity (m)
@@ -42,8 +46,10 @@ class Rendezvous3DOF(gym.Env):
         self.t = None           # Current time step. (Placeholder until reset() is called)
         self.dt = 1             # Time interval between actions (s)
         self.t_max = 180        # Max time per episode
-        self.bubble_radius = None
-        self.bubble_decrease_rate = 0.3  # Give the target enough time to turn once?
+
+        # Properties of the reward function:
+        self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
+        self.bubble_decrease_rate = 0.3     # Rate at which the size of the bubble decreases (m/s)
 
         # Orbit properties:
         self.mu = 3.986004418e14            # Gravitational parameter of Earth (m3/s2)
@@ -64,9 +70,10 @@ class Rendezvous3DOF(gym.Env):
         self.w_mag = radians(3)                         # Magnitude of the angular velocity (rad/s)
         self.corridor_axis = None                       # Direction of the corridor axis
 
-        # Range of initial conditions for the chaser:
-        self.initial_position_range = 2     # Range of possible initial positions for each axis (m)
-        self.initial_velocity_range = 0.1   # Range of possible initial velocities for each axis (m/s)
+        # Range of initial conditions:
+        self.initial_position_range = 2             # Range of possible initial positions for each axis (m)
+        self.initial_velocity_range = 0.1           # Range of possible initial velocities for each axis (m/s)
+        self.initial_corridor_range = radians(30)   # Range of initial corridor direction (radians)
 
         # Attributes used in render():
         self.trajectory = None  # Array of states (6xn)
@@ -167,8 +174,12 @@ class Rendezvous3DOF(gym.Env):
         rew = 1 - np.linalg.norm(action) / sqrt(3 * self.max_delta_v**2)  # 1 - ( |u| / u_max )
 
         if dist < self.target_radius:
+
+            # Compute angle between the corridor axis and the chaser:
+            angle_from_corridor = angle_between_vectors(self.pos, self.corridor_axis)
+
             # Inside corridor:
-            if self.angle_from_corridor() < self.cone_half_angle:
+            if angle_from_corridor < self.cone_half_angle:
                 if (dist < 3) and (self.collided is False):
                     vel_radial = abs(np.dot(self.vel, self.pos) / dist)
                     vel_tangential = np.sqrt(vel ** 2 - vel_radial ** 2)
@@ -216,11 +227,19 @@ class Rendezvous3DOF(gym.Env):
             size=(3,)
         )
 
-        random_initial_corridor = np.array([0, 0, 0])
+        # random_initial_corridor = np.array([0, 0, 0])
+        # random_initial_corridor = np.array([
+        #     np.random.uniform(low=-0.5, high=0.5),
+        #     np.random.uniform(low=-1, high=0),
+        #     0
+        # ])
+        # random_initial_corridor = random_initial_corridor / np.linalg.norm(random_initial_corridor)  # normalize
+        self.corridor_axis = self.ideal_start_corridor
+        if self.randomize_start:
+            self.randomize_corridor()
 
         self.pos = self.ideal_start_pos + random_initial_position
         self.vel = self.ideal_start_vel + random_initial_velocity
-        self.corridor_axis = self.ideal_start_corridor + random_initial_corridor  # TODO: Randomize initial corr axis
         self.state = np.concatenate((self.pos, self.vel, self.corridor_axis))
         self.trajectory = np.zeros((self.state.shape[0], 1)) * np.nan
         self.actions = np.zeros((self.action_space.shape[0], 1)) * np.nan
@@ -270,6 +289,9 @@ class Rendezvous3DOF(gym.Env):
             target.set_linewidth(3)
             self.viewer.add_geom(target)
 
+        # Use a poligon to show the corridor:
+        self.draw_corridor()
+
         # Use a polyline to show the path of the chaser:
         path = rendering.make_polyline(list(zip(self.trajectory[0, 1:], self.trajectory[1, 1:])))
         path.set_color(0.5, 0.5, 0.5)
@@ -300,20 +322,42 @@ class Rendezvous3DOF(gym.Env):
 
     """ ======================================== Rendezvous3DOF Utils: ========================================= """
 
-    def angle_from_corridor(self) -> np.float:
+    def randomize_corridor(self):
         """
-        Computes the angle between the chaser and the corridor axis, using the geometric definition of the dot product:
-        cos(theta) = (u . v) / (|u|*|v|)\n
-        :return: angle (in radians) between the chaser and the corridor axis
+        Rotates the corridor by some random angle.
+        :return: None
         """
 
-        pos = self.pos              # Chaser position vector
-        axis = self.corridor_axis   # Corridor vector
+        y = np.array([0, 0, 1])  # y axis
+        z = np.array([0, 0, 1])  # z axis
 
-        # Apply the dot product formula:
-        angle = np.arccos(np.dot(pos, axis) / (np.linalg.norm(pos) * np.linalg.norm(axis)))
+        # Compute a vector perpendicular to the corridor axis:
+        if 0.1 < angle_between_vectors(self.corridor_axis, z) < np.pi-0.1:
+            perp = perpendicular_vector(self.corridor_axis, z)
+        else:
+            perp = perpendicular_vector(self.corridor_axis, y)
 
-        return angle
+        # Rotate the perpendicular vector around the corridor axis by some random degrees:
+        perp = rotate_vector_about_axis(
+            vec=perp,
+            axis=self.corridor_axis,
+            theta=np.random.uniform(
+                low=0,
+                high=2 * np.pi
+            )
+        )
+
+        # Rotate the corridor around the perpendicular vector:
+        self.corridor_axis = rotate_vector_about_axis(
+            vec=self.corridor_axis,
+            axis=perp,
+            theta=np.random.uniform(
+                low=0,
+                high=self.initial_corridor_range
+            )
+        )
+
+        return
 
     def draw_grid(self, limits):
         """
@@ -377,6 +421,22 @@ class Rendezvous3DOF(gym.Env):
         arrow.set_color(0, 0, 0)
         self.viewer.add_onetime(arrow)
 
+        return
+
+    def draw_corridor(self):
+        """
+        Draw a polygon on the viewer to represent the entry corridor.\n
+        :return:
+        """
+        corr = self.corridor_axis * self.target_radius
+        perp = np.cross(corr, np.array([0, 0, 1]))
+        perp = perp / np.linalg.norm(perp) * self.target_radius * np.tan(self.cone_half_angle)
+        x = [0, corr[0] + perp[0], corr[0] - perp[0], 0]
+        y = [0, corr[1] + perp[1], corr[1] - perp[1], 0]
+        corridor = rendering.make_polygon(list(zip(x, y)), filled=False)
+        corridor.set_color(0.4, 0.4, 0.9)
+        corridor.set_linewidth(2)
+        self.viewer.add_onetime(corridor)
         return
 
     def absolute_position(self):
