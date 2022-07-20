@@ -72,6 +72,149 @@ def rotate_vector_about_axis(vec, axis, theta):
     return new_vec
 
 
+def clohessy_wiltshire(r0: np.ndarray, v0: np.ndarray, n: float, t: float) -> tuple:
+    """
+    Use the Clohessy-Wiltshire model to compute the position and velocity of the chaser after time t.\n
+    :param r0: initial position of the chaser
+    :param v0: initial velocity of the chaser
+    :param n: mean motion of the orbit [s^-1]
+    :param t: time interval [s]
+    :return: tuple containing the new position and velocity of the chaser
+    """
+    assert r0.shape == (3,)
+    assert v0.shape == (3,)
+
+    x0 = np.append(r0, v0)
+    nt = n * t
+
+    stm = np.array([
+        [4 - 3*np.cos(nt),      0, 0,             1 / n*np.sin(nt),        2 / n*(1 - np.cos(nt)),                   0],
+        [6*(np.sin(nt) - nt),   1, 0,             -2 / n*(1 - np.cos(nt)), 1 / n*(4*np.sin(nt) - 3*nt),              0],
+        [0,                     0, np.cos(nt),    0,                       0,                           1/n*np.sin(nt)],
+        [3*n*np.sin(nt),        0, 0,             np.cos(nt),              2*np.sin(nt),                             0],
+        [-6*n*(1 - np.cos(nt)), 0, 0,             -2*np.sin(nt),           4*np.cos(nt) - 3,                         0],
+        [0,                     0, -n*np.sin(nt), 0,                       0,                               np.cos(nt)]
+    ])
+
+    xt = np.matmul(stm, x0)
+
+    rt = xt[0:3]
+
+    vt = xt[3:]
+
+    return rt, vt
+
+
+def angular_acceleration(inertia: np.ndarray, inv_inertia: np.ndarray, w: np.ndarray, torque: np.ndarray):
+    """
+    Compute the angular acceleration of a rigid body using Euler's rotation equations.\n
+    :param inertia: moment of inertia of the rigid body.
+    :param inv_inertia: inverse of the moment of inertia.
+    :param w: rotational rate of the rigid body.
+    :param torque: torque acting on the rigid body.
+    :return: angular acceleration vector
+    """
+
+    assert w.shape == (3,)
+    assert torque.shape == (3,)
+
+    angular_momentum = np.matmul(inertia, w)
+    cross_product = np.cross(w, angular_momentum)
+    w_dot = np.matmul(inv_inertia, torque - cross_product)
+
+    assert w_dot.shape == (3,)
+
+    # print(f'Iw = {angular_momentum}')
+    # print(f'w x Iw = {cross_product}')
+    # print(f'w\' = {w_dot}')
+    return w_dot
+
+
+def quat_derivative(q, w):
+    """
+    Compute the derivative of a quaternion using the definition on
+    [AHRS](https://ahrs.readthedocs.io/en/latest/filters/angular.html?highlight=quaternion#quaternion-derivative).
+    :param q: scalar-first quaternion
+    :param w: angular velocity [rad/s]
+    :return: derivative of the quaternion
+    """
+
+    assert q.shape == (4,)
+    assert np.linalg.norm(q) == 1
+    assert w.shape == (3,)
+
+    w1, w2, w3 = w
+    skew = np.array([
+        [0,  -w1, -w2, -w3],
+        [w1,   0,  w3, -w2],
+        [w2, -w3,   0,  w1],
+        [w3,  w2, -w1,   0]
+    ])
+
+    q_dot = 0.5 * np.matmul(skew, q)
+
+    return q_dot
+
+
+def dydt(t, y, inertia, inv_inertia, torque):
+    """
+    Compute the derivative of the attitude and rotational rate of a rigid body.
+    :param t: integration time
+    :param y: "state" vector [q, w]
+    :param inertia: moment of inertia of the rigid body
+    :param inv_inertia: inverse of the moment of inertia
+    :param torque: torque acting on the body
+    :return: derivative of the attitude quaternion and the rotational rate
+    """
+
+    assert y.shape == (7,)
+
+    q = y[0:4]
+    w = y[4:]
+
+    assert np.linalg.norm(q) == 1, 'The magnitude of the quaternion changed during integration.'
+
+    # if t != 0:
+    #     torque = np.array([0, 0, 0])
+
+    q_dot = quat_derivative(q, w)
+    w_dot = angular_acceleration(inertia, inv_inertia, w, torque)
+
+    dy = np.append(q_dot, w_dot)
+
+    return dy
+
+
+def normalize_value(val, low, high, custom_range=None):
+    """
+    Normalize a value to [-1, 1], or to some custom range.\n
+    :param val: value(s) to normalize (can be an ndarray)
+    :param low: minimum bound for the un-normalized value
+    :param high: maximum bound for the un-normalized value
+    :param custom_range: some custom range [a, b] to normalize the value to
+    :return: normalized value
+    """
+    if custom_range is None:
+        custom_range = [-1, 1]
+
+    a, b = custom_range
+    norm_val = (b - a) * (val - low) / (high - low) + a
+
+    return norm_val
+
+
+# Tests:
+if __name__ == '__main__':
+    print(normalize_value(np.array([20, 100, -100]), -100, 100))
+
+# i = np.array([[2, 0, 0], [0, 1, 0], [0, 0, 1]])
+# invi = np.linalg.inv(i)
+# omega = np.array([1, 0, 1])
+# m = np.array([0, 0, 0])
+# res = angular_acceleration(i, invi, omega, m)
+# print(res)
+
+
 # a = np.array([1, 0, 0])
 # b = np.array([-1, 0, 0])
 # print(np.degrees(angle_between_vectors(a, b)))

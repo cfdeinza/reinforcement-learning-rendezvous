@@ -233,6 +233,7 @@ def plot_animation(args, data):
         current_koz = go.Surface(x=koz_x, y=koz_y, z=koz_z)
 
         # Update the target:
+        # TODO: Fix the target rotation.
         target_x, target_y, target_z = create_sat_points(0, 0, 0, vec=corridor_axis)
         target_body, target_edges = create_sat(target_x, target_y, target_z)
 
