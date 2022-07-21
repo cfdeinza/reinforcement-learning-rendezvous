@@ -2,7 +2,7 @@ import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
-from utils import clohessy_wiltshire, dydt, normalize_value  # angular_acceleration, quat_derivative
+from utils.general import clohessy_wiltshire, dydt, normalize_value  # angular_acceleration, quat_derivative
 
 
 class RendezvousEnv(gym.Env):
@@ -206,6 +206,7 @@ class RendezvousEnv(gym.Env):
             done = True
         else:
             done = False
+
         return done
 
     def integrate_q_w(self, torque):

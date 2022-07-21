@@ -5,7 +5,7 @@ from math import sin, cos, radians, sqrt
 from gym.envs.classic_control import rendering
 from scipy.spatial.transform import Rotation as scipyRot
 from collections import OrderedDict
-from utils import angle_between_vectors, perpendicular_vector, rotate_vector_about_axis
+from utils.general import angle_between_vectors, perpendicular_vector, rotate_vector_about_axis
 # from ray.rllib.env.env_context import EnvContext
 
 """

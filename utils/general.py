@@ -1,6 +1,7 @@
 """
-This file contains basic utility functions
+This module contains general utility functions.
 """
+
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
 
@@ -206,6 +207,7 @@ def normalize_value(val, low, high, custom_range=None):
 # Tests:
 if __name__ == '__main__':
     print(normalize_value(np.array([20, 100, -100]), -100, 100))
+    print(__doc__)
 
 # i = np.array([[2, 0, 0], [0, 1, 0], [0, 0, 1]])
 # invi = np.linalg.inv(i)

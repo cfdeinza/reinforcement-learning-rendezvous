@@ -1,7 +1,6 @@
-from custom_env import Rendezvous3DOF
+from custom.custom_rdv_env import Rendezvous3DOF
 from main import load_model  #, load_env
 from arguments import get_args
-import numpy as np
 
 """
 Evaluate a model over a single episode.

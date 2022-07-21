@@ -1,11 +1,13 @@
+"""
+This module contains utility functions for plotting 3D animations with plotly.
+"""
+
 import numpy as np
 from math import radians, degrees, pi, cos
 from scipy.spatial.transform import Rotation as scipyRot
 import plotly.graph_objects as go
 import pickle
 import matplotlib.pyplot as plt
-from utils import angle_between_vectors
-
 
 # Compute corridor rotation:
 # euler_axis = w_norm

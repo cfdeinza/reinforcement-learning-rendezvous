@@ -1,4 +1,4 @@
-from attitude_env import Attitude
+from custom.custom_att_env import Attitude
 from main import load_model  #, load_env
 from arguments import get_args
 import numpy as np

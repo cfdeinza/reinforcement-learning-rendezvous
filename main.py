@@ -4,14 +4,10 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-from custom_env import Rendezvous3DOF
-from attitude_env import Attitude
-from custom_callbacks import my_eval_callback
+from custom.custom_rdv_env import Rendezvous3DOF
+from custom.custom_att_env import Attitude
+from custom.custom_callbacks import my_eval_callback
 from arguments import get_args
-
-from gym.envs.classic_control import PendulumEnv
-import gym
-
 
 """
 Main script used for training or evaluating a PPO model.

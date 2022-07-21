@@ -14,7 +14,7 @@ Functions:
 import argparse
 import time
 from plot_attitude_trajectory import generate_slider
-from plot_trajectory_utils import *
+from utils.animations import *
 import os
 from PIL import Image
 import sys
