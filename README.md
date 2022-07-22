@@ -1,12 +1,24 @@
 ## Information:
-The purpose of this repository is to train an agent to perform an autonomous rendezvous in an MDP environment. 
-The agent is trained with a reinforcement learning algorithm from Stable-Baselines3.
+The purpose of this repository is to train a reinforcement learning agent to perform an autonomous rendezvous with a tumbling target. 
+The agent is trained with the Proximal Policy Optimization algorithm from Stable-Baselines3.
 
 ## Contents:
-- `custom_callbacks.py`: contains callback functions used during training.
-- `custom_env.py`: contains a custom rendezvous environment created according to the guidelines of OpenAI Gym.
+### Directories:
+- `custom/`: custom features used on Stable-Baselines3 (callback functions, policies, environments, etc).
+- `data/`: pickle files containing trajectory data.
+- `ideas/`: relevant information to be implemented in the future.
+- `logs/`: logs from previous training and evaluation runs.
+- `models/`: trained RL models.
+- `other/`: miscellaneous files that may be useful in the future.
+- `plots/`: plots and animations of the trajectories.
+- `utils/`: utility functions.
+### Files:
+- `arguments.py`: function to parse arguments when running scripts from the command line.
 - `main.py`: the main script that is executed to train or evaluate a model.
-- `plot_*.py`: these scripts plot the trajectories of the different models.
+- `plot_learning.py`: script to plot the rewards achieved by the RL agent throughout a training run.
+- `rendezvous_env.py`: custom gym environment for a 6DOF rendezvous.
+- `rendezvous_eval.py`: script to evaluate the performance of the rendezvous controller.
+- `rendezvous_plot.py`: script to plot the 6DOF rendezvous trajectory.
 
 ## Stable-Baselines 3:
 [Stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/) (SB3) is an open source project of DLR's Institute of Robotics and Mechatronics. 
