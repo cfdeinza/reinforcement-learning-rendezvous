@@ -1,3 +1,7 @@
+"""
+This script generates a rendevous trajectory.
+"""
+
 from rendezvous_env import RendezvousEnv
 from main import load_model  #, load_env
 import argparse
@@ -29,7 +33,7 @@ def evaluate(model, env, args):
 
     env.reset()
 
-    print(f'Starting state: {np.hstack((env.rc, env.vc, env.qc, env.wc))}')
+    print(f'Initial state: {np.hstack((env.rc, env.vc, env.qc, env.wc))}')
     # print(f'Starting rotation rate: {env.state[4:]}')
 
     obs = env.get_observation()
@@ -43,14 +47,24 @@ def evaluate(model, env, args):
     wc = np.full((3, expected_timesteps), np.nan)
     a = np.full((6, expected_timesteps), np.nan)    # actions (last obs has no action)
     rew = np.full((1, expected_timesteps), np.nan)  # rewards (first state has no reward)
+    t = np.full((1, expected_timesteps), np.nan)    # times
     rc[:, 0] = env.rc
     vc[:, 0] = env.vc
     qc[:, 0] = env.qc
     wc[:, 0] = env.wc
+    t[0, 0] = env.t
+
+    torque = 3e-2
+    force = 0.25
     k = 1
     while not done:
         # action = get_action(model, obs)
-        action = np.array([0, 0, 0, 0, 0, 0])
+        if k == 10:
+            action = np.array([0, force, 0, torque, torque, torque])
+        # elif k == 92:
+        #     action = np.array([0, 0, 0, torque, 0, -torque])
+        else:
+            action = np.array([0, 0, 0, 0, 0, 0])
         obs, reward, done, info = env.step(action)
         total_reward += reward
         rc[:, k] = env.rc
@@ -59,13 +73,14 @@ def evaluate(model, env, args):
         wc[:, k] = env.wc
         a[:, k-1] = action
         rew[0, k] = reward
+        t[0, k] = env.t
         print(f'Step: {k}', end='\r')
         k += 1
 
     # trajectory = info['trajectory']
     # actions = info['actions']
 
-    print(f'Total reward: {round(total_reward, 2)}')
+    print(f'\nTotal reward: {round(total_reward, 2)}')
 
     if args.save:
         data = {
@@ -74,7 +89,12 @@ def evaluate(model, env, args):
             'qc': qc,
             'wc': wc,
         }
-        name = os.path.join('data', 'rdv_data.pickle')  # f'logs/rdv_data.pickle'
+        file_num = 0
+        name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
+        while os.path.exists(name):
+            file_num += 1
+            name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
+
         with open(name, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print(f'Saved trajectory data: {name}')
@@ -122,7 +142,7 @@ def get_args():
 if __name__ == '__main__':
     arguments = get_args()
     # arguments.model = ''
-    # arguments.save = True
+    arguments.save = True
     # arguments.render = True
 
     environment = RendezvousEnv()

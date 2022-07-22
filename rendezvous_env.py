@@ -231,8 +231,9 @@ class RendezvousEnv(gym.Env):
 
         yf = sol.y.flatten()
         self.qc = yf[0:4]
+        self.qc = self.qc / np.linalg.norm(self.qc)
         self.wc = yf[4:]
 
-        assert np.linalg.norm(self.qc) == 1, 'Quaternion failed magnitude check after integration.'
+        # assert np.linalg.norm(self.qc) == 1, f'Quaternion magnitude != 1 after integration. {np.linalg.norm(self.qc)}'
 
         return

@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 # quaternion = np.append(euler_axis * np.sin(theta/2), np.cos(theta/2))
 # rot = scipyRot.from_quat(quaternion)  # Rotation of the target during each time step
 
+
 def load_data(args):
     """
     Load the data from a pickle file.\n
@@ -27,9 +28,10 @@ def load_data(args):
         print('Please use the "--path" argument to specify the path to the trajectory file.\nExiting')
         exit()
 
-    print(f'Loading file "{path}"...')
+    print(f'Loading file "{path}"...', end=' ')
     with open(path, 'rb') as handle:
         data = pickle.load(handle)
+    print('Successful.')
     return data
 
 
@@ -344,6 +346,38 @@ def define_camera(up: list=None, center: list=None, eye: list=None) -> dict:
         eye=dict(x=eye[0], y=eye[1], z=eye[2])
     )
     return camera
+
+
+def generate_slider(figure):
+    """
+    Create a slider for the 3d animation.
+    :param figure: A plotly figure (with frames already defined)
+    :return: A list of dictionaries to define the sliders
+    """
+    duration = 0  # (ms?)
+    frame_args = {
+        'frame': {'duration': duration},
+        'mode': 'immediate',
+        'fromcurrent': True,
+        'transition': {'duration': duration, 'easing': 'linear'}
+    }
+    sliders = [
+        {
+            "pad": {"b": 10, "t": 60},
+            "len": 0.9,
+            "x": 0.1,
+            "y": 0,
+            "steps": [
+                {
+                    "args": [[f.name], frame_args],
+                    "label": f.name,  # str(round(k*dt, 1)),
+                    "method": "animate",
+                }
+                for k, f in enumerate(figure.frames)
+            ],
+        }
+    ]
+    return sliders
 
 
 def plot_2dcomponents(ax: plt.Axes, x, y1, y2, y3,

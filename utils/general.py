@@ -141,8 +141,10 @@ def quat_derivative(q, w):
     """
 
     assert q.shape == (4,)
-    assert np.linalg.norm(q) == 1
+    # assert np.linalg.norm(q) == 1
     assert w.shape == (3,)
+
+    q = q / np.linalg.norm(q)
 
     w1, w2, w3 = w
     skew = np.array([
@@ -173,7 +175,7 @@ def dydt(t, y, inertia, inv_inertia, torque):
     q = y[0:4]
     w = y[4:]
 
-    assert np.linalg.norm(q) == 1, 'The magnitude of the quaternion changed during integration.'
+    # assert np.linalg.norm(q) == 1, 'The magnitude of the quaternion changed during integration.'
 
     # if t != 0:
     #     torque = np.array([0, 0, 0])

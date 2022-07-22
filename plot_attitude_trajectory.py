@@ -167,38 +167,6 @@ def generate_frame_data(state, lim=10):
     return data_list
 
 
-def generate_slider(figure):
-    """
-    Create a slider for the 3d animation.
-    :param figure: A plotly figure (with frames already defined)
-    :return: A list of dictionaries to define the sliders
-    """
-    duration = 0  # (ms?)
-    frame_args = {
-        'frame': {'duration': duration},
-        'mode': 'immediate',
-        'fromcurrent': True,
-        'transition': {'duration': duration, 'easing': 'linear'}
-    }
-    sliders = [
-        {
-            "pad": {"b": 10, "t": 60},
-            "len": 0.9,
-            "x": 0.1,
-            "y": 0,
-            "steps": [
-                {
-                    "args": [[f.name], frame_args],
-                    "label": f.name,  # str(round(k*dt, 1)),
-                    "method": "animate",
-                }
-                for k, f in enumerate(figure.frames)
-            ],
-        }
-    ]
-    return sliders
-
-
 def plot2d(x, a):
     """
     Plot the attitude, velocity, and actions over time.

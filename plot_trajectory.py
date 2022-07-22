@@ -13,7 +13,6 @@ Functions:
 
 import argparse
 import time
-from plot_attitude_trajectory import generate_slider
 from utils.animations import *
 import os
 from PIL import Image
