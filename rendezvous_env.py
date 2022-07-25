@@ -29,8 +29,8 @@ class RendezvousEnv(gym.Env):
         # Chaser properties:
         self.inertia = np.array([  # moment of ineria [kg.m^2]
             [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1]
+            [0, 2, 0],
+            [0, 0, 3]
         ])
         self.inv_inertia = np.linalg.inv(self.inertia)
         self.max_delta_v = 1    # Maximum delta V for each axis [m/s]
@@ -44,6 +44,12 @@ class RendezvousEnv(gym.Env):
         # Target properties:
         self.koz_radius = 5                         # radius of the keep-out zone [m]
         self.corridor_half_angle = np.radians(30)   # half-angle of the conic entry corridor [rad]
+        self.inertia_target = np.array([            # moment of inertia of the target [kg.m^2]
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ])
+        self.inv_inertia_target = np.linalg.inv(self.inertia_target)
 
         # Time:
         self.t = None       # current time of episode [s]
@@ -98,10 +104,13 @@ class RendezvousEnv(gym.Env):
         # qc_dot = quat_derivative(self.qc, self.wc)
 
         # Update the attitude and rotation rate of the chaser:
-        self.integrate_q_w(torque)
+        self.integrate_chaser_attitude(torque)
+
+        # Update the attitude and rotation rate of the target:
+        self.integrate_target_attitude(np.array([0, 0, 0]))
 
         # Update the time step:
-        self.t += self.dt
+        self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
 
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
@@ -191,7 +200,7 @@ class RendezvousEnv(gym.Env):
 
         assert self.rc is not None
 
-        rew = self.max_axial_distance - np.linalg.norm(self.rc)
+        rew = (self.max_axial_distance - np.linalg.norm(self.rc)) / self.max_axial_distance
         return rew
 
     def get_done_condition(self) -> bool:
@@ -209,7 +218,7 @@ class RendezvousEnv(gym.Env):
 
         return done
 
-    def integrate_q_w(self, torque):
+    def integrate_chaser_attitude(self, torque):
         """
         Use a fourth-order Runge-Kutta integrator to update the attitude and rotation rate of the chaser.\n
         :param torque: torque applied at the start of this time step
@@ -235,5 +244,32 @@ class RendezvousEnv(gym.Env):
         self.wc = yf[4:]
 
         # assert np.linalg.norm(self.qc) == 1, f'Quaternion magnitude != 1 after integration. {np.linalg.norm(self.qc)}'
+
+        return
+
+    def integrate_target_attitude(self, torque):
+        """
+        Use a fourth-order Runge-Kutta integrator to update the attitude and rotation rate of the target.\n
+        :param torque: Torque applied to the target (always zero).
+        :return: None
+        """
+
+        y0 = np.append(self.qt, self.wt)
+
+        sol = solve_ivp(
+            fun=dydt,
+            t_span=(0, self.dt),
+            y0=y0,
+            method='RK45',
+            t_eval=np.array([self.dt]),
+            rtol=1e-7,
+            atol=1e-6,
+            args=(self.inertia_target, self.inv_inertia_target, torque)
+        )
+
+        yf = sol.y.flatten()
+        self.qt = yf[0:4]
+        self.qt = self.qt / np.linalg.norm(self.qt)
+        self.wt = yf[4:]
 
         return

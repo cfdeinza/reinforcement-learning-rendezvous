@@ -35,15 +35,16 @@ def plot_animation(args, data):
     # Create traces:
     lvlh_length, lvlh_width = (15, 10)
     chaser_length, chaser_width = (10, 5)
-    w_scale, w_width = (100, 8)
+    w_scale, w_width = (100, 1)
     lx, ly, lz = draw_frame('LVLH', length=lvlh_length, width=lvlh_width, colors=['darkred', 'darkgreen', 'darkblue'])
     cx, cy, cz = draw_frame('chaser', pos=rc[:, 0], quat=qc[:, 0], length=chaser_length, width=chaser_width)
-    chaser_w = draw_vector(wc[:, 0], pos=rc[:, 0], quat=qc[:, 0], scale=w_scale, width=w_width, label='rotation rate')
+    chaser_w_line, chaser_w_tip = draw_vector(wc[:, 0], pos=rc[:, 0], quat=qc[:, 0],
+                                              scale=w_scale, width=w_width, label='rotation rate')
 
     # Make the figure:
     lim = 50
     fig_dict = {
-        'data': [lx, ly, lz, cx, cy, cz, chaser_w],
+        'data': [lx, ly, lz, cx, cy, cz, chaser_w_line, chaser_w_tip],
         'layout': {
             'scene': dict(
                 xaxis=dict(range=[-lim, lim]), xaxis_showspikes=False,  # zerolinecolor="black"
@@ -84,14 +85,14 @@ def plot_animation(args, data):
         cx, cy, cz = draw_frame('chaser', pos=rc[:, i], quat=qc[:, i], length=chaser_length, width=chaser_width)
 
         # Update the rotation rate:
-        chaser_w = draw_vector(wc[:, i], pos=rc[:, i], quat=qc[:, i], scale=w_scale, width=w_width,
-                               label='rotation rate')
+        chaser_w_line, chaser_w_tip = draw_vector(wc[:, i], pos=rc[:, i], quat=qc[:, i],
+                                                  scale=w_scale, width=w_width, label='rotation rate')
 
         # Define new frame:
         frame = {
-            "data": [cx, cy, cz, chaser_w],
+            "data": [cx, cy, cz, chaser_w_line, chaser_w_tip],
             "name": str(i),
-            "traces": [3, 4, 5, 6],  # 'traces' indicates which trace we are updating.
+            "traces": [3, 4, 5, 6, 7],  # 'traces' indicates which trace we are updating.
         }
         frames.append(frame)
 
@@ -175,7 +176,7 @@ def draw_frame(label: str, pos=None, quat=None, length=1, width=1, colors=None):
     return x, y, z
 
 
-def draw_vector(vec, pos=None, quat=None, scale=1, width=1, color=None, label=None):
+def draw_vector(vec, pos=None, quat=None, scale=1, width=1, color=None, label=None, opacity=None):
     """
     Draw a 3D vector.
     :param vec: vector
@@ -185,9 +186,10 @@ def draw_vector(vec, pos=None, quat=None, scale=1, width=1, color=None, label=No
     :param width: width of the plotted line
     :param color: color of the plotted vector
     :param label: label shown on the plot
-    :return: Scatter3D graph object
+    :param opacity: opacity of the vector
+    :return: Two graph objects (Scatter3D, Cone)
     """
-
+    # TODO: set min and max for vector length
     assert vec.shape == (3,)
 
     # Rotate the vector:
@@ -206,16 +208,34 @@ def draw_vector(vec, pos=None, quat=None, scale=1, width=1, color=None, label=No
     if color is None:
         color = 'black'
 
-    trace = go.Scatter3d(
+    if opacity is None:
+        opacity = 1
+
+    line = go.Scatter3d(
         x=[pos[0], vec[0]],
         y=[pos[1], vec[1]],
         z=[pos[2], vec[2]],
         mode='lines',
         line={'color': color, 'dash': 'solid', 'width': width},
+        opacity=opacity,
         name=label,
     )
 
-    return trace
+    tip = go.Cone(
+        x=[vec[0]],
+        y=[vec[1]],
+        z=[vec[2]],
+        u=[0.3 * (vec[0] - pos[0])],
+        v=[0.3 * (vec[1] - pos[1])],
+        w=[0.3 * (vec[2] - pos[2])],
+        colorscale=[[0, color], [1, color]],
+        anchor='tip',
+        opacity=opacity,
+        hoverinfo='none',
+        showscale=False,
+    )
+
+    return line, tip
 
 
 def get_args():

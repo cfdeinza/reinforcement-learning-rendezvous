@@ -40,41 +40,57 @@ def evaluate(model, env, args):
     total_reward = 0
     done = False
     info = {}
-    expected_timesteps = int(env.t_max / env.dt) + 1
-    rc = np.full((3, expected_timesteps), np.nan)
-    vc = np.full((3, expected_timesteps), np.nan)
-    qc = np.full((4, expected_timesteps), np.nan)
-    wc = np.full((3, expected_timesteps), np.nan)
-    a = np.full((6, expected_timesteps), np.nan)    # actions (last obs has no action)
-    rew = np.full((1, expected_timesteps), np.nan)  # rewards (first state has no reward)
-    t = np.full((1, expected_timesteps), np.nan)    # times
+
+    # Create empty arrays to save values:
+    expected_timesteps = int(env.t_max / env.dt) + 1    # size of the empty arrays
+    rc = np.full((3, expected_timesteps), np.nan)       # chaser position
+    vc = np.full((3, expected_timesteps), np.nan)       # chaser velocity
+    qc = np.full((4, expected_timesteps), np.nan)       # chaser attitude
+    wc = np.full((3, expected_timesteps), np.nan)       # chaser rotation rate
+    qt = np.full((4, expected_timesteps), np.nan)       # target attitude
+    wt = np.full((3, expected_timesteps), np.nan)       # target rotation rate
+    a = np.full((6, expected_timesteps), np.nan)        # actions (last obs has no action)
+    rew = np.full((1, expected_timesteps), np.nan)      # rewards (first state has no reward)
+    t = np.full((1, expected_timesteps), np.nan)        # times
+
+    # Save the initial values:
     rc[:, 0] = env.rc
     vc[:, 0] = env.vc
     qc[:, 0] = env.qc
     wc[:, 0] = env.wc
+    qt[:, 0] = env.qt
+    wt[:, 0] = env.wt
     t[0, 0] = env.t
 
     torque = 3e-2
     force = 0.25
     k = 1
     while not done:
+
+        # Select action:
         # action = get_action(model, obs)
-        if k == 10:
-            action = np.array([0, force, 0, torque, torque, torque])
+        if k == 5:
+            action = np.array([0, 0, 0, 0, 1200*torque, 1e-3])
         # elif k == 92:
         #     action = np.array([0, 0, 0, torque, 0, -torque])
         else:
             action = np.array([0, 0, 0, 0, 0, 0])
+
+        # Step forward in time:
         obs, reward, done, info = env.step(action)
+
+        # Save current values:
         total_reward += reward
         rc[:, k] = env.rc
         vc[:, k] = env.vc
         qc[:, k] = env.qc
         wc[:, k] = env.wc
+        qt[:, k] = env.qt
+        wt[:, k] = env.wt
         a[:, k-1] = action
         rew[0, k] = reward
         t[0, k] = env.t
-        print(f'Step: {k}', end='\r')
+        print(f'Step: {env.t}', end='\r')
         k += 1
 
     # trajectory = info['trajectory']
@@ -88,6 +104,7 @@ def evaluate(model, env, args):
             'vc': vc,
             'qc': qc,
             'wc': wc,
+            't': t,
         }
         file_num = 0
         name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
@@ -151,6 +168,7 @@ if __name__ == '__main__':
         saved_model = load_model(arguments, environment)
     else:
         saved_model = None
+        print('No controller provided. Using custom.')
 
     evaluate(saved_model, environment, arguments)
 

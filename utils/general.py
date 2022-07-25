@@ -175,7 +175,8 @@ def dydt(t, y, inertia, inv_inertia, torque):
     q = y[0:4]
     w = y[4:]
 
-    # assert np.linalg.norm(q) == 1, 'The magnitude of the quaternion changed during integration.'
+    # assert np.linalg.norm(q) == 1, f'The magnitude of the quaternion changed during integration: {np.linalg.norm(q)}'
+    q = q / np.linalg.norm(q)
 
     # if t != 0:
     #     torque = np.array([0, 0, 0])
