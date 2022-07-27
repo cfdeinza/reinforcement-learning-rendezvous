@@ -279,8 +279,8 @@ def get_args():
 if __name__ == '__main__':
     start = time.perf_counter()
     arguments = get_args()
-    # arguments.path = os.path.join('data', 'rdv_data1.pickle')
-    # arguments.show = True
+    arguments.path = os.path.join('data', 'rdv_data1.pickle')
+    arguments.show = True
     trajectory_data = load_data(arguments)
     plot_animation(arguments, trajectory_data)
 

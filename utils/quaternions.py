@@ -33,7 +33,8 @@ def quat2rot(q: np.ndarray) -> tuple:
     """
 
     assert q.shape == (4,)
-    assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    # assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    q = quat_normalize(q)
 
     theta = 2 * np.arccos(q[0])
 
@@ -63,7 +64,8 @@ def quat_conjugate(q) -> np.ndarray:
     """
 
     assert q.shape == (4,)
-    assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    # assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    q = quat_normalize(q)
 
     return np.append(q[0], -q[1:])
 
@@ -77,7 +79,7 @@ def quat_magnitude(q: np.ndarray):
 
     assert q.shape == (4,)
 
-    return ((q ** 2).sum()) ** 0.5
+    return np.linalg.norm(q)  #((q ** 2).sum()) ** 0.5
 
 
 def quat_normalize(q: np.ndarray) -> np.ndarray:
@@ -100,7 +102,8 @@ def quat_inverse(q: np.ndarray) -> np.ndarray:
     """
 
     assert q.shape == (4,)
-    assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    # assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    q = quat_normalize(q)
 
     q_inv = quat_conjugate(q) / (quat_magnitude(q)**2)
 
@@ -116,8 +119,10 @@ def quat_product(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     """
     assert q1.shape == (4,)
     assert q2.shape == (4,)
-    assert quat_magnitude(q1) == 1, f'|q| = {quat_magnitude(q1)}'
-    assert quat_magnitude(q2) == 1, f'|q| = {quat_magnitude(q2)}'
+    # assert quat_magnitude(q1) == 1, f'|q1| = {quat_magnitude(q1)}'
+    # assert quat_magnitude(q2) == 1, f'|q2| = {quat_magnitude(q2)}'
+    q1 = quat_normalize(q1)
+    q2 = quat_normalize(q2)
 
     s1, v1 = q1[0], q1[1:]
     s2, v2 = q2[0], q2[1:]
@@ -140,8 +145,10 @@ def quat_error(q_est: np.ndarray, q_true: np.ndarray) -> np.ndarray:
 
     assert q_est.shape == (4,)
     assert q_true.shape == (4,)
-    assert quat_magnitude(q_est) == 1, f'|q| = {quat_magnitude(q_est)}'
-    assert quat_magnitude(q_true) == 1, f'|q| = {quat_magnitude(q_true)}'
+    # assert quat_magnitude(q_est) == 1, f'|q| = {quat_magnitude(q_est)}'
+    # assert quat_magnitude(q_true) == 1, f'|q| = {quat_magnitude(q_true)}'
+    q_est = quat_normalize(q_est)
+    q_true = quat_normalize(q_true)
 
     qd = quat_product(q_true, quat_inverse(q_est))
 

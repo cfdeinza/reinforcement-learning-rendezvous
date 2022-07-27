@@ -2,8 +2,34 @@
 This module contains general utility functions.
 """
 
+import sys
+import pickle
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
+
+
+def load_data(path: str):
+    """
+    Load data from a pickle file.\n
+    :param path: path to the file.
+    :return: data (usually a dictionary)
+    """
+
+    if len(path) == 0:
+        print('Please specify the path to the trajectory file.\nExiting')
+        sys.exit()
+
+    print(f'Loading file "{path}"...', end=' ')
+
+    try:
+        with open(path, 'rb') as handle:
+            data = pickle.load(handle)
+        print('Successful.')
+    except FileNotFoundError:
+        print(f'Error. Could not find file or directory "{path}"\nExiting')
+        sys.exit()
+
+    return data
 
 
 def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> np.float:
