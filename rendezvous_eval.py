@@ -3,7 +3,7 @@ This script generates a rendevous trajectory.
 """
 
 from rendezvous_env import RendezvousEnv
-from main import load_model  #, load_env
+from utils.general import load_model  #, load_env
 import argparse
 import numpy as np
 import pickle
@@ -68,13 +68,13 @@ def evaluate(model, env, args):
     while not done:
 
         # Select action:
-        # action = get_action(model, obs)
-        if k == 5:
-            action = np.array([0, 0, 0, 0, 1200*torque, 1e-3])
-        # elif k == 92:
-        #     action = np.array([0, 0, 0, torque, 0, -torque])
-        else:
-            action = np.array([0, 0, 0, 0, 0, 0])
+        action = get_action(model, obs)
+        # if k == 5:
+        #     action = np.array([0, 0, 0, 0, 1200*torque, 1e-3])
+        # # elif k == 92:
+        # #     action = np.array([0, 0, 0, torque, 0, -torque])
+        # else:
+        #     action = np.array([0, 0, 0, 0, 0, 0])
 
         # Step forward in time:
         obs, reward, done, info = env.step(action)
@@ -159,16 +159,12 @@ def get_args():
 if __name__ == '__main__':
     arguments = get_args()
     # arguments.model = ''
-    arguments.save = True
+    # arguments.save = True
     # arguments.render = True
 
     environment = RendezvousEnv()
     # environment = load_env(arguments)
-    if len(arguments.model) > 0:
-        saved_model = load_model(arguments, environment)
-    else:
-        saved_model = None
-        print('No controller provided. Using custom.')
+    saved_model = load_model(path=arguments.model, env=environment)
 
     evaluate(saved_model, environment, arguments)
 

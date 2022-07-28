@@ -2,7 +2,9 @@ import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
-from utils.general import clohessy_wiltshire, dydt, normalize_value  # angular_acceleration, quat_derivative
+from scipy.spatial.transform import Rotation as scipyRot
+from utils.quaternions import put_scalar_last
+from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors
 
 
 class RendezvousEnv(gym.Env):
@@ -19,12 +21,12 @@ class RendezvousEnv(gym.Env):
         self.wt = None      # rotation rate of the target [rad/s] (not included in observation)
 
         # Nominal initial state:
-        self.nominal_rc0 = np.array([0, -40, 0]) if rc0 is None else rc0
-        self.nominal_vc0 = np.array([0, 0, 0]) if vc0 is None else vc0
-        self.nominal_qc0 = np.array([1, 0, 0, 0]) if qc0 is None else qc0
-        self.nominal_wc0 = np.array([0, 0, 0]) if wc0 is None else wc0
-        self.nominal_qt0 = np.array([1, 0, 0, 0]) if qt0 is None else qt0
-        self.nominal_wt0 = np.array([0, 0, 0]) if wt0 is None else wt0
+        self.nominal_rc0 = np.array([0., -40., 0.]) if rc0 is None else rc0
+        self.nominal_vc0 = np.array([0., 0., 0.]) if vc0 is None else vc0
+        self.nominal_qc0 = np.array([1., 0., 0., 0.]) if qc0 is None else qc0
+        self.nominal_wc0 = np.array([0., 0., 0.]) if wc0 is None else wc0
+        self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
+        self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
         # Chaser properties:
         self.inertia = np.array([  # moment of ineria [kg.m^2]
@@ -91,14 +93,17 @@ class RendezvousEnv(gym.Env):
 
         assert action.shape == (6,)
 
-        delta_v = action[0:3]  # TODO: rotate the delta V based on chaser attitude
-        torque = action[3:]
+        delta_v = action[0:3] * self.max_delta_v  # TODO: rotate the delta V based on chaser attitude
+        torque = action[3:] * self.max_torque
 
         # Apply the delta V:
-        self.vc += delta_v
+        # print(f't = {self.t}, vc: {self.vc}')
+        # print(f'dV: {delta_v}, {delta_v.dtype}')
+        # self.vc += delta_v
+        vc_after_impulse = self.vc + delta_v
 
         # Update the position and velocity of the chaser:
-        self.rc, self.vc = clohessy_wiltshire(self.rc, self.vc, self.n, self.dt)
+        self.rc, self.vc = clohessy_wiltshire(self.rc, vc_after_impulse, self.n, self.dt)
 
         # wc_dot = angular_acceleration(self.inertia, self.inv_inertia, self.wc, torque)
         # qc_dot = quat_derivative(self.qc, self.wc)
@@ -119,7 +124,7 @@ class RendezvousEnv(gym.Env):
         rew = self.get_reward()
 
         # Check if episode is done:
-        done = self.get_done_condition()
+        done = self.get_done_condition(obs)
 
         # Info: auxiliary information
         info = {
@@ -190,7 +195,14 @@ class RendezvousEnv(gym.Env):
             normalize_value(self.wc, -self.max_rotation_rate, self.max_rotation_rate),
             self.qt,
         ))
-        return obs
+        return obs.astype(self.observation_space.dtype)
+
+    def get_state(self):
+        """
+        Get the state of the system (only used for debugging right now).\n
+        :return: state
+        """
+        return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
     def get_reward(self):
         """
@@ -200,19 +212,34 @@ class RendezvousEnv(gym.Env):
 
         assert self.rc is not None
 
-        rew = (self.max_axial_distance - np.linalg.norm(self.rc)) / self.max_axial_distance
+        dist = np.linalg.norm(self.rc)
+        # vel = np.linalg.norm(self.vc)
+
+        rew = 0
+
+        # Distance-based reward:
+        rew += (self.max_axial_distance - dist) / self.max_axial_distance
+
+        # Attitude-based reward:
+        rot = scipyRot.from_quat(put_scalar_last(self.qc))
+        chaser_neg_y = rot.apply(np.array([0, -1, 0]))
+        angle = angle_between_vectors(self.rc, chaser_neg_y)
+        rew -= angle / np.pi
+
         return rew
 
-    def get_done_condition(self) -> bool:
+    def get_done_condition(self, obs) -> bool:
         """
         Check if the episode is done.\n
+        :param obs: current observation
         :return: done condition
         """
 
         assert self.t is not None
 
-        if self.t >= self.t_max:
+        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max):
             done = True
+            print(f'Episode done. dist = {round(np.linalg.norm(self.rc), 2)} at t = {self.t}')
         else:
             done = False
 

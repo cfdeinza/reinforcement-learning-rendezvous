@@ -4,7 +4,8 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-from custom.custom_rdv_env import Rendezvous3DOF
+# from custom.custom_rdv_env import Rendezvous3DOF
+from rendezvous_env import RendezvousEnv
 from custom.custom_att_env import Attitude
 from custom.custom_callbacks import my_eval_callback
 from arguments import get_args
@@ -26,10 +27,11 @@ def load_env(args):
     env = None
 
     if args.env == 'rdv':
-        env = Rendezvous3DOF()
-        # env = Rendezvous3DOF(config=None)
+        env = RendezvousEnv()
+        # env = Rendezvous3DOF()  # this works
+        # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
         # env = PendulumEnv()  # this has no 'done' condition
-        # env = gym.make('Pendulum-v1')
+        # env = gym.make('Pendulum-v1')  # this works
     elif args.env == 'att':
         env = Attitude()
     elif args.env == '':

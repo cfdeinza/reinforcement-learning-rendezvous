@@ -43,17 +43,28 @@ def quat2rot(q: np.ndarray) -> tuple:
     return euler, theta
 
 
-def convert_to_scalar_first(q: np.ndarray) -> np.ndarray:
+def put_scalar_first(q: np.ndarray) -> np.ndarray:
     """
-    Convert a quaternion from vector-first to scalar-first form. (scipy.spatial.transform.Rotation uses vector-first)\n
-    :param q: vector-first quaternion
-    :return:
+    Convert a quaternion from scalar-last to scalar-first form. (scipy.spatial.transform.Rotation uses scalar-last)\n
+    :param q: scalar-last quaternion
+    :return: scalar-first quaternion
     """
 
     assert q.shape == (4,)
     assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
 
     return np.append(q[-1], q[0:3])
+
+
+def put_scalar_last(q: np.ndarray) -> np.ndarray:
+    """
+    Convert a scalar-first quaterion into scalar-last.\n
+    :param q: scalar-first quaternion.
+    :return: scalar-last quaternion
+    """
+
+    assert q.shape == (4,)
+    return np.append(q[1:], q[0])
 
 
 def quat_conjugate(q) -> np.ndarray:
@@ -159,7 +170,7 @@ if __name__ == "__main__":
     # Tests:
     # quat = np.array([1, 2, 3, 4])
     quat = np.array([0, 0, 0, 1])
-    print(f'scalar-first: {convert_to_scalar_first(quat)}')
+    print(f'scalar-first: {put_scalar_first(quat)}')
     print(f'conjugate: {quat_conjugate(quat)}')
 
     # Magnitude:

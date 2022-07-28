@@ -6,6 +6,7 @@ import sys
 import pickle
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
+from stable_baselines3 import PPO
 
 
 def load_data(path: str):
@@ -30,6 +31,29 @@ def load_data(path: str):
         sys.exit()
 
     return data
+
+
+def load_model(path, env):
+    """
+    Load a saved model.\n
+    :param path: path to the file containing the trained model.
+    :param env: environment corresponding to the model.
+    :return: model
+    """
+
+    if path == '':
+        model = None
+        print('No model provided. Exiting')
+        exit()
+    else:
+        print(f'Loading saved model "{path}"...')
+        try:
+            model = PPO.load(path, env=env)
+            print('Successfully loaded model')
+        except FileNotFoundError:
+            print(f'No such file "{path}".\nExiting')
+            exit()
+    return model
 
 
 def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> np.float:
