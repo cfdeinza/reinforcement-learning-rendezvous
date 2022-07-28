@@ -158,11 +158,12 @@ def get_args():
 
 if __name__ == '__main__':
     arguments = get_args()
-    # arguments.model = ''
+    # arguments.model = os.path.join('models', 'best_model.zip')
     # arguments.save = True
     # arguments.render = True
 
     environment = RendezvousEnv()
+    # environment.dt = 0.1  # you can set a new time interval here
     # environment = load_env(arguments)
     saved_model = load_model(path=arguments.model, env=environment)
 

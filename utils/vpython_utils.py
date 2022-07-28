@@ -41,7 +41,7 @@ def create_chaser(rc0: np.ndarray):
     """
     assert rc0.shape == (3,)
 
-    cl, ch, cw = (0.5, 1.0, 0.5)  # chaser dimensions
+    cl, ch, cw = (1, 1.4, 1)  # chaser dimensions
     chaser_pos = vector(rc0[0], rc0[1], rc0[2])
     chaser_body = box(
         pos=chaser_pos,
@@ -50,7 +50,7 @@ def create_chaser(rc0: np.ndarray):
         # texture=textures.stucco,  # cannot have individual textures for compound object
     )
 
-    ctl, cth, ctw = (cl / 2, 0.2, cw / 2)  # chaser tip dimensions
+    ctl, cth, ctw = (cl / 2, ch / 4, cw / 2)  # chaser tip dimensions
     chaser_tip = box(
         pos=chaser_pos + vector(0, (ch + cth) / 2, 0),
         size=vector(ctl, cth, ctw),
@@ -61,6 +61,8 @@ def create_chaser(rc0: np.ndarray):
     chaser = compound(
         [chaser_body, chaser_tip],
         origin=chaser_pos,  # set the position of the compound body (default is the center of the bounding box)
+        # make_trail=True,
+        # trail_type='points',
         # texture={'file': 'sat.png'},
         # shininess=1.0,
     )
