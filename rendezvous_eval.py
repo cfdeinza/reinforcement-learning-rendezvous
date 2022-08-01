@@ -3,7 +3,7 @@ This script generates a rendevous trajectory.
 """
 
 from rendezvous_env import RendezvousEnv
-from utils.general import load_model  #, load_env
+from utils.general import load_model  # , load_env
 import argparse
 import numpy as np
 import pickle
@@ -24,7 +24,8 @@ def get_action(model, obs):
     """
     The outputs of `model.predict()` are the action and the next hidden state.
     for more information on the inputs and outpus of the predict function, 
-    see https://github.com/DLR-RM/stable-baselines3/blob/ef10189d80dbb2efb3b5391cba4eb3c2ab5c7aae/stable_baselines3/common/policies.py#L307
+    see https://github.com/DLR-RM/stable-baselines3/blob/ef10189d80dbb2efb3b5391cba4eb3c2ab5c7aae/
+    stable_baselines3/common/policies.py#L307
     """
     return action
 
@@ -39,7 +40,7 @@ def evaluate(model, env, args):
     obs = env.get_observation()
     total_reward = 0
     done = False
-    info = {}
+    # info = {}
 
     # Create empty arrays to save values:
     expected_timesteps = int(env.t_max / env.dt) + 1    # size of the empty arrays
@@ -62,8 +63,8 @@ def evaluate(model, env, args):
     wt[:, 0] = env.wt
     t[0, 0] = env.t
 
-    torque = 3e-2
-    force = 0.25
+    # torque = 3e-2
+    # force = 0.25
     k = 1
     while not done:
 
@@ -99,19 +100,31 @@ def evaluate(model, env, args):
     print(f'\nTotal reward: {round(total_reward, 2)}')
 
     if args.save:
-        data = {
-            'rc': rc,
-            'vc': vc,
-            'qc': qc,
-            'wc': wc,
-            't': t,
-        }
+        # Create dictionary of env attributes:
+        data = vars(env)
+
+        # Add new pairs to dictionary:
+        new_pairs = [
+            ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc),
+            ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t)
+        ]
+        for key, val in new_pairs:
+            data[key] = val
+
+        # Remove unwanted attributes:
+        unwanted_attributes = ['viewer']
+        for key in unwanted_attributes:
+            data.pop(key)  # Will raise a KeyError if key does not exist
+            # data.pop(key, None)  # Will not raise an error if key does not exist
+
+        # Name of the output file:
         file_num = 0
         name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
         while os.path.exists(name):
             file_num += 1
             name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
 
+        # Save the data file:
         with open(name, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print(f'Saved trajectory data: {name}')
@@ -138,8 +151,8 @@ def get_args():
         dest='save',
         type=bool,
         nargs='?',
-        const=True,     # this is the value that it takes if we call the argument
-        default=False,  # this is the value that it takes by default
+        default=False,  # default value
+        const=True,     # value when called
         help='Use this flag to save the results.'
     )
     parser.add_argument(
@@ -158,7 +171,7 @@ def get_args():
 
 if __name__ == '__main__':
     arguments = get_args()
-    # arguments.model = os.path.join('models', 'best_model.zip')
+    # arguments.model = os.path.join('models', 'model_01.zip')
     # arguments.save = True
     # arguments.render = True
 

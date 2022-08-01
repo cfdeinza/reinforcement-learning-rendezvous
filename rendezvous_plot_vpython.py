@@ -25,23 +25,31 @@ class RunState:
 def make_animation(args):
 
     data = load_data(args.path)
-    t = data['t'][0]  # make time one-dimensional
     rc = data['rc']  # chaser position [m]
     qc = data['qc']  # chaser attitude
     assert rc.shape[0] == 3
-    # print(t[-1])
+
+    # Time data:
+    if 't' in data:
+        t = data['t'][0]  # make time one-dimensional
+    else:
+        if 't_max' in data:
+            t = np.linspace(0, data['t_max'], num=len(rc[0]))
+        else:
+            print('Time data not found.')
+            t = np.linspace(0, 1, num=len(rc[0]))
 
     print('Computing rotations...', end=' ')
 
-    rot0 = quat2rot(qc[:, 0])
-    qc_axes = [numpy2vec(rot0[0])]
-    qc_angles = [rot0[1]]
+    rot0 = quat2rot(qc[:, 0])       # converts quaternion to axis of rotation & degree of rotation.
+    qc_axes = [numpy2vec(rot0[0])]  # axis around which the rotation occurs
+    qc_angles = [rot0[1]]           # degree of the rotation [rad]
 
     for i in range(1, qc.shape[1]):
-        qc_error = quat_error(qc[:, i-1], qc[:, i])
-        axis, angle = quat2rot(qc_error)
-        qc_axes.append(numpy2vec(axis))
-        qc_angles.append(angle)
+        qc_error = quat_error(qc[:, i-1], qc[:, i])     # compute the error between the current and previous quaternion
+        axis, angle = quat2rot(qc_error)                # convert quaterion to axis & angle
+        qc_axes.append(numpy2vec(axis))                 # append result to list of axes
+        qc_angles.append(angle)                         # append result to list of angles
     print('Done')
 
     # Create a scene and the objects:
@@ -82,6 +90,7 @@ def make_animation(args):
             # Update chaser position and attitude:
             chaser.pos = vector(rc[0, k], rc[1, k], rc[2, k])
             chaser.rotate(angle=qc_angles[k], axis=qc_axes[k], origin=chaser.pos)
+            # target.rotate(angle=radians(1), axis=vector(-1, 1, 1), origin=target.pos)  # Fake target rotation
             # Plot position on the graph:
             f1.plot([t[k], chaser.pos.x])
             f2.plot([t[k], chaser.pos.y])
@@ -132,8 +141,8 @@ def get_args():
 if __name__ == '__main__':
 
     arguments = get_args()
-    arguments.path = os.path.join('data', 'rdv_data6.pickle')
-    arguments.save = False
+    arguments.path = os.path.join('data', 'rdv_data0.pickle')
+    # arguments.save = True
 
     # Check that the path argument exists and is not a directory:
     if os.path.isdir(arguments.path) or not os.path.exists(arguments.path):

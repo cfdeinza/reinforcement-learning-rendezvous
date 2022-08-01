@@ -1,5 +1,7 @@
 This file contains ideas that have not yet been implemented in the code.
 
+# Model the chaser as a uniform density cube with 12 thrusters (Gaudet2020d).
+
 # Consider expanding the initial position range in the x and z directions.
 # (So the agent might learn the controls in those directions better. Right now its always close to zero)
 

@@ -300,3 +300,11 @@ class RendezvousEnv(gym.Env):
         self.wt = yf[4:]
 
         return
+
+
+if __name__ == "__main__":
+    env = RendezvousEnv()
+    env.reset()
+    d = vars(env)  # create a dictionary of the object
+    print(type(d))
+    print(d)

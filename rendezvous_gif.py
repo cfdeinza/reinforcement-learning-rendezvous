@@ -1,3 +1,7 @@
+"""
+Script to create a gif out of images the rendezvous trajectory.
+"""
+
 import argparse
 import time
 import os
