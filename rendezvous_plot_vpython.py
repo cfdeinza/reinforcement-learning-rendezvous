@@ -15,10 +15,11 @@ from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_t
 
 class RunState:
     """
-    Object to keep track of the state of the animation (whether it is playing or not).\n
+    Object to keep track of the state of the animation.\n
     """
-    def __init__(self, running):
-        self.state = running
+    def __init__(self, running: bool):
+        self.state = running    # whether or not the animation is running
+        self.reset = False      # whether or not the animation has to be reset
         return
 
 
@@ -27,6 +28,7 @@ def make_animation(args):
     data = load_data(args.path)
     rc = data['rc']  # chaser position [m]
     qc = data['qc']  # chaser attitude
+    qt = data['qt']  # target attitude
     assert rc.shape[0] == 3
 
     # Time data:
@@ -39,30 +41,48 @@ def make_animation(args):
             print('Time data not found.')
             t = np.linspace(0, 1, num=len(rc[0]))
 
+    # Keep-out zone radius:
+    if 'koz_radius' in data:
+        koz_radius = data['koz_radius']
+    else:
+        koz_radius = 5
+        print(f'Radius of keep-out zone is undefined. Using default ({koz_radius} m)')
+
     print('Computing rotations...', end=' ')
 
-    rot0 = quat2rot(qc[:, 0])       # converts quaternion to axis of rotation & degree of rotation.
-    qc_axes = [numpy2vec(rot0[0])]  # axis around which the rotation occurs
-    qc_angles = [rot0[1]]           # degree of the rotation [rad]
+    c_axis0, c_angle0 = quat2rot(qc[:, 0])  # converts quaternion to axis of rotation & degree of rotation.
+    qc_axes = [numpy2vec(c_axis0)]          # axis around which the rotation occurs
+    qc_angles = [c_angle0]                  # degree of the rotation [rad]
+    t_axis0, t_angle0 = quat2rot(qt[:, 0])
+    qt_axes = [numpy2vec(t_axis0)]
+    qt_angles = [t_angle0]
 
-    for i in range(1, qc.shape[1]):
+    for i in range(1, len(t)):
         qc_error = quat_error(qc[:, i-1], qc[:, i])     # compute the error between the current and previous quaternion
         axis, angle = quat2rot(qc_error)                # convert quaterion to axis & angle
         qc_axes.append(numpy2vec(axis))                 # append result to list of axes
         qc_angles.append(angle)                         # append result to list of angles
+        qt_error = quat_error(qt[:, i-1], qt[:, i])     # same method for target
+        axis, angle = quat2rot(qt_error)
+        qt_axes.append(numpy2vec(axis))
+        qt_angles.append(angle)
     print('Done')
 
     # Create a scene and the objects:
-    myscene = create_scene(title='Rendezvous\n', caption='')
+    myscene = create_scene(title=f'Rendezvous: {os.path.split(args.path)[1]}\n', caption='')
     chaser = create_chaser(rc0=rc[:, 0])
-    target = create_target()
-    koz = create_koz()
+    target = create_target(koz_radius)
+    create_koz(koz_radius)
+
+    # Rotate bodies to their initial orientation:
+    chaser.rotate(qc_angles[0], axis=qc_axes[0])
+    target.rotate(qt_angles[0], axis=qt_axes[0])
+
     myscene.camera.follow(chaser)  # set the camera to follow the chaser
 
     # Graph:
-    # k_max = len(rc[0])
-    gd = graph(title='Test', xmin=0, xmax=t[-1] + 5, ymin=-50, ymax=10,
-               align='left', ytitle='Position [m]', xtitle='Time [s]')
+    graph(title='Test', xmin=0, xmax=t[-1] * 1.05, ymin=-50, ymax=10,
+          align='left', ytitle='Position [m]', xtitle='Time [s]')
     f1 = gcurve(color=color.red, label='x')
     f2 = gcurve(color=color.green, label='y')
     f3 = gcurve(color=color.blue, label='z')
@@ -73,13 +93,15 @@ def make_animation(args):
     # Play-pause:
     running = RunState(False)
 
-    button(text="Pause" if running.state else " Play ", pos=myscene.title_anchor, bind=partial(play_pause, run=running))
+    b1 = button(text="Pause" if running.state else " Play ",
+                pos=myscene.title_anchor, bind=partial(play_pause, run=running))
 
     # Main loop:
     k = 1
-    while k < len(t):
+    fps = 30
+    while True:
         if running.state:
-            rate(30)
+            rate(fps)
             if args.save:
                 myscene.capture(f'img{k-1}')  # images will be saved in the 'Download' folder.
                 if k < 3:
@@ -90,17 +112,34 @@ def make_animation(args):
             # Update chaser position and attitude:
             chaser.pos = vector(rc[0, k], rc[1, k], rc[2, k])
             chaser.rotate(angle=qc_angles[k], axis=qc_axes[k], origin=chaser.pos)
-            # target.rotate(angle=radians(1), axis=vector(-1, 1, 1), origin=target.pos)  # Fake target rotation
+            target.rotate(angle=qt_angles[k], axis=qt_axes[k], origin=target.pos)
             # Plot position on the graph:
             f1.plot([t[k], chaser.pos.x])
             f2.plot([t[k], chaser.pos.y])
             f3.plot([t[k], chaser.pos.z])
             k += 1
-        # if k < len(rc[0])-1:
-        #     k += 1
-        # else:
-        #     k = 0  # TODO: reset the rotation!
-    return
+            # Stop at last time-step:
+            if k >= len(t):
+                running.state = False
+                b1.text = "Reset"
+        else:
+            # Reset:
+            if running.reset:
+                running.reset = False
+                # clear graph:
+                f1.delete()
+                f2.delete()
+                f3.delete()
+                # Reset position and attitude of the bodies:
+                chaser.axis = vector(1, 0, 0)  # default 'axis' direction
+                chaser.up = vector(0, 1, 0)  # default 'up' direction
+                chaser.pos = numpy2vec(rc[:, 0])
+                chaser.rotate(angle=qc_angles[0], axis=qc_axes[0], origin=chaser.pos)
+                target.axis = vector(1, 0, 0)
+                target.up = vector(0, 1, 0)
+                target.rotate(angle=qt_angles[0], axis=qt_axes[0], origin=target.pos)
+                k = 1
+    pass
 
 
 def play_pause(b: button, run: RunState):
@@ -110,11 +149,17 @@ def play_pause(b: button, run: RunState):
     :param run: custom object with a 'state' attribute that shows if the animation is currently running.
     :return: None
     """
-    run.state = not run.state
+
+    if b.text == "Reset":
+        run.reset = True            # reset the animation
+    else:
+        run.state = not run.state   # pause or un-pause the animation
+
     if run.state:
         b.text = "Pause"
     else:
         b.text = " Play "
+
     return
 
 

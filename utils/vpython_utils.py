@@ -69,16 +69,13 @@ def create_chaser(rc0: np.ndarray):
     return chaser
 
 
-def create_target(koz_radius=None):
+def create_target(koz_radius):
     """
     Create a compound object to represent the target (and the entry corridor).\n
     :param koz_radius: radius of the keep-out zone [m]
     :return: vpython compound object
     """
 
-    if koz_radius is None:
-        koz_radius = 5
-        print(f'Radius of keep-out zone is undefined. Using default ({koz_radius} m)')
     tl, th, tw = (1, 1, 1)
     target_body = box(
         pos=vector(0, 0, 0),
@@ -138,16 +135,12 @@ def create_target(koz_radius=None):
     return target
 
 
-def create_koz(koz_radius=None):
+def create_koz(koz_radius):
     """
     Create a sphere to represent the keep-out zone.\n
     :param koz_radius: radius of the keep-out zone.
     :return: vpython sphere() object
     """
-
-    if koz_radius is None:
-        koz_radius = 5
-        print(f'Radius of keep-out zone is undefined. Using default ({koz_radius} m)')
 
     koz = sphere(
         pos=vector(0, 0, 0),
