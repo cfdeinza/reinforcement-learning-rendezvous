@@ -2,8 +2,8 @@ import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.spatial.transform import Rotation as scipyRot
-from utils.quaternions import put_scalar_last
+# from scipy.spatial.transform import Rotation as scipyRot
+from utils.quaternions import quat2mat  # , put_scalar_last
 from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors
 
 
@@ -13,15 +13,15 @@ class RendezvousEnv(gym.Env):
 
         # State variables:  (initialized on reset() call)
         # self.state = None   # state of the system [r_c, v_c, q_c, w_c, q_t] (17,)
-        self.rc = None      # position of the chaser [m]
-        self.vc = None      # velocity of the chaser [m/s]
+        self.rc = None      # position of the chaser [m] expressed in LVLH frame
+        self.vc = None      # velocity of the chaser [m/s] expressed in LVLH frame
         self.qc = None      # attitude of the chaser [-]
-        self.wc = None      # rotation rate of the chaser [rad/s]
+        self.wc = None      # rotation rate of the chaser [rad/s] expressed in chaser body frame
         self.qt = None      # attitude of the target [-]
-        self.wt = None      # rotation rate of the target [rad/s] (not included in observation)
+        self.wt = None      # rotation rate of the target [rad/s] expressed in target body frame
 
         # Nominal initial state:
-        self.nominal_rc0 = np.array([0., -40., 0.]) if rc0 is None else rc0
+        self.nominal_rc0 = np.array([0., -20., 0.]) if rc0 is None else rc0
         self.nominal_vc0 = np.array([0., 0., 0.]) if vc0 is None else vc0
         self.nominal_qc0 = np.array([1., 0., 0., 0.]) if qc0 is None else qc0
         self.nominal_wc0 = np.array([0., 0., 0.]) if wc0 is None else wc0
@@ -52,6 +52,14 @@ class RendezvousEnv(gym.Env):
             [0, 0, 1]
         ])
         self.inv_inertia_target = np.linalg.inv(self.inertia_target)
+
+        # Capture conditions:
+        self.rd = np.array([0, -2, 0])      # desired capture position [m] expressed in target body frame
+        self.max_rd_error = 0.5             # allowed error for the capture position [m]
+        self.max_vd_error = 0.1             # allowed error for the relative capture velocity [m/s]
+        self.max_qd_error = np.radians(5)   # allowed error for the capture attitude [rad]
+        self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
+        self.collided = None                # whether or not the chaser has collided during the current episode
 
         # Time:
         self.t = None       # current time of episode [s]
@@ -114,6 +122,9 @@ class RendezvousEnv(gym.Env):
         # Update the attitude and rotation rate of the target:
         self.integrate_target_attitude(np.array([0, 0, 0]))
 
+        # Check for collision:
+        self.collided = self.check_collision()
+
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
 
@@ -151,6 +162,7 @@ class RendezvousEnv(gym.Env):
         self.qt = self.nominal_qt0
         self.wt = self.nominal_wt0
 
+        self.collided = self.check_collision()
         self.t = 0
 
         obs = self.get_observation()
@@ -212,19 +224,43 @@ class RendezvousEnv(gym.Env):
 
         assert self.rc is not None
 
-        dist = np.linalg.norm(self.rc)
-        # vel = np.linalg.norm(self.vc)
+        goal_pos = np.matmul(quat2mat(self.qt), self.rd)            # Goal position in the LVLH frame [m]
+        goal_vel = np.cross(self.wt, goal_pos)                      # Goal velocity in the LVLH frame [m/s]
+        pos_error = self.rc - goal_pos                              # Position error [m]
+        vel_error = self.vc - goal_vel                              # Velocity error [m/s]
+        chaser_neg_y = np.matmul(quat2mat(self.qc), np.array([0, -1, 0]))
+        att_error = angle_between_vectors(self.rc, chaser_neg_y)    # Attitude error [rad]
+        rot_error = self.wc - self.wt                               # Rotation rate error [rad/s]
 
         rew = 0
 
         # Distance-based reward:
-        rew += (self.max_axial_distance - dist) / self.max_axial_distance
+        rew += (self.max_axial_distance - pos_error) / self.max_axial_distance
 
         # Attitude-based reward:
-        rot = scipyRot.from_quat(put_scalar_last(self.qc))
-        chaser_neg_y = rot.apply(np.array([0, -1, 0]))
-        angle = angle_between_vectors(self.rc, chaser_neg_y)
-        rew -= angle / np.pi
+        rew += 1e-1 * (np.pi - att_error) / np.pi
+
+        # Success bonus:
+        errors = np.array([
+            np.linalg.norm(pos_error),
+            np.linalg.norm(vel_error),
+            np.linalg.norm(att_error),
+            np.linalg.norm(rot_error),
+        ])
+
+        ranges = np.array([
+            self.max_rd_error,
+            self.max_vd_error,
+            self.max_qd_error,
+            self.max_wd_error,
+        ])
+
+        if np.all(errors < ranges) and not self.collided:
+            rew += 1000
+
+        # SciPy method:
+        # rot = scipyRot.from_quat(put_scalar_last(self.qc))
+        # chaser_neg_y = rot.apply(np.array([0, -1, 0]))
 
         return rew
 
@@ -244,6 +280,19 @@ class RendezvousEnv(gym.Env):
             done = False
 
         return done
+
+    def check_collision(self):
+        """
+        Check if the chaser is within the keep-out zone.\n
+        :return: True if there is a collision, otherwise False.
+        """
+        if np.linalg.norm(self.rc) > self.koz_radius:
+            collided = False
+        else:
+            # TODO: check if the chaser is within the corridor.
+            collided = True
+
+        return collided
 
     def integrate_chaser_attitude(self, torque):
         """
@@ -305,6 +354,9 @@ class RendezvousEnv(gym.Env):
 if __name__ == "__main__":
     env = RendezvousEnv()
     env.reset()
-    d = vars(env)  # create a dictionary of the object
-    print(type(d))
-    print(d)
+    # d = vars(env)  # create a dictionary of the object
+    # print(type(d))
+    # print(d)
+    finished = False
+    while not finished:
+        observation, reward, finished, information = env.step(np.ones((6,)) * 1e-2)

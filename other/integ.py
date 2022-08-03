@@ -21,6 +21,7 @@ rtol, atol = (1e-8, 1e-8)
 # sol = solve_ivp(func, t_span, y0)
 sol = solve_ivp(func, t_span, y0, rtol=rtol, atol=atol)
 
+# t = sol['t']
 t = sol.t
 y = sol.y
 

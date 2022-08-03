@@ -1,5 +1,5 @@
 """
-Functions related to quaternions. Always use the scalar-first format.
+Functions related to quaternions. Always use the scalar-first quaternion format.
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ def rot2quat(axis: np.ndarray, theta) -> np.ndarray:
     axis = axis / np.linalg.norm(axis)
     q = np.append(np.cos(theta/2), axis * np.sin(theta/2))
 
-    assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+    q = q / quat_magnitude(q)
 
     return q
 
@@ -41,6 +41,29 @@ def quat2rot(q: np.ndarray) -> tuple:
     euler = None if theta == 0 else q[1:] / np.sin(theta/2)
 
     return euler, theta
+
+
+def quat2mat(q: np.ndarray):
+    """
+    Convert a (scalar-first) quaternion into a rotation matrix.\n
+    :param q: quaternion
+    :return: equivalent rotation matrix
+    """
+
+    assert q.shape == (4,)
+
+    q = q / quat_magnitude(q)
+
+    qw, qx, qy, qz = q
+    # print(qw, qx, qy, qz)
+
+    mat = np.array([
+        [2 * (qw**2 + qx**2) - 1, 2 * (qx * qy - qw * qz), 2 * (qx * qz + qw * qy)],
+        [2 * (qx * qy + qw * qz), 2 * (qw**2 + qy**2) - 1, 2 * (qy * qz - qw * qx)],
+        [2 * (qx * qz - qw * qy), 2 * (qy * qz + qw * qx), 2 * (qw**2 + qz**2) - 1],
+    ])
+
+    return mat
 
 
 def put_scalar_first(q: np.ndarray) -> np.ndarray:
@@ -90,7 +113,7 @@ def quat_magnitude(q: np.ndarray):
 
     assert q.shape == (4,)
 
-    return np.linalg.norm(q)  #((q ** 2).sum()) ** 0.5
+    return np.linalg.norm(q)  # ((q ** 2).sum()) ** 0.5
 
 
 def quat_normalize(q: np.ndarray) -> np.ndarray:
@@ -113,7 +136,7 @@ def quat_inverse(q: np.ndarray) -> np.ndarray:
     """
 
     assert q.shape == (4,)
-    # assert quat_magnitude(q) == 1, f'|q| = {quat_magnitude(q)}'
+
     q = quat_normalize(q)
 
     q_inv = quat_conjugate(q) / (quat_magnitude(q)**2)
@@ -130,8 +153,7 @@ def quat_product(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     """
     assert q1.shape == (4,)
     assert q2.shape == (4,)
-    # assert quat_magnitude(q1) == 1, f'|q1| = {quat_magnitude(q1)}'
-    # assert quat_magnitude(q2) == 1, f'|q2| = {quat_magnitude(q2)}'
+
     q1 = quat_normalize(q1)
     q2 = quat_normalize(q2)
 
@@ -156,8 +178,7 @@ def quat_error(q_est: np.ndarray, q_true: np.ndarray) -> np.ndarray:
 
     assert q_est.shape == (4,)
     assert q_true.shape == (4,)
-    # assert quat_magnitude(q_est) == 1, f'|q| = {quat_magnitude(q_est)}'
-    # assert quat_magnitude(q_true) == 1, f'|q| = {quat_magnitude(q_true)}'
+
     q_est = quat_normalize(q_est)
     q_true = quat_normalize(q_true)
 
@@ -196,3 +217,10 @@ if __name__ == "__main__":
     print(f'quat error: {error}')
     rot = quat2rot(error)
     print(f'error2rot: axis = {rot[0]},  theta = {np.degrees(rot[1])} deg')
+
+    # Quaternion to rotation matrix:
+    vec = np.array([1, 1, 1])
+    matrix = quat2mat(np.array([0, 0, 0, 0]))
+    vec2 = np.matmul(matrix, vec)
+    print(matrix)
+    print(vec)
