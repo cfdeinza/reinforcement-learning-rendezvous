@@ -162,7 +162,7 @@ def get_args():
         nargs='?',
         const=True,
         default=False,
-        help='Use this flag to render the episodes.'
+        help='Use this flag to render the episode.'
     )
     args = parser.parse_args()
 
@@ -176,9 +176,12 @@ if __name__ == '__main__':
     # arguments.render = True
 
     environment = RendezvousEnv()
-    # environment.dt = 0.1  # you can set a new time interval here
+    environment.dt = 0.1  # you can set a new time interval here
     # environment = load_env(arguments)
     saved_model = load_model(path=arguments.model, env=environment)
+
+    if not arguments.save:
+        print('Trajectory data will not be saved. To save, use --save argument')
 
     evaluate(saved_model, environment, arguments)
 

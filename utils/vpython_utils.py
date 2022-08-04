@@ -33,6 +33,28 @@ def create_scene(title='Title', caption='Caption'):
     return myscene
 
 
+def create_frame(pos: np.ndarray, arrow_length=None):
+    """
+    Draw the three axes representing a reference frame.\n
+    :param pos: position of the origin of the reference frame
+    :param arrow_length: length of the arrow representing each axis [m]
+    :return: vpython compound object
+    """
+
+    if arrow_length is None:
+        arrow_length = 5
+
+    assert pos.shape == (3,)
+
+    origin = vector(pos[0], pos[1], pos[2])
+    width = 0.1
+    x_axis = arrow(pos=origin, axis=vector(arrow_length, 0, 0), shaftwidth=width, color=color.red)
+    y_axis = arrow(pos=origin, axis=vector(0, arrow_length, 0), shaftwidth=width, color=color.green)
+    z_axis = arrow(pos=origin, axis=vector(0, 0, arrow_length), shaftwidth=width, color=color.blue)
+    axes = compound([x_axis, y_axis, z_axis], origin=vector(0, 0, 0))
+    return axes
+
+
 def create_chaser(rc0: np.ndarray):
     """
     Create a compound object to represent the chaser.\n

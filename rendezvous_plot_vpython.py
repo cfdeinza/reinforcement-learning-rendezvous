@@ -10,7 +10,7 @@ from functools import partial
 from vpython import *
 from utils.general import load_data
 from utils.quaternions import quat_error, quat2rot
-from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz  # , play_pause_button
+from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz, create_frame
 
 
 class RunState:
@@ -70,6 +70,7 @@ def make_animation(args):
 
     # Create a scene and the objects:
     myscene = create_scene(title=f'Rendezvous: {os.path.split(args.path)[1]}\n', caption='')
+    create_frame(np.array([0, 0, 0]))
     chaser = create_chaser(rc0=rc[:, 0])
     target = create_target(koz_radius)
     create_koz(koz_radius)
@@ -78,10 +79,10 @@ def make_animation(args):
     chaser.rotate(qc_angles[0], axis=qc_axes[0])
     target.rotate(qt_angles[0], axis=qt_axes[0])
 
-    myscene.camera.follow(chaser)  # set the camera to follow the chaser
+    # myscene.camera.follow(chaser)  # set the camera to follow the chaser
 
     # Graph:
-    graph(title='Test', xmin=0, xmax=t[-1] * 1.05, ymin=-50, ymax=10,
+    graph(title='Test', xmin=0, xmax=t[-1] * 1.05, ymin=rc.min(), ymax=rc.max(),
           align='left', ytitle='Position [m]', xtitle='Time [s]')
     f1 = gcurve(color=color.red, label='x')
     f2 = gcurve(color=color.green, label='y')
@@ -186,7 +187,7 @@ def get_args():
 if __name__ == '__main__':
 
     arguments = get_args()
-    arguments.path = os.path.join('data', 'rdv_data0.pickle')
+    # arguments.path = os.path.join('data', 'rdv_data0.pickle')
     # arguments.save = True
 
     # Check that the path argument exists and is not a directory:

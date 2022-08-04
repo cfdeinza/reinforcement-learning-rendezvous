@@ -218,7 +218,7 @@ class RendezvousEnv(gym.Env):
 
     def get_reward(self):
         """
-        Calculate the reward for the current timestep.\n
+        Calculate the reward for the current timestep. Maybe use a quadratic penalty for velocity and control effort.\n
         :return: reward
         """
 
@@ -235,7 +235,7 @@ class RendezvousEnv(gym.Env):
         rew = 0
 
         # Distance-based reward:
-        rew += (self.max_axial_distance - pos_error) / self.max_axial_distance
+        rew += (self.max_axial_distance - np.linalg.norm(pos_error)) / self.max_axial_distance
 
         # Attitude-based reward:
         rew += 1e-1 * (np.pi - att_error) / np.pi
@@ -255,12 +255,18 @@ class RendezvousEnv(gym.Env):
             self.max_wd_error,
         ])
 
-        if np.all(errors < ranges) and not self.collided:
-            rew += 1000
+        if not self.collided:
+            if np.all(errors < ranges):
+                rew += 1000
+            else:
+                threshold = self.max_rd_error * 10
+                if np.linalg.norm(pos_error) < threshold:
+                    rew += 10 * (1 - np.linalg.norm(pos_error) / threshold)
 
         # SciPy method:
         # rot = scipyRot.from_quat(put_scalar_last(self.qc))
         # chaser_neg_y = rot.apply(np.array([0, -1, 0]))
+        # print(f'reward: {rew}')
 
         return rew
 
