@@ -3,7 +3,7 @@ from gym import error, spaces, utils
 # from gym.utils import seeding
 import numpy as np
 from math import sin, cos, acos, degrees, radians, pi, sqrt, atan2
-from gym.envs.classic_control import rendering
+# from gym.envs.classic_control import rendering
 from scipy.spatial.transform import Rotation as R
 # from matplotlib import pyplot as plt
 # from mpl_toolkits.mplot3d import Axes3D

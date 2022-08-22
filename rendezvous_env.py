@@ -66,8 +66,8 @@ class RendezvousEnv(gym.Env):
 
         # Time:
         self.t = None       # current time of episode [s]
-        self.dt = 1         # interval between timesteps [s]
-        self.t_max = 180    # maximum length of episode [s]
+        self.dt = 0.1       # interval between timesteps [s]
+        self.t_max = 120    # maximum length of episode [s]
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -249,7 +249,10 @@ class RendezvousEnv(gym.Env):
         c_q = 1     # attitude-based reward coefficient
         c_w = 0     # rotation-based reward coefficient
 
-        reverse_sigmoid = 1 / (1 + np.e**(5 * pos_error - 10))
+        if pos_error < 10:
+            reverse_sigmoid = 1 / (1 + np.e**(5 * pos_error - 10))
+        else:
+            reverse_sigmoid = 0  # Prevent runtime warnings when e^pos_error becomes too large
 
         rew += c_r * (1 - pos_error / self.max_axial_distance)
         rew += c_v * (1 - vel_error / self.max_axial_speed) * reverse_sigmoid
