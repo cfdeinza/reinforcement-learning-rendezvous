@@ -29,14 +29,16 @@ class RendezvousEnv(gym.Env):
         self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
         # Chaser properties:
+        self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
         self.inertia = np.array([  # moment of ineria [kg.m^2]
             [1, 0, 0],
             [0, 2, 0],
             [0, 0, 3]
         ])
         self.inv_inertia = np.linalg.inv(self.inertia)
-        self.max_delta_v = 1    # Maximum delta V for each axis [m/s]
-        self.max_torque = 5     # Maximum torque for each axis [N.m]
+        self.max_delta_v = 1                # Maximum delta V for each axis [m/s]
+        self.max_delta_w = np.radians(10)   # Maximum delta omega for each axis [rad/s]
+        # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
         self.max_axial_distance = 100   # maximum distance allowed on each axis [m]
@@ -46,6 +48,7 @@ class RendezvousEnv(gym.Env):
         # Target properties:
         self.koz_radius = 5                         # radius of the keep-out zone [m]
         self.corridor_half_angle = np.radians(30)   # half-angle of the conic entry corridor [rad]
+        self.corridor_axis = np.array([0, -1, 0])   # entry corridor expressed in the target body frame (constant)
         self.inertia_target = np.array([            # moment of inertia of the target [kg.m^2]
             [1, 0, 0],
             [0, 1, 0],
@@ -101,29 +104,35 @@ class RendezvousEnv(gym.Env):
 
         assert action.shape == (6,)
 
-        delta_v = action[0:3] * self.max_delta_v  # TODO: rotate the delta V based on chaser attitude
-        torque = action[3:] * self.max_torque
+        # delta_v = action[0:3] * self.max_delta_v
+        # torque = action[3:] * self.max_torque
+
+        delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # expressed in LVLH frame
+        delta_w = action[3:] * self.max_delta_w                                 # expressed in the body frame
 
         # Apply the delta V:
         # print(f't = {self.t}, vc: {self.vc}')
         # print(f'dV: {delta_v}, {delta_v.dtype}')
         # self.vc += delta_v
-        vc_after_impulse = self.vc + delta_v
 
         # Update the position and velocity of the chaser:
+        vc_after_impulse = self.vc + delta_v
         self.rc, self.vc = clohessy_wiltshire(self.rc, vc_after_impulse, self.n, self.dt)
 
         # wc_dot = angular_acceleration(self.inertia, self.inv_inertia, self.wc, torque)
         # qc_dot = quat_derivative(self.qc, self.wc)
 
         # Update the attitude and rotation rate of the chaser:
-        self.integrate_chaser_attitude(torque)
+        self.wc = self.wc + delta_w
+        self.integrate_chaser_attitude(np.array([0, 0, 0]))
+        # self.integrate_chaser_attitude(torque)
 
         # Update the attitude and rotation rate of the target:
         self.integrate_target_attitude(np.array([0, 0, 0]))
 
         # Check for collision:
-        self.collided = self.check_collision()
+        if not self.collided:
+            self.collided = self.check_collision()
 
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
@@ -224,28 +233,40 @@ class RendezvousEnv(gym.Env):
 
         assert self.rc is not None
 
-        goal_pos = np.matmul(quat2mat(self.qt), self.rd)            # Goal position in the LVLH frame [m]
-        goal_vel = np.cross(self.wt, goal_pos)                      # Goal velocity in the LVLH frame [m/s]
-        pos_error = self.rc - goal_pos                              # Position error [m]
-        vel_error = self.vc - goal_vel                              # Velocity error [m/s]
-        chaser_neg_y = np.matmul(quat2mat(self.qc), np.array([0, -1, 0]))
-        att_error = angle_between_vectors(self.rc, chaser_neg_y)    # Attitude error [rad]
-        rot_error = self.wc - self.wt                               # Rotation rate error [rad/s]
+        goal_pos = np.matmul(quat2mat(self.qt), self.rd)                # Goal position in the LVLH frame [m]
+        goal_vel = np.cross(self.wt, goal_pos)                          # Goal velocity in the LVLH frame [m/s]
+        pos_error = np.linalg.norm(self.rc - goal_pos)                  # Position error [m]
+        vel_error = np.linalg.norm(self.vc - goal_vel)                  # Velocity error [m/s]
+        capture_axis = np.matmul(quat2mat(self.qc), self.capture_axis)  # capture axis expressed in LVLH
+        att_error = angle_between_vectors(-self.rc, capture_axis)       # Attitude error [rad]
+        rot_error = np.linalg.norm(self.wc - self.wt)                   # Rotation rate error [rad/s]
 
         rew = 0
 
-        # Distance-based reward:
-        rew += (self.max_axial_distance - np.linalg.norm(pos_error)) / self.max_axial_distance
+        # Coefficients:
+        c_r = 2     # position-based reward coefficient
+        c_v = 0     # velocity-based reward coefficient
+        c_q = 1     # attitude-based reward coefficient
+        c_w = 0     # rotation-based reward coefficient
 
+        reverse_sigmoid = 1 / (1 + np.e**(5 * pos_error - 10))
+
+        rew += c_r * (1 - pos_error / self.max_axial_distance)
+        rew += c_v * (1 - vel_error / self.max_axial_speed) * reverse_sigmoid
+        rew += c_q * (1 - att_error / np.pi)
+        rew += c_w * (1 - rot_error / self.max_rotation_rate) * reverse_sigmoid
+
+        # Distance-based reward:
+        # rew += (self.max_axial_distance - np.linalg.norm(pos_error)) / self.max_axial_distance
         # Attitude-based reward:
-        rew += 1e-1 * (np.pi - att_error) / np.pi
+        # rew += 1e-1 * (np.pi - att_error) / np.pi
 
         # Success bonus:
         errors = np.array([
-            np.linalg.norm(pos_error),
-            np.linalg.norm(vel_error),
-            np.linalg.norm(att_error),
-            np.linalg.norm(rot_error),
+            pos_error,
+            vel_error,
+            att_error,
+            rot_error,
         ])
 
         ranges = np.array([
@@ -260,8 +281,8 @@ class RendezvousEnv(gym.Env):
                 rew += 1000
             else:
                 threshold = self.max_rd_error * 10
-                if np.linalg.norm(pos_error) < threshold:
-                    rew += 10 * (1 - np.linalg.norm(pos_error) / threshold)
+                if pos_error < threshold:
+                    rew += 10 * (1 - pos_error / threshold)
 
         # SciPy method:
         # rot = scipyRot.from_quat(put_scalar_last(self.qc))
@@ -292,11 +313,16 @@ class RendezvousEnv(gym.Env):
         Check if the chaser is within the keep-out zone.\n
         :return: True if there is a collision, otherwise False.
         """
-        if np.linalg.norm(self.rc) > self.koz_radius:
-            collided = False
-        else:
-            # TODO: check if the chaser is within the corridor.
-            collided = True
+
+        collided = False
+
+        # Check distance to target:
+        if np.linalg.norm(self.rc) < self.koz_radius:
+
+            # Check angle between chaser and entry corridor:
+            angle_to_corridor = angle_between_vectors(self.rc, np.matmul(quat2mat(self.qt), self.corridor_axis))
+            if angle_to_corridor > self.corridor_half_angle:
+                collided = True
 
         return collided
 
