@@ -61,7 +61,7 @@ def load_model(args, env):
         if mode == 'train':
             print('No model provided for training. Making new model...')
             # model = PPO(MlpPolicy, env, verbose=1)
-            n_steps = 3600  # default is 2048
+            n_steps = 3648  # default is 2048 (multiple of batch_size, which is 64)
             model = PPO(MlpPolicy, env, n_steps=n_steps, verbose=1, use_sde=args.sde, sde_sample_freq=10)
             # MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64?). In SB3, the
             # term "policy" refers to the class that handles all the networks used for training (not only the network
@@ -120,7 +120,7 @@ def train(args, model):
             eval_env,  # Environment used for evaluation (must be identical to the training environment)
             best_model_save_path='./models/',  # Path to the folder where the best model is saved (best_model.zip)
             log_path='./logs/',     # Path to the folder where the the evaluations info is saved (evaluations.npz)
-            n_eval_episodes=5,      # Number of episodes tested in each evaluation
+            n_eval_episodes=1,      # Number of episodes tested in each evaluation
             eval_freq=10000,        # Time steps between evaluations
             deterministic=True,     # Stochastic or deterministic actions used for evaluations
             render=args.render      # Render the evaluations
