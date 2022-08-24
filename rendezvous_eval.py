@@ -97,6 +97,18 @@ def evaluate(model, env, args):
     # trajectory = info['trajectory']
     # actions = info['actions']
 
+    # Remove nans if the episode was terminated before t_max:
+    if env.t < env.t_max:
+        t = np.array([t[~np.isnan(t)]])
+        rc = rc[:, 0:t.size]
+        vc = vc[:, 0:t.size]
+        qc = qc[:, 0:t.size]
+        wc = wc[:, 0:t.size]
+        qt = qt[:, 0:t.size]
+        wt = wt[:, 0:t.size]
+        a = a[:, 0:t.size]
+        rew = rew[:, 0:t.size]
+
     print(f'\nTotal reward: {round(total_reward, 2)}')
 
     if args.save:
