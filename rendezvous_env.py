@@ -69,6 +69,10 @@ class RendezvousEnv(gym.Env):
         self.dt = 0.1       # interval between timesteps [s]
         self.t_max = 120    # maximum length of episode [s]
 
+        # Properties of the bubble reward function:
+        self.bubble_radius = None  # Radius of the virtual bubble that determines the allowed space (m)
+        self.bubble_decrease_rate = 0.1  # Rate at which the size of the bubble decreases (m/s)
+
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
         self.Re = 6371e3                            # Radius of the Earth [m]
@@ -137,11 +141,16 @@ class RendezvousEnv(gym.Env):
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
 
+        # Update bubble:
+        if self.bubble_radius > self.koz_radius:
+            self.bubble_radius -= self.bubble_decrease_rate
+
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
 
         # Calculate reward:
-        rew = self.get_reward()
+        # rew = self.get_reward()
+        rew = self.get_bubble_reward(action)
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
@@ -172,6 +181,7 @@ class RendezvousEnv(gym.Env):
         self.wt = self.nominal_wt0
 
         self.collided = self.check_collision()
+        self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.t = 0
 
         obs = self.get_observation()
@@ -294,6 +304,31 @@ class RendezvousEnv(gym.Env):
 
         return rew
 
+    def get_bubble_reward(self, action: np.ndarray):
+        """
+        Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
+        :param action: Current action chosen by the agent
+        :return: Current reward
+        """
+
+        assert action.shape == (6,)
+
+        rew = 0
+
+        # Fuel efficiency:
+        rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3 * self.max_delta_v)
+        rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3 * self.max_delta_w)
+
+        # Collision penalty:
+        if self.check_collision():
+            rew -= 1
+
+        # Success bonus:  # TODO: add other success conditions
+        if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
+            rew += 10
+
+        return rew
+
     def get_done_condition(self, obs) -> bool:
         """
         Check if the episode is done.\n
@@ -303,9 +338,11 @@ class RendezvousEnv(gym.Env):
 
         assert self.t is not None
 
-        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max):
+        dist = np.linalg.norm(self.rc)
+
+        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius):
             done = True
-            print(f'Episode done. dist = {round(np.linalg.norm(self.rc), 2)} at t = {self.t}')
+            print(f'Episode done. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
         else:
             done = False
 
