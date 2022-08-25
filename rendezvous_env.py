@@ -2,14 +2,26 @@ import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
-# from scipy.spatial.transform import Rotation as scipyRot
-from utils.quaternions import quat2mat  # , put_scalar_last
+from utils.quaternions import quat2mat
 from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors
 
 
 class RendezvousEnv(gym.Env):
+    """
+    Environment to simulate a 6-DOF rendezvous scenario with a rotating target.\n
+    """
 
     def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None):
+        """
+        Initializes the attributes of the environment, including chaser properties, target properties, orbit properties,
+        observation space, action space, and more.\n
+        :param rc0: nominal initial position of the chaser (ndarray with shape 3,)
+        :param vc0: nominal initial velocity of the chaser (ndarray with shape 3,)
+        :param qc0: nominal initial attitude of the chaser (ndarray with shape 4,)
+        :param wc0: nominal initial rotation rate of the chaser (ndarray with shape 3,)
+        :param qt0: nominal initial attitude of the target (ndarray with shape 4,)
+        :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,)
+        """
 
         # State variables:  (initialized on reset() call)
         # self.state = None   # state of the system [r_c, v_c, q_c, w_c, q_t] (17,)
@@ -247,8 +259,7 @@ class RendezvousEnv(gym.Env):
         goal_vel = np.cross(self.wt, goal_pos)                          # Goal velocity in the LVLH frame [m/s]
         pos_error = np.linalg.norm(self.rc - goal_pos)                  # Position error [m]
         vel_error = np.linalg.norm(self.vc - goal_vel)                  # Velocity error [m/s]
-        capture_axis = np.matmul(quat2mat(self.qc), self.capture_axis)  # capture axis expressed in LVLH
-        att_error = angle_between_vectors(-self.rc, capture_axis)       # Attitude error [rad]
+        att_error = self.attitude_error()                               # Attitude error [rad]
         rot_error = np.linalg.norm(self.wc - self.wt)                   # Rotation rate error [rad/s]
 
         rew = 0
@@ -340,7 +351,15 @@ class RendezvousEnv(gym.Env):
 
         dist = np.linalg.norm(self.rc)
 
-        if (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius):
+        end_conditions = [
+            not self.observation_space.contains(obs),   # observation outside of observation space
+            self.t >= self.t_max,                       # episode time limit reached
+            dist > self.bubble_radius,                  # chaser outside of bubble
+            self.attitude_error() > np.pi / 6,          # chaser attitude error too large
+        ]
+
+        # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
+        if any(end_conditions):
             done = True
             print(f'Episode done. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
         else:
@@ -365,6 +384,18 @@ class RendezvousEnv(gym.Env):
                 collided = True
 
         return collided
+
+    def attitude_error(self):
+        """
+        Compute the chaser's attitude error. The chaser should always be pointing in the direction of the target's
+        center of mass.\n
+        :return: angle between the actual and desired pointing direction (in radians)
+        """
+
+        capture_axis = np.matmul(quat2mat(self.qc), self.capture_axis)  # capture axis expressed in LVLH
+        error = angle_between_vectors(-self.rc, capture_axis)           # Attitude error [rad]
+
+        return error
 
     def integrate_chaser_attitude(self, torque):
         """
