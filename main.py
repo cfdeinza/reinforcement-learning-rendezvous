@@ -63,9 +63,9 @@ def load_model(args, env):
             # model = PPO(MlpPolicy, env, verbose=1)
             n_steps = 3648  # default is 2048 (multiple of batch_size, which is 64)
             model = PPO(MlpPolicy, env, n_steps=n_steps, verbose=1, use_sde=args.sde, sde_sample_freq=10)
-            # MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64?). In SB3, the
-            # term "policy" refers to the class that handles all the networks used for training (not only the network
-            # used to predict actions).
+            # MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64, with tanh func).
+            # In SB3, the term "policy" refers to the class that handles all the networks used for training (not only
+            # the network used to predict actions).
             # Note that the PPO class automatically wraps the Gym environment into a Monitor and a DummyVecEnv.
         elif mode == 'eval':
             print('Need to specify a model for testing.\nExiting')
