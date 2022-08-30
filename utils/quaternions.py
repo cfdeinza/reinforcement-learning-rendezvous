@@ -1,5 +1,7 @@
 """
 Functions related to quaternions. Always use the scalar-first quaternion format.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import numpy as np

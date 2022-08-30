@@ -8,7 +8,9 @@ from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_betwe
 
 class RendezvousEnv(gym.Env):
     """
-    Environment to simulate a 6-DOF rendezvous scenario with a rotating target.\n
+    Environment to simulate a 6-DOF rendezvous scenario with a rotating target.
+
+    Written by C. F. De Inza Niemeijer.\n
     """
 
     def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None):
@@ -126,17 +128,9 @@ class RendezvousEnv(gym.Env):
         delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # expressed in LVLH frame
         delta_w = action[3:] * self.max_delta_w                                 # expressed in the body frame
 
-        # Apply the delta V:
-        # print(f't = {self.t}, vc: {self.vc}')
-        # print(f'dV: {delta_v}, {delta_v.dtype}')
-        # self.vc += delta_v
-
         # Update the position and velocity of the chaser:
         vc_after_impulse = self.vc + delta_v
         self.rc, self.vc = clohessy_wiltshire(self.rc, vc_after_impulse, self.n, self.dt)
-
-        # wc_dot = angular_acceleration(self.inertia, self.inv_inertia, self.wc, torque)
-        # qc_dot = quat_derivative(self.qc, self.wc)
 
         # Update the attitude and rotation rate of the chaser:
         self.wc = self.wc + delta_w
@@ -202,7 +196,7 @@ class RendezvousEnv(gym.Env):
 
     def render(self, mode="human"):
         """
-        Renders the environment.\n
+        Renders the environment. Currently not used.\n
         :param mode: "human" renders the environment to the current display
         :return:
         """
@@ -211,7 +205,7 @@ class RendezvousEnv(gym.Env):
 
     def close(self):
         """
-        Close the viewer.\n
+        Close the viewer. Currently not used.\n
         :return: None
         """
 
@@ -242,7 +236,7 @@ class RendezvousEnv(gym.Env):
 
     def get_state(self):
         """
-        Get the state of the system (only used for debugging right now).\n
+        Get the state of the system (currently only used for debugging).\n
         :return: state
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
@@ -469,11 +463,19 @@ class RendezvousEnv(gym.Env):
 
 
 if __name__ == "__main__":
+
+    from stable_baselines3.common.env_checker import check_env
     env = RendezvousEnv()
-    env.reset()
+
+    # Check the custom environment and output warnings if needed.
+    print("Checking environment...")
+    check_env(env)
+
     # d = vars(env)  # create a dictionary of the object
     # print(type(d))
     # print(d)
-    finished = False
-    while not finished:
-        observation, reward, finished, information = env.step(np.ones((6,)) * 1e-2)
+
+    # env.reset()
+    # finished = False
+    # while not finished:
+    #     observation, reward, finished, information = env.step(np.ones((6,)) * 1e-2)

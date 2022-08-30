@@ -1,5 +1,7 @@
 """
 This script plots the rendezvous trajectory.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import numpy as np

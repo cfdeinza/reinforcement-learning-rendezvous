@@ -1,5 +1,7 @@
 """
 This module contains general utility functions.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import sys
@@ -7,6 +9,8 @@ import pickle
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
 from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 def load_data(path: str):
@@ -32,6 +36,23 @@ def load_data(path: str):
 
     return data
 
+
+def load_env(env_class):
+    """
+    Create an instance of the environment and wrap it in the required Gym wrappers.\n
+    :return: Wrapped environment.
+    """
+
+    env = env_class()
+    # env = Rendezvous3DOF()  # old 3DOF environment
+    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
+    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
+
+    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
+    env = Monitor(env)
+    env = DummyVecEnv([lambda: env])
+
+    return env
 
 def load_model(path, env):
     """

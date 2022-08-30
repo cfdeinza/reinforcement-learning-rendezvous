@@ -1,5 +1,7 @@
 """
 This module contains utility functions for plotting 3D animations with plotly.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import numpy as np

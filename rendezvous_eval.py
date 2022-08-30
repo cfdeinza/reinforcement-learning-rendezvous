@@ -1,5 +1,7 @@
 """
-This script generates a rendevous trajectory.
+This script generates a rendevous trajectory. The user needs to specify a controller by using the argument --model.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 from rendezvous_env import RendezvousEnv

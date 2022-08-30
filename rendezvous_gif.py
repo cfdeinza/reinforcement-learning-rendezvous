@@ -1,5 +1,7 @@
 """
-Script to create a gif out of images the rendezvous trajectory.
+Script to create a gif from the saved images of a rendezvous trajectory.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import argparse
@@ -42,7 +44,14 @@ def gif_from_images(args, i_0=0, i_end=100):
         else:
             print(f'{len(missing)} of {len(missing) + len(available)} images were not found.')
 
-        out_path = os.path.join('plots', 'gif.gif')  # path of the output gif file.
+        # Name of the output file:
+        gif_num = 0
+        out_path = os.path.join('plots', 'gif' + str(gif_num) + '.gif')  # path of the output gif file.
+        while os.path.exists(out_path):
+            gif_num += 1
+            out_path = os.path.join('plots', 'gif' + str(gif_num) + '.gif')  # path of the output gif file.
+
+        out_path = os.path.join('plots', 'gif' + str(gif_num) + '.gif')  # path of the output gif file.
         print(f'Saving gif of {len(available)} images in {out_path}')
         images[0].save(out_path, save_all=True, append_images=images[1:], duration=50, loop=0)
 
@@ -81,6 +90,6 @@ if __name__ == '__main__':
         print('Path must be an existing directory.\nExiting')
         sys.exit()
 
-    gif_from_images(arguments, i_0=0, i_end=100)
+    gif_from_images(arguments, i_0=0, i_end=300)
 
     print(f'Finished on {time.ctime()}. ({round(time.perf_counter()-start, 2)} seconds)')

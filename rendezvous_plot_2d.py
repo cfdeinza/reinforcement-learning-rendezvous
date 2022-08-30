@@ -1,5 +1,7 @@
 """
 Script to plot charts of trajectory data.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import os

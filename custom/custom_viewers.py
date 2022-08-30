@@ -1,11 +1,13 @@
-import numpy as np
-import pyglet
-from gym import error
-
 """
 Nor sure if I need this file. My intention was to make custom viewers instead of using the classical_control viewer. 
 However, it might be simpler to use matplotlib directly.
+
+Written by C. F. De Inza Niemeijer.
 """
+
+import numpy as np
+import pyglet
+from gym import error
 
 
 def get_display(spec):

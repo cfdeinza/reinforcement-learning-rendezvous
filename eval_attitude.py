@@ -1,11 +1,13 @@
-from custom.custom_att_env import Attitude
-from main import load_model  #, load_env
-from arguments import get_args
-import numpy as np
-
 """
 Evaluate a model over a single episode.
+
+Written by C. F. De Inza Niemeijer.
 """
+
+from custom.custom_att_env import Attitude
+from main import load_model  # , load_env
+from arguments import get_args
+import numpy as np
 
 
 def get_action(model, obs):

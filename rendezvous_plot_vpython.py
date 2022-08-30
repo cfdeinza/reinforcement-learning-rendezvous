@@ -1,5 +1,8 @@
 """
-Plot a vpython animation of a given rendezvous trajectory.
+Plot a vpython animation of a given rendezvous trajectory. The user needs to specify the path to the file containing
+the trajectory data.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import os

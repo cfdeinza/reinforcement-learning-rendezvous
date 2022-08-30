@@ -1,3 +1,12 @@
+"""
+This file contains the custom environment used to train reinforcement learning models. 
+The environment was created following the guidelines specified by OpenAI Gym.
+The environment is defined as a class:
+    -Attitude() simulates an attitude control system.
+
+Written by C. F. De Inza Niemeijer
+"""
+
 import gym
 from gym import error, spaces, utils
 # from gym.utils import seeding
@@ -9,15 +18,6 @@ from scipy.spatial.transform import Rotation as R
 # from mpl_toolkits.mplot3d import Axes3D
 # from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection, Line3D
 import plotly.graph_objects as go
-
-"""
-This file contains the custom environment used to train reinforcement learning models. 
-The environment was created following the guidelines specified by OpenAI Gym.
-The environment is defined as a class:
-    -Attitude() simulates an attitude control system.
-
-Written by C. F. De Inza Niemeijer
-"""
 
 
 class Attitude(gym.Env):

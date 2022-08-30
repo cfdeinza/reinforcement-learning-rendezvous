@@ -1,3 +1,12 @@
+"""
+This file contains the custom environment used to train reinforcement learning models. 
+The environment was created following the guidelines specified by OpenAI Gym.
+The environment is defined as a class:
+    -Rendezvous3DOF() simulates the rendezvous of a chaser and a passive target.
+
+Written by C. F. De Inza Niemeijer
+"""
+
 import gym
 from gym import spaces
 import numpy as np
@@ -7,15 +16,6 @@ from scipy.spatial.transform import Rotation as scipyRot
 from collections import OrderedDict
 from utils.general import angle_between_vectors, perpendicular_vector, rotate_vector_about_axis
 # from ray.rllib.env.env_context import EnvContext
-
-"""
-This file contains the custom environment used to train reinforcement learning models. 
-The environment was created following the guidelines specified by OpenAI Gym.
-The environment is defined as a class:
-    -Rendezvous3DOF() simulates the rendezvous of a chaser and a passive target.
-
-Written by C. F. De Inza Niemeijer
-"""
 
 
 class Rendezvous3DOF(gym.Env):

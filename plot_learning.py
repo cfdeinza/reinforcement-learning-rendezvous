@@ -7,6 +7,8 @@ Each key points to an ndarray.
     "results" shows the total reward obtained during each episode. (by default, 5 episodes are run on each evaluation,
         but you can change that using the n_eval_episodes argument)
     "ep_lengths" shows the length of each episode.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import numpy as np

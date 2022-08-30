@@ -1,10 +1,3 @@
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
-import gym
-import torch as th
-from torch import nn
-from stable_baselines3 import PPO
-from stable_baselines3.common.policies import ActorCriticPolicy
-
 """
 This file shows how to create your own custom SB3 policies, as described in 
 https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html
@@ -17,7 +10,16 @@ An easier way to customize the policy network architecture is to use the
                          net_arch=[dict(pi=[32, 32], vf=[32, 32])])
     # Create the agent
     model = PPO("MlpPolicy", "CartPole-v1", policy_kwargs=policy_kwargs, verbose=1)
+
+Written by C. F. De Inza Niemeijer.
 """
+
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+import gym
+import torch as th
+from torch import nn
+from stable_baselines3 import PPO
+from stable_baselines3.common.policies import ActorCriticPolicy
 
 
 class CustomNetwork(nn.Module):

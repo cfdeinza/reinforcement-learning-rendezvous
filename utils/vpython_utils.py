@@ -1,5 +1,7 @@
 """
 Utility functions for the vpython animations.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 from vpython import *

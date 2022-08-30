@@ -1,15 +1,17 @@
+"""
+This file contains custom callbacks. For more info on how to make custom callbacks see:
+    - The documentation page: https://stable-baselines3.readthedocs.io/en/master/guide/callbacks.html
+    - The source code: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/callbacks.py
+
+Written by C. F. De Inza Niemeijer.
+"""
+
 from stable_baselines3.common.callbacks import BaseCallback, EventCallback
 from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
 import os
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 import pickle
-
-"""
-This file contains custom callbacks. For more info on how to make custom callbacks see:
-    - The documentation page: https://stable-baselines3.readthedocs.io/en/master/guide/callbacks.html
-    - The source code: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/callbacks.py
-"""
 
 
 def my_eval_callback(locals_, globals_) -> None:

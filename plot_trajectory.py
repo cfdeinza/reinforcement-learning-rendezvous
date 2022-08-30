@@ -9,6 +9,8 @@ Functions:
 - save_gif() combines the saved images into a gif.
 - plot_animation() creates an interactive 3D animation of the trajectory.
 - plot_2d() creates 2D plots of the position, velocity and control inputs as a function of time.
+
+Written by C. F. De Inza Niemeijer.
 """
 
 import argparse
