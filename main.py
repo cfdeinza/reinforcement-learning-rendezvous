@@ -6,9 +6,9 @@ Written by C. F. De Inza Niemeijer.
 
 from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
-from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
+from custom.custom_callbacks import CustomWandbCallback
 from rendezvous_env import RendezvousEnv
 from arguments import get_args
 
@@ -21,20 +21,20 @@ def load_model(args, env):
     :return: trained model.
     """
 
-    model_name = args.model
+    model_path = args.model
     model = None
 
-    if model_name == '':
+    if model_path == '':
         print('No model provided for training. Making new model...')
-        n_steps = 3648  # number of steps to run between each model update
+        n_steps = 640*3  # 3648  # num of steps to run between each model update  # each env does this amount of steps
         model = PPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
     else:
-        print(f'Loading saved model "{model_name}"...')
+        print(f'Loading saved model "{model_path}"...', end=' ')
         try:
-            model = PPO.load(model_name, env=env)
-            print('Successfully loaded model')
+            model = PPO.load(model_path, env=env)
+            print('Done')
         except FileNotFoundError:
-            print(f'No such file "{model_name}".\nExiting')
+            print(f'No such file "{model_path}".\nExiting')
             exit()
 
     return model
@@ -54,30 +54,14 @@ def train(args, model):
     save = not args.nosave
 
     if save:
-        eval_env = model.env
-
-        callback = EvalCallback(
-            eval_env,  # Environment used for evaluation (must be identical to the training environment)
-            best_model_save_path='./models/',  # Path to the folder where the best model is saved (best_model.zip)
-            log_path='./logs/',     # Path to the folder where the the evaluations info is saved (evaluations.npz)
-            n_eval_episodes=1,      # Number of episodes tested in each evaluation
-            eval_freq=10000,        # Time steps between evaluations
-            deterministic=True,     # Stochastic or deterministic actions used for evaluations
-            render=args.render      # Render the evaluations
-        )
+        callback = CustomWandbCallback()  # Custom callback to track experiment with Weights & Biases
         print(f'The best model will be saved in {callback.best_model_save_path}')
-
     else:
         callback = None
         print(f'Note: The model will NOT be saved.')
 
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
-
-    if save:  # Save the model when training is complete
-        last_model_path = './models/last_model.zip'
-        model.save(last_model_path)
-        print(f'Saved the last model to "{last_model_path}"')
 
     return
 
@@ -92,9 +76,6 @@ def main(args):
 
     # Create an instance of the environment:
     env = RendezvousEnv()
-    # env = Rendezvous3DOF()  # old 3DOF environment
-    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
 
     # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
     env = Monitor(env)
@@ -111,5 +92,7 @@ def main(args):
 
 if __name__ == '__main__':
     arguments = get_args()
+    # arguments.n_envs = 4
     # arguments.model = r'models\best_model.zip'
+    # arguments.nosave = True
     main(arguments)
