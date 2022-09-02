@@ -102,6 +102,7 @@ def make_animation(args):
 
     # Main loop:
     k = 1
+    # fps = 1 / data['dt']  # 30
     fps = 30
     while True:
         if running.state:
@@ -190,7 +191,7 @@ def get_args():
 if __name__ == '__main__':
 
     arguments = get_args()
-    # arguments.path = os.path.join('data', 'rdv_data0.pickle')
+    # arguments.path = os.path.join('data', 'rdv_data8.pickle')
     # arguments.save = True
 
     # Check that the path argument exists and is not a directory:

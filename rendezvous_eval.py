@@ -133,10 +133,10 @@ def evaluate(model, env, args):
 
         # Name of the output file:
         file_num = 0
-        name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
+        name = os.path.join('data', 'rdv_data' + str(file_num).zfill(2) + '.pickle')
         while os.path.exists(name):
             file_num += 1
-            name = os.path.join('data', 'rdv_data' + str(file_num) + '.pickle')
+            name = os.path.join('data', 'rdv_data' + str(file_num).zfill(2) + '.pickle')
 
         # Save the data file:
         with open(name, 'wb') as handle:

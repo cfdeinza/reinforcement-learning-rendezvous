@@ -50,8 +50,8 @@ class RendezvousEnv(gym.Env):
             [0, 0, 3]
         ])
         self.inv_inertia = np.linalg.inv(self.inertia)
-        self.max_delta_v = 1                # Maximum delta V for each axis [m/s]
-        self.max_delta_w = np.radians(10)   # Maximum delta omega for each axis [rad/s]
+        self.max_delta_v = 0.1                # Maximum delta V for each axis [m/s]
+        self.max_delta_w = np.radians(1)      # Maximum delta omega for each axis [rad/s]
         # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
@@ -81,7 +81,7 @@ class RendezvousEnv(gym.Env):
         # Time:
         self.t = None       # current time of episode [s]
         self.dt = 0.1       # interval between timesteps [s]
-        self.t_max = 120    # maximum length of episode [s]
+        self.t_max = 60     # maximum length of episode [s]
 
         # Properties of the bubble reward function:
         self.bubble_radius = None  # Radius of the virtual bubble that determines the allowed space (m)
@@ -105,6 +105,7 @@ class RendezvousEnv(gym.Env):
         )
 
         # Action space:
+        # self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
         self.action_space = spaces.Box(
             low=-1,
             high=1,
@@ -122,6 +123,7 @@ class RendezvousEnv(gym.Env):
 
         assert action.shape == (6,)
 
+        # action -= 1  # if using MultiDiscrete action_space
         # delta_v = action[0:3] * self.max_delta_v
         # torque = action[3:] * self.max_torque
 
@@ -253,8 +255,8 @@ class RendezvousEnv(gym.Env):
         rew = 0
 
         # Fuel efficiency:
-        rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3 * self.max_delta_v)
-        rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3 * self.max_delta_w)
+        rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3)  # * self.max_delta_v)
+        rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3)  # * self.max_delta_w)
 
         # Collision penalty:
         if self.check_collision():
@@ -270,11 +272,16 @@ class RendezvousEnv(gym.Env):
             vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
             att_error = self.attitude_error()                   # Attitude error [rad]
             rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
-            errors = np.array([pos_error, vel_error, att_error, rot_error])
-            ranges = np.array([self.max_rd_error, self.max_vd_error, self.max_qd_error, self.max_wd_error])
+            # errors = np.array([pos_error, vel_error, att_error, rot_error])
+            # ranges = np.array([self.max_rd_error, self.max_vd_error, self.max_qd_error, self.max_wd_error])
 
             # Bonus for achieving success conditions:
-            rew += sum(2 * (errors < ranges))
+            # rew += sum(2 * (errors < ranges))
+            bonus = 2
+            if pos_error < self.max_rd_error:  # reward pos & vel only if pos is achieved
+                rew += bonus * (1 + (vel_error < self.max_vd_error))
+            if att_error < self.max_qd_error:  # reward att and rot only if att is achieved
+                rew += bonus * (1 + (rot_error < self.max_wd_error))
 
         return rew
 
@@ -390,76 +397,6 @@ class RendezvousEnv(gym.Env):
         self.wt = yf[4:]
 
         return
-
-    # def old_get_reward(self):
-    #     """
-    #     This function is not used at the moment. Using get_bubble_reward() instead.
-    #     Calculate the reward for the current timestep.
-    #     Maybe use a quadratic penalty for velocity and control effort.\n
-    #     :return: reward
-    #     """
-    #
-    #     assert self.rc is not None
-    #
-    #     goal_pos = np.matmul(quat2mat(self.qt), self.rd)    # Goal position in the LVLH frame [m]
-    #     goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
-    #     pos_error = np.linalg.norm(self.rc - goal_pos)      # Position error [m]
-    #     vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
-    #     att_error = self.attitude_error()                   # Attitude error [rad]
-    #     rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
-    #
-    #     rew = 0
-    #
-    #     # Coefficients:
-    #     c_r = 2     # position-based reward coefficient
-    #     c_v = 0     # velocity-based reward coefficient
-    #     c_q = 1     # attitude-based reward coefficient
-    #     c_w = 0     # rotation-based reward coefficient
-    #
-    #     if pos_error < 10:
-    #         reverse_sigmoid = 1 / (1 + np.e**(5 * pos_error - 10))
-    #     else:
-    #         reverse_sigmoid = 0  # Prevent runtime warnings when e^pos_error becomes too large
-    #
-    #     rew += c_r * (1 - pos_error / self.max_axial_distance)
-    #     rew += c_v * (1 - vel_error / self.max_axial_speed) * reverse_sigmoid
-    #     rew += c_q * (1 - att_error / np.pi)
-    #     rew += c_w * (1 - rot_error / self.max_rotation_rate) * reverse_sigmoid
-    #
-    #     # Distance-based reward:
-    #     # rew += (self.max_axial_distance - np.linalg.norm(pos_error)) / self.max_axial_distance
-    #     # Attitude-based reward:
-    #     # rew += 1e-1 * (np.pi - att_error) / np.pi
-    #
-    #     # Success bonus:
-    #     errors = np.array([
-    #         pos_error,
-    #         vel_error,
-    #         att_error,
-    #         rot_error,
-    #     ])
-    #
-    #     ranges = np.array([
-    #         self.max_rd_error,
-    #         self.max_vd_error,
-    #         self.max_qd_error,
-    #         self.max_wd_error,
-    #     ])
-    #
-    #     if not self.collided:
-    #         if np.all(errors < ranges):
-    #             rew += 1000
-    #         else:
-    #             threshold = self.max_rd_error * 10
-    #             if pos_error < threshold:
-    #                 rew += 10 * (1 - pos_error / threshold)
-    #
-    #     # SciPy method:
-    #     # rot = scipyRot.from_quat(put_scalar_last(self.qc))
-    #     # chaser_neg_y = rot.apply(np.array([0, -1, 0]))
-    #     # print(f'reward: {rew}')
-    #
-    #     return rew
 
 
 if __name__ == "__main__":
