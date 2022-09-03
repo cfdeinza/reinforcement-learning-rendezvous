@@ -63,6 +63,15 @@ def get_args():
         help='Use this flag to avoid saving the results.'
     )
     parser.add_argument(
+        '--wandb',
+        dest='wandb',
+        type=bool,
+        nargs='?',
+        const=True,
+        default=False,
+        help='Use this flag to track the experiment using Weights and Biases.'
+    )
+    parser.add_argument(
         '--render',
         dest='render',
         type=bool,

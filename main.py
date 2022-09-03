@@ -8,7 +8,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-from custom.custom_callbacks import CustomWandbCallback
+from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from rendezvous_env import RendezvousEnv
 from arguments import get_args
 
@@ -54,7 +54,10 @@ def train(args, model):
     save = not args.nosave
 
     if save:
-        callback = CustomWandbCallback()  # Custom callback to track experiment with Weights & Biases
+        if args.wandb:
+            callback = CustomWandbCallback()    # Custom callback to track experiment with Weights & Biases
+        else:
+            callback = CustomCallback()         # Custom callback to save the best model
         print(f'The best model will be saved in {callback.best_model_save_path}')
     else:
         callback = None
