@@ -69,7 +69,7 @@ def plot2d(args):
     action_x, action_y, action_z = actions[0], actions[1], actions[2]
     sum_of_actions = np.abs(action_x) + np.abs(action_y) + np.abs(action_z)
     plot_2dcomponents(ax[0, 2], t, action_x, action_y, action_z,
-                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (m)',
+                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='$\Delta V$ (m)',
                       title='Actions. Total ' + r'$\Delta V = $' + str(round(np.nansum(sum_of_actions), 2)))
     # Plot the overall control effort:
     ax[0, 2].plot(t, sum_of_actions, 'k--', label='Overall'), ax[0, 2].legend()
@@ -91,8 +91,8 @@ def plot2d(args):
     action_u, action_v, action_w = actions[3], actions[4], actions[5]
     sum_of_attitude_actions = np.abs(action_u) + np.abs(action_v) + np.abs(action_w)
     plot_2dcomponents(ax[1, 2], t, action_u, action_v, action_w,
-                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='Delta V (rad/s)',
-                      title='Actions. Total ' + r'$\Delta V = $' + str(round(np.nansum(sum_of_attitude_actions), 2)))
+                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='$\Delta \omega $ (rad/s)',
+                      title='Actions. Total ' + r'$\Delta \omega = $' + str(round(np.nansum(sum_of_attitude_actions), 2)))
     # Plot the overall control effort:
     ax[1, 2].plot(t, sum_of_attitude_actions, 'k--', label='Overall'), ax[1, 2].legend()
 

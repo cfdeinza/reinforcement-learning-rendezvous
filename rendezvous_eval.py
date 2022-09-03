@@ -90,7 +90,8 @@ def evaluate(model, env, args):
         wc[:, k] = env.wc
         qt[:, k] = env.qt
         wt[:, k] = env.wt
-        a[:, k-1] = action
+        delta_v, delta_w = env.process_action(action)
+        a[:, k-1] = np.append(delta_v, delta_w)  # processed action
         rew[0, k] = reward
         t[0, k] = env.t
         print(f'Step: {env.t}', end='\r')
@@ -190,7 +191,7 @@ if __name__ == '__main__':
     # arguments.render = True
 
     environment = RendezvousEnv()
-    environment.dt = 0.1  # you can set a new time interval here
+    # environment.dt = 0.1  # you can set a new time interval here
     # environment = load_env(arguments)
     saved_model = load_model(path=arguments.model, env=environment)
 

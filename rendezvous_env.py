@@ -105,12 +105,20 @@ class RendezvousEnv(gym.Env):
         )
 
         # Action space:
-        # self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
-        self.action_space = spaces.Box(
-            low=-1,
-            high=1,
-            shape=(6,)
-        )
+        self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
+        # self.action_space = spaces.Box(
+        #     low=-1,
+        #     high=1,
+        #     shape=(6,)
+        # )
+
+        if isinstance(self.action_space, spaces.MultiDiscrete):
+            self.process_action = self.process_multidiscrete
+        elif isinstance(self.action_space, spaces.Box):
+            self.process_action = self.process_box
+        else:
+            print(f"Unexpected type of action space: {type(self.action_space)}\nCannot process action. Exiting.")
+            exit()
 
         return
 
@@ -121,14 +129,9 @@ class RendezvousEnv(gym.Env):
         :return: observation, reward, done, info
         """
 
+        # Process the action:
         assert action.shape == (6,)
-
-        # action -= 1  # if using MultiDiscrete action_space
-        # delta_v = action[0:3] * self.max_delta_v
-        # torque = action[3:] * self.max_torque
-
-        delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # expressed in LVLH frame
-        delta_w = action[3:] * self.max_delta_w                                 # expressed in the body frame
+        delta_v, delta_w = self.process_action(action)
 
         # Update the position and velocity of the chaser:
         vc_after_impulse = self.vc + delta_v
@@ -157,8 +160,7 @@ class RendezvousEnv(gym.Env):
         obs = self.get_observation()
 
         # Calculate reward:
-        # rew = self.get_reward()
-        rew = self.get_bubble_reward(action)
+        rew = self.get_bubble_reward(delta_v, delta_w)
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
@@ -243,20 +245,52 @@ class RendezvousEnv(gym.Env):
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
-    def get_bubble_reward(self, action: np.ndarray):
+    def process_box(self, action):
+        """
+        Process an action taken from a Box action space. We need to convert the action into a change in velocity and a
+        change in rotation rate of the chaser. The delta_v needs to be expressed in the LVLH frame, but the delta_w can
+        remain in the chaser body frame.\n
+        :param action: action sampled from a Box action space.
+        :return: change in velocity and change rotation rate of the chaser
+        """
+
+        # delta_v = action[0:3] * self.max_delta_v
+        delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # rotated to LVLH frame
+        delta_w = action[3:] * self.max_delta_w  # already expressed in the body frame (no rotation needed)
+
+        return delta_v, delta_w
+
+    def process_multidiscrete(self, action):
+        """
+        Process an action taken from a MultiDiscrete action space. In addition to the same processing used in
+        process_box(), we need to subtract 1 because the output of the action space is 0, 1, or 2.\n
+        :param action: action sampled from a MultiDiscrete action space.
+        :return: change in velocity and change in rotation rate of the chaser
+        """
+
+        delta_v, delta_w = self.process_box(action-1)
+
+        return delta_v, delta_w
+
+    def get_bubble_reward(self, delta_v: np.ndarray, delta_w: np.ndarray):
         """
         Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
-        :param action: Current action chosen by the agent
+        :param delta_v: delta V caused by the current action
+        :param delta_w: delta omega caused by the current action
         :return: Current reward
         """
 
-        assert action.shape == (6,)
+        # assert action.shape == (6,)
+        assert delta_v.shape == (3,)
+        assert delta_w.shape == (3,)
 
         rew = 0
 
         # Fuel efficiency:
-        rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3)  # * self.max_delta_v)
-        rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3)  # * self.max_delta_w)
+        rew += 1 - np.abs(delta_v).sum() / (self.max_delta_v * 3)
+        rew += 1 - np.abs(delta_w).sum() / (self.max_delta_w * 3)
+        # rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3)  # * self.max_delta_v)
+        # rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3)  # * self.max_delta_w)
 
         # Collision penalty:
         if self.check_collision():
