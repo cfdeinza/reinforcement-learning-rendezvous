@@ -113,9 +113,9 @@ class RendezvousEnv(gym.Env):
         # )
 
         if isinstance(self.action_space, spaces.MultiDiscrete):
-            self.process_action = self.process_multidiscrete
+            self.process_action = lambda x: x - 1
         elif isinstance(self.action_space, spaces.Box):
-            self.process_action = self.process_box
+            self.process_action = lambda x: x
         else:
             print(f"Unexpected type of action space: {type(self.action_space)}\nCannot process action. Exiting.")
             exit()
@@ -131,7 +131,13 @@ class RendezvousEnv(gym.Env):
 
         # Process the action:
         assert action.shape == (6,)
-        delta_v, delta_w = self.process_action(action)
+        # delta_v, delta_w = self.process_action(action)
+
+        processed_action = self.process_action(action)
+
+        # delta_v = action[0:3] * self.max_delta_v
+        delta_v = np.matmul(quat2mat(self.qc), processed_action[0:3] * self.max_delta_v)  # rotated to LVLH frame
+        delta_w = processed_action[3:] * self.max_delta_w  # already expressed in the body frame (no rotation needed)
 
         # Update the position and velocity of the chaser:
         vc_after_impulse = self.vc + delta_v
@@ -160,7 +166,7 @@ class RendezvousEnv(gym.Env):
         obs = self.get_observation()
 
         # Calculate reward:
-        rew = self.get_bubble_reward(delta_v, delta_w)
+        rew = self.get_bubble_reward(processed_action)
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
@@ -245,50 +251,22 @@ class RendezvousEnv(gym.Env):
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
-    def process_box(self, action):
-        """
-        Process an action taken from a Box action space. We need to convert the action into a change in velocity and a
-        change in rotation rate of the chaser. The delta_v needs to be expressed in the LVLH frame, but the delta_w can
-        remain in the chaser body frame.\n
-        :param action: action sampled from a Box action space.
-        :return: change in velocity and change rotation rate of the chaser
-        """
-
-        # delta_v = action[0:3] * self.max_delta_v
-        delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # rotated to LVLH frame
-        delta_w = action[3:] * self.max_delta_w  # already expressed in the body frame (no rotation needed)
-
-        return delta_v, delta_w
-
-    def process_multidiscrete(self, action):
-        """
-        Process an action taken from a MultiDiscrete action space. In addition to the same processing used in
-        process_box(), we need to subtract 1 because the output of the action space is 0, 1, or 2.\n
-        :param action: action sampled from a MultiDiscrete action space.
-        :return: change in velocity and change in rotation rate of the chaser
-        """
-
-        delta_v, delta_w = self.process_box(action-1)
-
-        return delta_v, delta_w
-
-    def get_bubble_reward(self, delta_v: np.ndarray, delta_w: np.ndarray):
+    def get_bubble_reward(self, action):
         """
         Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
-        :param delta_v: delta V caused by the current action
-        :param delta_w: delta omega caused by the current action
+        :param action: current action chosen by the policy
         :return: Current reward
         """
 
-        # assert action.shape == (6,)
-        assert delta_v.shape == (3,)
-        assert delta_w.shape == (3,)
+        assert action.shape == (6,)
 
         rew = 0
 
         # Fuel efficiency:
-        rew += 1 - np.abs(delta_v).sum() / (self.max_delta_v * 3)
-        rew += 1 - np.abs(delta_w).sum() / (self.max_delta_w * 3)
+        # rew += 1 - np.abs(delta_v).sum() / (self.max_delta_v * 3)
+        # rew += 1 - np.abs(delta_w).sum() / (self.max_delta_w * 3)
+        rew += 1 - np.abs(action[0:3]).sum() / 3
+        rew += 1 - np.abs(action[3:]).sum() / 3
         # rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3)  # * self.max_delta_v)
         # rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3)  # * self.max_delta_w)
 

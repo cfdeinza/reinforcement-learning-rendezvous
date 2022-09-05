@@ -22,36 +22,14 @@ def plot2d(args):
     qt = data['qt']  # target attitude
     wt = data['wt']
     actions = data['a']
+    actions[0:3] = actions[0:3] * data['max_delta_v']  # convert actions to delta_v and delta_w (in chaser body frame)
+    actions[3:] = actions[3:] * data['max_delta_w']
     rewards = data['rew'][0]
     t = data['t'][0]
     assert rc.shape[0] == 3
     # print(actions)
 
-    # Splicing:
-    start_index = 0
-    end_index = -1
-    if end_index != -1:
-        rc = rc[:, 0:end_index]
-        vc = vc[:, 0:end_index]
-        qc = qc[:, 0:end_index]
-        wc = wc[:, 0:end_index]
-        qt = qt[:, 0:end_index]
-        wt = wt[:, 0:end_index]
-        actions = actions[:, 0:end_index]
-        rewards = rewards[0:end_index]
-        t = t[0:end_index]
-    if start_index != 0:
-        rc = rc[:, start_index:]
-        vc = vc[:, start_index:]
-        qc = qc[:, start_index:]
-        wc = wc[:, start_index:]
-        qt = qt[:, :, start_index:]
-        wt = wt[:, start_index:]
-        actions = actions[:, start_index:]
-        rewards = rewards[start_index:]
-        t = t[start_index:]
-
-    # Create a matplotlib figure with two subplots:
+    # Create a matplotlib figure with 3 subplots:
     fig, ax = plt.subplots(2, 3, figsize=(12, 6))
     plot_2dcomponents(ax[0, 0], t, rc[0], rc[1], rc[2], labels=['x', 'y', 'z'],
                       xlabel='Time (s)', ylabel='Distance (m)', title='Position')
@@ -135,12 +113,32 @@ if __name__ == '__main__':
         print('Path must be an existing file.\nExiting')
         sys.exit()
 
-    # Check if the images will be saved or not:
-    # if arguments.save:
-    #     print('Images of the animation will be saved in the "Download" folder.')
-    # else:
-    #     print('Images will not be saved. Call the --save argument to save them.')
-
     plot2d(arguments)
 
     print('Finished')
+
+"""
+# Splicing:
+    start_index = 0
+    end_index = -1
+    if end_index != -1:
+        rc = rc[:, 0:end_index]
+        vc = vc[:, 0:end_index]
+        qc = qc[:, 0:end_index]
+        wc = wc[:, 0:end_index]
+        qt = qt[:, 0:end_index]
+        wt = wt[:, 0:end_index]
+        actions = actions[:, 0:end_index]
+        rewards = rewards[0:end_index]
+        t = t[0:end_index]
+    if start_index != 0:
+        rc = rc[:, start_index:]
+        vc = vc[:, start_index:]
+        qc = qc[:, start_index:]
+        wc = wc[:, start_index:]
+        qt = qt[:, :, start_index:]
+        wt = wt[:, start_index:]
+        actions = actions[:, start_index:]
+        rewards = rewards[start_index:]
+        t = t[start_index:]
+"""

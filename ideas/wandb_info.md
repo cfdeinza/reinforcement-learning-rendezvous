@@ -64,6 +64,24 @@ wandb.init()
 wandb.log({"accuracy": 0.9, "epoch": 5})
 ```
 
+#### Other:
+[`wandb.watch(`](https://docs.wandb.ai/ref/python/watch)
+`"Hooks into the torch model to collect gradients and topology"`
+- `models`: the model to hook (can be a tuple of models)
+- `criterion`: An optional loss value being optimized (default is None)
+- `log`: "gradients", "parameters", "all", or None
+- `log_freq`: log gradients and parameters every N batches
+- `idx`: an index to be called when calling wand.watch on multiple models
+- `log_graph`: log graph topology (bool)
+
+`) -> wandb.Graph`
+
+`wandb.save(`
+`"Save files on wandb"`
+- `glob_string`: relative or absolute path
+- `base_path`:
+- `policy`: "live" to upload the file as it changes, "now" to upload the file once now, "end" to only upload the file when the run ends.
+
 ## Hyperparameter tuning:
 - config: define the variables and ranges to sweep over, pick a search strategy (grid, random, bayesian, plus techniques such as early stopping), 
 	    pick the optimization metric (make sure you are logging this metric), etc.

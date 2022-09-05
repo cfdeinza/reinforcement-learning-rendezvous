@@ -90,8 +90,10 @@ def evaluate(model, env, args):
         wc[:, k] = env.wc
         qt[:, k] = env.qt
         wt[:, k] = env.wt
-        delta_v, delta_w = env.process_action(action)
-        a[:, k-1] = np.append(delta_v, delta_w)  # processed action
+        # delta_v, delta_w = env.process_action(action)
+        # a[:, k-1] = np.append(delta_v, delta_w)  # processed action
+        processed_action = env.process_action(action)
+        a[:, k-1] = processed_action
         rew[0, k] = reward
         t[0, k] = env.t
         print(f'Step: {env.t}', end='\r')
@@ -121,7 +123,8 @@ def evaluate(model, env, args):
         # Add new pairs to dictionary:
         new_pairs = [
             ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc),
-            ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t)
+            ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t),
+            ('process_action', None),  # pickle cannot handle lambda functions
         ]
         for key, val in new_pairs:
             data[key] = val

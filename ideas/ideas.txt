@@ -180,6 +180,34 @@ This file contains ideas that have not yet been implemented in the code.
     #
     #     return rew
 
+# Old action-processing functions:
+    def process_box(self, action):
+        """
+        Process an action taken from a Box action space. We need to convert the action into a change in velocity and a
+        change in rotation rate of the chaser. The delta_v needs to be expressed in the LVLH frame, but the delta_w can
+        remain in the chaser body frame.\n
+        :param action: action sampled from a Box action space.
+        :return: change in velocity and change rotation rate of the chaser
+        """
+
+        # delta_v = action[0:3] * self.max_delta_v
+        delta_v = np.matmul(quat2mat(self.qc), action[0:3] * self.max_delta_v)  # rotated to LVLH frame
+        delta_w = action[3:] * self.max_delta_w  # already expressed in the body frame (no rotation needed)
+
+        return delta_v, delta_w
+
+    def process_multidiscrete(self, action):
+        """
+        Process an action taken from a MultiDiscrete action space. In addition to the same processing used in
+        process_box(), we need to subtract 1 because the output of the action space is 0, 1, or 2.\n
+        :param action: action sampled from a MultiDiscrete action space.
+        :return: change in velocity and change in rotation rate of the chaser
+        """
+
+        delta_v, delta_w = self.process_box(action-1)
+
+        return delta_v, delta_w
+
 # Different way to rotate body points: (does not work for KOZ)
     points = np.vstack((x, y, z)).T
     print(points.shape)

@@ -43,7 +43,6 @@ class CustomWandbCallback(BaseCallback):
         super(CustomWandbCallback, self).__init__(verbose)
 
         self.prev_best_rew = prev_best_rew
-        self.best_model_save_dir = os.path.join(".", "models")  # Directory where the best model will be saved
         self.best_model_save_path = os.path.join("models", "best_model")
         self.wandb_run = None  # Cannot initialize wandb run yet, because self.model is still None at this point.
 
@@ -136,6 +135,7 @@ class CustomWandbCallback(BaseCallback):
 
         # Save the model if the reward is better than last time:
         self.check_and_save(rew)
+        self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
 
         # Finish W&B run:
         self.wandb_run.finish()
@@ -194,7 +194,7 @@ class CustomWandbCallback(BaseCallback):
             # Save the current model:
             print(f'New best reward. Saving model on {self.best_model_save_path}')
             self.model.save(self.best_model_save_path)  # save a local copy
-            wandb.save(self.best_model_save_path)       # save a copy on W&B
+            # wandb.save(self.best_model_save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
 
         pass
 
