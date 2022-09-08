@@ -11,6 +11,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from rendezvous_env import RendezvousEnv
 from arguments import get_args
+# from custom.custom_model import CustomPPO
 
 
 def load_model(args, env):
@@ -27,6 +28,7 @@ def load_model(args, env):
     if model_path == '':
         print('No model provided for training. Making new model...')
         n_steps = 640*3  # 3648  # num of steps to run between each model update  # each env does this amount of steps
+        # model = CustomPPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
         model = PPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
     else:
         print(f'Loading saved model "{model_path}"...', end=' ')
@@ -50,6 +52,8 @@ def train(args, model):
     :return:
     """
 
+    # model.wandb_start()
+
     steps = args.steps
     save = not args.nosave
 
@@ -65,6 +69,8 @@ def train(args, model):
 
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
+
+    # model.wandb_end()
 
     return
 
