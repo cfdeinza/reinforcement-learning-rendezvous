@@ -13,7 +13,7 @@ import os
 # from typing import Any, Dict, Optional  # , Callable, List, Union
 import pickle
 import wandb
-# import numpy as np
+import numpy as np
 from rendezvous_env import RendezvousEnv
 
 
@@ -25,7 +25,7 @@ class CustomWandbCallback(BaseCallback):
     saves the model if the current reward exceeds the previous highest reward.
     """
 
-    def __init__(self, verbose=0, prev_best_rew=None):
+    def __init__(self, verbose=0, prev_best_rew=None, wandb_run=None):
         """
         Instantiate callback object.
         Attributes inherited from BaseCallback:
@@ -44,35 +44,43 @@ class CustomWandbCallback(BaseCallback):
 
         self.prev_best_rew = prev_best_rew
         self.best_model_save_path = os.path.join("models", "best_model")
-        self.wandb_run = None  # Cannot initialize wandb run yet, because self.model is still None at this point.
+        self.wandb_run = wandb_run
+
+        # Attribute to track if the W&B run was initiated externally or by the callback:
+        if wandb_run is not None:
+            self.wandb_external_start = True
+        else:
+            self.wandb_external_start = False
 
         pass
 
     def _on_training_start(self) -> None:
         """
-        This method is called before the first rollout starts. It initializes the W&B run.\n
+        This method is called before the first rollout starts.
+        It initializes a W&B run if no run has yet been initiated.\n
         :return: None
         """
 
-        # Save the model hyperparameters:
-        wandb_config = {
-            "batch_size": self.model.batch_size,
-            "gamma": self.model.gamma,
-            "learning_rate": self.model.learning_rate,
-            "policy": self.model.policy,
-            "seed": self.model.seed,
-        }
+        if self.wandb_run is None:
+            # Save the model hyperparameters:
+            wandb_config = {
+                "batch_size": self.model.batch_size,
+                "gamma": self.model.gamma,
+                "learning_rate": self.model.learning_rate,
+                "policy": self.model.policy,
+                "seed": self.model.seed,
+            }
 
-        # Initialize W&B run:
-        self.wandb_run = wandb.init(
-            project=None,
-            entity=None,
-            config=wandb_config,
-            job_type="Train",
-            name=None,
-            mode="online",
-            id=None,
-        )
+            # Initialize W&B run:
+            self.wandb_run = wandb.init(
+                project=None,
+                entity=None,
+                config=wandb_config,
+                job_type="Train",
+                name=None,
+                mode="online",
+                id=None,
+            )
 
         pass
 
@@ -86,18 +94,19 @@ class CustomWandbCallback(BaseCallback):
         """
 
         # Evaluate the current policy, and save the total reward achieved during the episode.
-        rew, t_end = self.evaluate_policy()
+        result = self.evaluate_policy()
 
         # Log results to W&B:
-        data = {
-            "ep_rew": rew,                      # total reward achieved during the eval episode
-            "ep_len": t_end,                    # duration of the eval episode
-            "total_steps": self.num_timesteps,  # total training steps executed
-        }
-        wandb.log(data)
+        result["total_timesteps"] = self.num_timesteps
+        # data = {
+        #     "ep_rew": rew,                      # total reward achieved during the eval episode
+        #     "ep_len": t_end,                    # duration of the eval episode
+        #     "total_steps": self.num_timesteps,  # total training steps executed
+        # }
+        wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(rew)
+        self.check_and_save(result["ep_rew"])
 
         pass
 
@@ -123,22 +132,20 @@ class CustomWandbCallback(BaseCallback):
         """
 
         # Evaluate the current policy, and save the total reward achieved during the episode.
-        rew, t_end = self.evaluate_policy()
+        result = self.evaluate_policy()
 
         # Log results to W&B:
-        data = {
-            "ep_rew": rew,  # total reward achieved during the eval episode
-            "ep_len": t_end,  # duration of the eval episode
-            "total_steps": self.num_timesteps,  # total training steps executed
-        }
-        wandb.log(data)
+        result["total_timesteps"] = self.num_timesteps  # total training steps executed
+        wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(rew)
+        self.check_and_save(result["ep_rew"])
         self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
+        wandb.log({"max_rew": wandb.run.summary["max_rew"]})        # Log best reward for the sweep
 
-        # Finish W&B run:
-        self.wandb_run.finish()
+        # Finish W&B run (only if it was started by the Callback):
+        if not self.wandb_external_start:
+            self.wandb_run.finish()
 
         pass
 
@@ -172,9 +179,16 @@ class CustomWandbCallback(BaseCallback):
             total_reward += reward
 
         end_time = env.t
+        final_dist = np.linalg.norm(env.rc)
         print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
 
-        return total_reward, end_time
+        output = {
+            "ep_rew": total_reward,  # Total reward achieved during the episode
+            "ep_len": end_time,      # Length of the episode (seconds)
+            "ep_dist": final_dist,   # Final distance of the chaser to the target (meters)
+        }
+
+        return output
 
     def check_and_save(self, rew) -> None:
         """
@@ -189,7 +203,9 @@ class CustomWandbCallback(BaseCallback):
             self.prev_best_rew = rew
 
             # Update the summary of the W&B run:
-            wandb.run.summary["best_reward"] = f"{round(rew, 2)} at {self.num_timesteps} steps."
+            wandb.run.summary["max_rew"] = rew
+            wandb.run.summary["timstep_of_max_rew"] = self.num_timesteps
+            # wandb.run.summary["best_reward"] = f"{round(rew, 2)} at {self.num_timesteps} steps."
 
             # Save the current model:
             print(f'New best reward. Saving model on {self.best_model_save_path}')
