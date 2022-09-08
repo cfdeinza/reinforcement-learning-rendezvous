@@ -54,6 +54,7 @@ def load_env(env_class):
 
     return env
 
+
 def load_model(path, env):
     """
     Load a saved model.\n
@@ -62,8 +63,8 @@ def load_model(path, env):
     :return: model
     """
 
+    model = None
     if path == '':
-        model = None
         print('No model provided. Exiting')
         exit()
     else:

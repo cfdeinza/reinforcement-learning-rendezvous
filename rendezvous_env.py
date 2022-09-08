@@ -13,7 +13,7 @@ class RendezvousEnv(gym.Env):
     Written by C. F. De Inza Niemeijer.\n
     """
 
-    def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None):
+    def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None, quiet=False):
         """
         Initializes the attributes of the environment, including chaser properties, target properties, orbit properties,
         observation space, action space, and more.\n
@@ -23,6 +23,7 @@ class RendezvousEnv(gym.Env):
         :param wc0: nominal initial rotation rate of the chaser (ndarray with shape 3,)
         :param qt0: nominal initial attitude of the target (ndarray with shape 4,)
         :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,)
+        :param quiet: whether or not to print episode results.
         """
 
         # State variables:  (initialized on reset() call)
@@ -83,9 +84,10 @@ class RendezvousEnv(gym.Env):
         self.dt = 0.1       # interval between timesteps [s]
         self.t_max = 60     # maximum length of episode [s]
 
-        # Properties of the bubble reward function:
-        self.bubble_radius = None  # Radius of the virtual bubble that determines the allowed space (m)
-        self.bubble_decrease_rate = 0.1  # Rate at which the size of the bubble decreases (m/s)
+        # Properties of the reward function:
+        self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
+        self.bubble_decrease_rate = 0.1     # Rate at which the size of the bubble decreases (m/s)
+        self.fuel_usage = None              # Keeps track of all the fuel used throughout the episode (dimensionless)
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -94,8 +96,9 @@ class RendezvousEnv(gym.Env):
         self.ro = self.Re + self.h                  # Radius of the orbit [m]
         self.n = np.sqrt(self.mu / self.ro ** 3)    # Mean motion of the orbit [rad/s]
 
-        # Viewer:
+        # Other:
         self.viewer = None
+        self.quiet = quiet
 
         # Observation space:
         self.observation_space = spaces.Box(
@@ -171,6 +174,10 @@ class RendezvousEnv(gym.Env):
         # Check if episode is done:
         done = self.get_done_condition(obs)
 
+        # Penalize total fuel usage only once the episode ends:
+        if done:
+            rew -= self.fuel_usage
+
         # Info: auxiliary information
         info = {
             'observation': obs,
@@ -198,6 +205,7 @@ class RendezvousEnv(gym.Env):
 
         self.collided = self.check_collision()
         self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
+        self.fuel_usage = 0
         self.t = 0
 
         obs = self.get_observation()
@@ -260,15 +268,12 @@ class RendezvousEnv(gym.Env):
 
         assert action.shape == (6,)
 
-        rew = 0
+        rew = 1  # 0
 
         # Fuel efficiency:
-        # rew += 1 - np.abs(delta_v).sum() / (self.max_delta_v * 3)
-        # rew += 1 - np.abs(delta_w).sum() / (self.max_delta_w * 3)
-        rew += 1 - np.abs(action[0:3]).sum() / 3
-        rew += 1 - np.abs(action[3:]).sum() / 3
-        # rew += 1 - np.linalg.norm(action[0:3]) / np.sqrt(3)  # * self.max_delta_v)
-        # rew += 1 - np.linalg.norm(action[3:]) / np.sqrt(3)  # * self.max_delta_w)
+        self.fuel_usage += np.abs(action[0:3]).sum() * self.max_delta_v  # Add delta_V to total fuel usage
+        # rew += 1 - np.abs(action[0:3]).sum() / 3
+        # rew += 1 - np.abs(action[3:]).sum() / 3
 
         # Collision penalty:
         if self.check_collision():
@@ -318,7 +323,8 @@ class RendezvousEnv(gym.Env):
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
         if any(end_conditions):
             done = True
-            print(f'Episode done. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
+            if not self.quiet:
+                print(f'Episode done. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
         else:
             done = False
 
