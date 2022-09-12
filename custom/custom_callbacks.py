@@ -140,7 +140,7 @@ class CustomWandbCallback(BaseCallback):
 
         # Save the model if the reward is better than last time:
         self.check_and_save(result["ep_rew"])
-        self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
+        # self.model.save(os.path.join(wandb.run.dir, "last_model"))  # Save an extra copy of the model on W&B
         wandb.log({"max_rew": wandb.run.summary["max_rew"]})        # Log best reward for the sweep
 
         # Finish W&B run (only if it was started by the Callback):
@@ -209,7 +209,8 @@ class CustomWandbCallback(BaseCallback):
 
             # Save the current model:
             print(f'New best reward. Saving model on {self.best_model_save_path}')
-            self.model.save(self.best_model_save_path)  # save a local copy
+            self.model.save(self.best_model_save_path)  # Save a local copy
+            self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
             # wandb.save(self.best_model_save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
 
         pass

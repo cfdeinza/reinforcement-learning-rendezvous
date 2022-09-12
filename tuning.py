@@ -39,6 +39,8 @@ def train_function():
 
     with wandb.init() as run:
 
+        # print(f"Starting Weights & Biases run. ID: {run.id}")
+
         model = make_model(MlpPolicy, RendezvousEnv(quiet=True), config=wandb.config)
         # Check that the hyperparameters have been updated:
         # print(f"learning_rate: {model.learning_rate}")

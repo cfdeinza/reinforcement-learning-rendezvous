@@ -191,7 +191,7 @@ def get_args():
 if __name__ == '__main__':
 
     arguments = get_args()
-    # arguments.path = os.path.join('data', 'rdv_data8.pickle')
+    # arguments.path = os.path.join('data', 'rdv_data00.pickle')
     # arguments.save = True
 
     # Check that the path argument exists and is not a directory:
