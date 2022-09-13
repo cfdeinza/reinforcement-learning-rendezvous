@@ -43,6 +43,11 @@ class RendezvousEnv(gym.Env):
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
         self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
+        # Time:
+        self.t = None  # current time of episode [s]
+        self.dt = 0.1  # interval between timesteps [s]
+        self.t_max = 60  # maximum length of episode [s]
+
         # Chaser properties:
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
         self.inertia = np.array([  # moment of ineria [kg.m^2]
@@ -51,8 +56,8 @@ class RendezvousEnv(gym.Env):
             [0, 0, 3]
         ])
         self.inv_inertia = np.linalg.inv(self.inertia)
-        self.max_delta_v = 0.1                # Maximum delta V for each axis [m/s]
-        self.max_delta_w = np.radians(1)      # Maximum delta omega for each axis [rad/s]
+        self.max_delta_v = 0.1*self.dt        # Maximum delta V for each axis [m/s]
+        self.max_delta_w = 0.005*self.dt      # Maximum delta omega for each axis [rad/s]
         # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
@@ -78,11 +83,6 @@ class RendezvousEnv(gym.Env):
         self.max_qd_error = np.radians(5)   # allowed error for the capture attitude [rad]
         self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None                # whether or not the chaser has collided during the current episode
-
-        # Time:
-        self.t = None       # current time of episode [s]
-        self.dt = 0.1       # interval between timesteps [s]
-        self.t_max = 60     # maximum length of episode [s]
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
