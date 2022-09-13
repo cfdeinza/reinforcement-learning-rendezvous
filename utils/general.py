@@ -29,7 +29,7 @@ def load_data(path: str):
     try:
         with open(path, 'rb') as handle:
             data = pickle.load(handle)
-        print('Successful.')
+        print('Done')
     except FileNotFoundError:
         print(f'Error. Could not find file or directory "{path}"\nExiting')
         sys.exit()

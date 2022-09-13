@@ -13,7 +13,7 @@ from functools import partial
 from vpython import *
 from utils.general import load_data
 from utils.quaternions import quat_error, quat2rot
-from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz, create_frame
+from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz, create_frame, interp
 
 
 class RunState:
@@ -27,32 +27,33 @@ class RunState:
 
 
 def make_animation(args):
+    """
+    Load trajectory data from a pickle file and display an animation of the trajectory.\n
+    :param args: command-line arguments.
+    :return: None
+    """
 
     data = load_data(args.path)
-    rc = data['rc']  # chaser position [m]
-    qc = data['qc']  # chaser attitude
-    qt = data['qt']  # target attitude
+    rc = data['rc']                     # chaser position [m]
+    qc = data['qc']                     # chaser attitude
+    qt = data['qt']                     # target attitude
+    t = data['t'][0]                    # time [s]
+    koz_radius = data['koz_radius']     # keep-out zone radius [m]
     assert rc.shape[0] == 3
 
-    # Time data:
-    if 't' in data:
-        t = data['t'][0]  # make time one-dimensional
-    else:
-        if 't_max' in data:
-            t = np.linspace(0, data['t_max'], num=len(rc[0]))
-        else:
-            print('Time data not found.')
-            t = np.linspace(0, 1, num=len(rc[0]))
+    # Resampling: resample the data to display the animation in real time
+    print("Resampling data points".ljust(40, "."), end=" ")
+    fps = 30  # frames per second
+    # fps = 1 / data['dt']
+    new_t = np.arange(t[0], t[-1], 1/fps)  # new time data
+    rc = interp(rc, t, new_t)
+    qc = interp(qc, t, new_t)
+    qt = interp(qt, t, new_t)
+    t = new_t
+    print("Done")
 
-    # Keep-out zone radius:
-    if 'koz_radius' in data:
-        koz_radius = data['koz_radius']
-    else:
-        koz_radius = 5
-        print(f'Radius of keep-out zone is undefined. Using default ({koz_radius} m)')
-
-    print('Computing rotations...', end=' ')
-
+    # Rotations: convert quaternions to rotations
+    print('Computing rotations'.ljust(40, "."), end=' ')
     c_axis0, c_angle0 = quat2rot(qc[:, 0])  # converts quaternion to axis of rotation & degree of rotation.
     qc_axes = [numpy2vec(c_axis0)]          # axis around which the rotation occurs
     qc_angles = [c_angle0]                  # degree of the rotation [rad]
@@ -72,6 +73,7 @@ def make_animation(args):
     print('Done')
 
     # Create a scene and the objects:
+    print("Creating scene and graph objects".ljust(40, "."), end=" ")
     myscene = create_scene(title=f'Rendezvous: {os.path.split(args.path)[1]}\n', caption='')
     create_frame(np.array([0, 0, 0]))
     chaser = create_chaser(rc0=rc[:, 0])
@@ -99,14 +101,14 @@ def make_animation(args):
 
     b1 = button(text="Pause" if running.state else " Play ",
                 pos=myscene.title_anchor, bind=partial(play_pause, run=running))
+    print("Done")
 
     # Main loop:
     k = 1
-    # fps = 1 / data['dt']  # 30
-    fps = 30
+    print("Displaying animation")
     while True:
+        rate(fps)
         if running.state:
-            rate(fps)
             if args.save:
                 myscene.capture(f'img{k-1}')  # images will be saved in the 'Download' folder.
                 if k < 3:

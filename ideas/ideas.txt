@@ -213,3 +213,25 @@ This file contains ideas that have not yet been implemented in the code.
     print(points.shape)
     new_points = rot.apply(points)
     new_x, new_y, new_z = new_points.T
+
+# Rendering on Google Colab:
+	"""
+	If we want to display any results, we also need the following packages:
+	- `xvfb`
+	- `python-opengl`
+	- `pyvirtualdisplay`
+	
+	!apt-get install -y xvfb python-opengl --quiet
+	!pip install pyvirtualdisplay --quiet
+	
+	Other packages:
+	# !pip install plotly --upgrade --quiet
+	# !pip install vpython --quiet
+	# !pip install cloudpickle==1.7.0 --upgrade
+	
+	# Check Python version:
+	# import sys
+	# print(sys.version)
+	# Check package versions:
+	# !pip list
+	"""
