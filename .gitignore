@@ -6,5 +6,8 @@ wb*/
 wandb*/
 train_wandb.py
 *.html
+*.gif
 ray_tutorials/
 textures/
+scrap*
+models/3dof/
