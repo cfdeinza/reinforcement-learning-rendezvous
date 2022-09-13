@@ -129,7 +129,7 @@ def my_train_func():
 
     wandb.log({"a": a, "accuracy": a + 1})
 
-sweep_id = wandb.sweep(sweep_configuration)
+sweep_id = wandb.sweep(sweep=sweep_configuration, project="my_project")
 
 # run the sweep
 wandb.agent(sweep_id, function=my_train_func)

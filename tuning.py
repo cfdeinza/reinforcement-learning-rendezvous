@@ -22,6 +22,9 @@ def make_model(policy, env, config):
         policy,
         env,
         learning_rate=config["learning_rate"],
+        n_steps=config["n_steps"],
+        batch_size=config["batch_size"],
+        n_epochs=config["n_epochs"],
         clip_range=config["clip_range"],
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
@@ -66,13 +69,34 @@ if __name__ == "__main__":
             "name": "max_rew",
             "goal": "maximize",
         },
-        "method": "grid",               # search method
+        "method": "random",             # search method ("grid", "random", or "bayes")
         "parameters": {                 # parameters to sweep through
             "learning_rate": {
-                "values": [1e-5, 1e-4],
+                "distribution": "log_uniform",
+                "min": 1e-6,
+                "max": 1e-2,
+                # "values": [1e-5, 1e-4],
+            },
+            "n_steps": {
+                "distribution": "log_uniform",
+                "min": 640,
+                "max": 8320,
+            },
+            "batch_size": {
+                "distribution": "log_uniform",
+                "min": 8,
+                "max": 640,
+            },
+            "n_epochs": {
+                "distribution": "log_uniform",
+                "min": 1,
+                "max": 100,
             },
             "clip_range": {
-                "values": [0.2, 0.1],
+                "distribution": "log_uniform",
+                "min": 0.02,
+                "max": 0.8,
+                # "values": [0.2, 0.1],
             },
         },
     }
