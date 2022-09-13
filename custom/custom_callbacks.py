@@ -74,7 +74,7 @@ class CustomWandbCallback(BaseCallback):
                 "clip_range": self.model.clip_range(1),
                 "clip_range_vf": self.model.clip_range_vf,
                 "normalize_advantage": self.model.normalize_advantage,
-                "ent_coef": self.model.ent_coefficient,
+                "ent_coef": self.model.ent_coef,
                 "vf_coef": self.model.vf_coef,
                 "max_grad_norm": self.model.max_grad_norm,
                 "target_kl": self.model.target_kl,
