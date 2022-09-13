@@ -64,10 +64,20 @@ class CustomWandbCallback(BaseCallback):
         if self.wandb_run is None:
             # Save the model hyperparameters:
             wandb_config = {
-                "batch_size": self.model.batch_size,
-                "gamma": self.model.gamma,
-                "learning_rate": self.model.learning_rate,
                 "policy": self.model.policy,
+                "learning_rate": self.model.learning_rate,
+                "n_steps": self.model.n_steps,
+                "batch_size": self.model.batch_size,
+                "n_epochs": self.model.n_epochs,
+                "gamma": self.model.gamma,
+                "gae_lambda": self.model.gae_lambda,
+                "clip_range": self.model.clip_range(1),
+                "clip_range_vf": self.model.clip_range_vf,
+                "normalize_advantage": self.model.normalize_advantage,
+                "ent_coef": self.model.ent_coefficient,
+                "vf_coef": self.model.vf_coef,
+                "max_grad_norm": self.model.max_grad_norm,
+                "target_kl": self.model.target_kl,
                 "seed": self.model.seed,
             }
 
