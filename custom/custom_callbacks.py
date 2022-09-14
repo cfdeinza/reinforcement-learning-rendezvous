@@ -25,7 +25,7 @@ class CustomWandbCallback(BaseCallback):
     saves the model if the current reward exceeds the previous highest reward.
     """
 
-    def __init__(self, verbose=0, prev_best_rew=None, wandb_run=None):
+    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None):
         """
         Instantiate callback object.
         Attributes inherited from BaseCallback:
@@ -37,14 +37,17 @@ class CustomWandbCallback(BaseCallback):
         - self.globals: global variables
         - self.logger: sb3 common logger object (used to report things in the terminal)
         - self.parent: parent object (BaseCallback)\n
+        :param env: environment to use for evaluations
+        :param wandb_run: current Weights & Biases run
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
         """
         super(CustomWandbCallback, self).__init__(verbose)
 
+        self.env = env
+        self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
         self.best_model_save_path = os.path.join("models", "best_model")
-        self.wandb_run = wandb_run
 
         # Attribute to track if the W&B run was initiated externally or by the callback:
         if wandb_run is not None:
@@ -166,7 +169,7 @@ class CustomWandbCallback(BaseCallback):
         """
 
         model = self.model
-        env = RendezvousEnv()  # HACK: hard-coded environment
+        env = self.env()  # TODO: Instantiate the environment when the callback is instantiated
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0
@@ -234,14 +237,16 @@ class CustomCallback(BaseCallback):
     current model is saved.\n
     """
 
-    def __init__(self, verbose=0, prev_best_rew=None):
+    def __init__(self, env, verbose=0, prev_best_rew=None):
         """
         Instantiate callback object.
+        :param env: environment to use for evaluations
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
         """
         super(CustomCallback, self).__init__(verbose)
 
+        self.env = env
         self.prev_best_rew = prev_best_rew
         self.best_model_save_dir = os.path.join(".", "models")  # Directory where the best model will be saved
         self.best_model_save_path = os.path.join("models", "best_model")
@@ -309,7 +314,7 @@ class CustomCallback(BaseCallback):
         """
 
         model = self.model
-        env = RendezvousEnv()  # HACK: hard-coded environment
+        env = self.env()  # TODO: Instantiate the environment when the callback is instantiated
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0

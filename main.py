@@ -59,9 +59,9 @@ def train(args, model):
 
     if save:
         if args.wandb:
-            callback = CustomWandbCallback()    # Custom callback to track experiment with Weights & Biases
+            callback = CustomWandbCallback(RendezvousEnv)   # Custom callback to track experiment with Weights & Biases
         else:
-            callback = CustomCallback()         # Custom callback to save the best model
+            callback = CustomCallback(RendezvousEnv)        # Custom callback to save the best model
         print(f'The best model will be saved in {callback.best_model_save_path}')
     else:
         callback = None
