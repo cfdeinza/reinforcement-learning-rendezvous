@@ -88,6 +88,7 @@ class RendezvousEnv(gym.Env):
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
         self.bubble_decrease_rate = 0.1     # Rate at which the size of the bubble decreases (m/s)
         self.fuel_usage = None              # Keeps track of all the fuel used throughout the episode (dimensionless)
+        self.prev_potential = None          # Potential of the previous state
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -206,6 +207,7 @@ class RendezvousEnv(gym.Env):
         self.collided = self.check_collision()
         self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.fuel_usage = 0
+        self.prev_potential = 0
         self.t = 0
 
         obs = self.get_observation()
@@ -301,6 +303,28 @@ class RendezvousEnv(gym.Env):
                 rew += bonus * (1 + (rot_error < self.max_wd_error))
 
         return rew
+
+    def get_potential_reward(self):
+        """
+        Potential-based reward.\n
+        :return: reward
+        """
+
+        phi = self.potential()
+        rew = phi - self.prev_potential
+        self.prev_potential = phi
+
+        return rew
+
+    def potential(self):
+        """
+        Potential function based on distance.
+        :return:
+        """
+
+        phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
+
+        return phi
 
     def get_done_condition(self, obs) -> bool:
         """
