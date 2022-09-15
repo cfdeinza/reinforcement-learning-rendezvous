@@ -40,7 +40,8 @@ Also I don't know if the `evaluate_policy()` method works properly for the RNN m
 ## Custom architectures:
 The architecture of a network is given by the `net_arch` parameter.
 
-One way to customize the policy network architecture is to pass the `policy_kwargs` argument when creating the model. For example:
+One way to customize the policy network architecture is to pass the `policy_kwargs` argument when creating the model. 
+For example: custom actor (pi) and value function (vf) networks of two layers with 32 neurons each, and ReLU activation function
 ```python
 import torch as th
 from stable_baselines3 import PPO
@@ -54,6 +55,21 @@ model = PPO("MlpPolicy", "CartPole-v1", policy_kwargs=policy_kwargs)
 
 ```
 
+### Shared networks:
+The `net_arch` parameter can also be used to specify layers that are shared by the policy network and the value network. 
+The format is:
+```
+net_arch = [<shared_layers>, dict(vf=[<non-shared value network layers>], pi=[<non-shared policy network layers>])]
+```
+For example:
+- Two shared layers of 128 neurons: `net_arch=[128, 128]`
+- Initially shared, then diverging: `net_arch=[128, dict(vf=[64, 64], pi=[64])]`
+
+### Advanced:
+If you need even more control over the policy, you can define a [custom policy class](https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html#advanced-example) 
+which inherits from `ActorCriticPolicy`.
+
+## Recurrent:
 `RecurrentActorCriticPolicy` (see [source code](https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/blob/7993b75781d7f43262c80c023cd83cfe975afe3a/sb3_contrib/common/recurrent/policies.py#L22))
  inherits from `ActorCriticPolicy` (which is just a MLP). It applies a multi-layer LSTM to the MLP. 
  The default number of LSTM layers is 1, and the default number of features in the hidden state is 256. By default, 

@@ -5,6 +5,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from rendezvous_env import RendezvousEnv
 from custom.custom_callbacks import CustomWandbCallback
+from arguments import get_tune_args
 
 
 def make_model(policy, env, config):
@@ -54,53 +55,66 @@ def train_function():
     return
 
 
-# hyperparameter_defaults = {
-#     "learning_rate": 3e-4,
-#     "clip_range": 0.2,
-# }
+def configure_sweep():
+    """
+    Create the dictionary used to configure the sweep.\n
+    :return: configuration dictionary
+    """
+
+    sweep_config = {
+        "name": "test_sweep",   # name of the sweep (not the project)
+        "metric": {             # metric to optimize, has to be logged with `wandb.log()`
+            "name": "max_rew",
+            "goal": "maximize",
+        },
+        "method": "random",     # search method ("grid", "random", or "bayes")
+        "parameters": {         # parameters to sweep through
+            "learning_rate": {
+                "distribution": "uniform",
+                "min": 1e-6,
+                "max": 1e-2,
+                # "values": [1e-6, 1e-5, 1e-4, 3e-4, 1e-3, 1e-2]
+                # "values": [1e-5, 1e-4],
+            },
+            "n_steps": {
+                "distribution": "uniform",  # categorical?
+                "min": 512,
+                "max": 8320,
+                # "values": [512, 1024, 2048, 4096, 8192],
+            },
+            "batch_size": {
+                "distribution": "uniform",
+                "min": 8,
+                "max": 512,
+                # "values": [8, 16, 32, 64, 128, 256, 512],  # all factors of n_steps to avoid batch truncation
+            },
+            "n_epochs": {
+                "distribution": "uniform",
+                "min": 1,
+                "max": 100,
+                # "values": [1, 4, 8, 16, 32, 64, 100]
+            },
+            "clip_range": {
+                "distribution": "uniform",
+                "min": 0.02,
+                "max": 0.8,
+                # "values": [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 1, 2],
+            },
+        },
+    }
+    return sweep_config
 
 
 if __name__ == "__main__":
 
+    # Get arguments:
+    arguments = get_tune_args()
+    # project_name = arguments.project
+    project_name = "scrap_sweep"
+
     # Set-up the sweep:
-    sweep_configuration = {
-        "name": "test_sweep",           # name of the sweep (not the project)
-        "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
-            "name": "max_rew",
-            "goal": "maximize",
-        },
-        "method": "random",             # search method ("grid", "random", or "bayes")
-        "parameters": {                 # parameters to sweep through
-            "learning_rate": {
-                "distribution": "log_uniform",
-                "min": 1e-6,
-                "max": 1e-2,
-                # "values": [1e-5, 1e-4],
-            },
-            "n_steps": {
-                "distribution": "log_uniform",
-                "min": 640,
-                "max": 8320,
-            },
-            "batch_size": {
-                "distribution": "log_uniform",
-                "min": 8,
-                "max": 640,
-            },
-            "n_epochs": {
-                "distribution": "log_uniform",
-                "min": 1,
-                "max": 100,
-            },
-            "clip_range": {
-                "distribution": "log_uniform",
-                "min": 0.02,
-                "max": 0.8,
-                # "values": [0.2, 0.1],
-            },
-        },
-    }
-    sweep_id = wandb.sweep(sweep=sweep_configuration, project="test_sweep1")
+    sweep_configuration = configure_sweep()
+    sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 
     # Run the sweep:
     wandb.agent(sweep_id, function=train_function)

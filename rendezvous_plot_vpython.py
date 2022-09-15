@@ -42,7 +42,7 @@ def make_animation(args):
     assert rc.shape[0] == 3
 
     # Resampling: resample the data to display the animation in real time
-    print("Resampling data points".ljust(40, "."), end=" ")
+    print("Resampling data to match FPS".ljust(40, "."), end=" ")
     fps = 30  # frames per second
     # fps = 1 / data['dt']
     new_t = np.arange(t[0], t[-1], 1/fps)  # new time data

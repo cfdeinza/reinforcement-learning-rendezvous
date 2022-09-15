@@ -82,15 +82,15 @@ if __name__ == "__main__":
             "batch_size": {"values": [64]},
             "n_epochs": {"values": [10]},
             "clip_range": {"values": [0.2]},
-            "net_arch": {
-                "values": {
-                    [[], [], []],
-                }
+            "net_arch": {               # network architecture (see `ideas\ppo_implementation.md` for more information
+                "values": [
+                    [dict(vf=[64, 64], pi=[64, 64])],
+                    [dict(vf=[32, 32, 32], pi=[32, 32, 32])],
+                    [128, dict(vf=[64], pi=[64])]
+                ],
             },
             "activation_fn": {
-                "values": {
-                    [ReLU, Sigmoid, Tanh]
-                }
+                "values": [ReLU, Sigmoid, Tanh]
             }
         },
     }
