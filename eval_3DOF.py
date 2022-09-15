@@ -6,7 +6,7 @@ Written by C. F. De Inza Niemeijer.
 
 from custom.custom_rdv_env import Rendezvous3DOF
 from main import load_model  # , load_env
-from arguments import get_args
+from arguments import get_main_args
 
 
 def evaluate(model, env):
@@ -47,7 +47,7 @@ def evaluate(model, env):
 
 
 if __name__ == '__main__':
-    arguments = get_args()
+    arguments = get_main_args()
     environment = Rendezvous3DOF()
     # environment = load_env(arguments)
     saved_model = load_model(arguments, environment)

@@ -6,7 +6,7 @@ Written by C. F. De Inza Niemeijer.
 
 from custom.custom_att_env import Attitude
 from main import load_model  # , load_env
-from arguments import get_args
+from arguments import get_main_args
 import numpy as np
 
 
@@ -53,7 +53,7 @@ def evaluate(model, env):
 
 
 if __name__ == '__main__':
-    arguments = get_args()
+    arguments = get_main_args()
     environment = Attitude()
     # environment = load_env(arguments)
     saved_model = load_model(arguments, environment)

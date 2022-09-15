@@ -1,6 +1,6 @@
 """
     This file contains the arguments to parse at the command line.
-    File `main.py` will call get_args(), which then returns the arguments.
+    File `main.py` will call get_main_args(), which then returns the arguments.
     The arguments are:
         - mode: "train" or "eval" (indicates whether to train or evaluate the model).
         - model: Name of an existing file (to load a previously saved model).
@@ -16,9 +16,9 @@
 import argparse
 
 
-def get_args():
+def get_main_args():
     """
-    Parses the arguments from the command line.
+    Parses the arguments from the command line when calling `main.py`.\n
     :return: Namespace containing the arguments.
     """
     parser = argparse.ArgumentParser()
@@ -88,6 +88,26 @@ def get_args():
         const=True,
         default=False,
         help='Use this flag to enable gSDE (Generalized State Dependent Exploration).'
+    )
+
+    args = parser.parse_args()
+
+    return args
+
+
+def get_tune_args():
+    """
+    Parses the arguments from the command line when calling the tuning scripts.\n
+    :return: Namespace containing the arguments.
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--project",
+        dest="project",
+        type=str,
+        default="test_sweep",
+        help="Set the name of the Weights & Biases project where this run(s) will be saved."
     )
 
     args = parser.parse_args()

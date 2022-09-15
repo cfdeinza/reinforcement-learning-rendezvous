@@ -10,7 +10,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from rendezvous_env import RendezvousEnv
-from arguments import get_args
+from arguments import get_main_args
 # from custom.custom_model import CustomPPO
 
 
@@ -100,7 +100,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-    arguments = get_args()
+    arguments = get_main_args()
     # arguments.n_envs = 4
     # arguments.model = r'models\best_model.zip'
     # arguments.nosave = True
