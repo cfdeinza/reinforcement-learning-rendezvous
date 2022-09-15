@@ -315,10 +315,6 @@ class RendezvousEnv(gym.Env):
         rew = phi - self.prev_potential
         self.prev_potential = phi
 
-        # Collision penalty:
-        if self.check_collision():
-            rew -= 0.5
-
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
             rew += 1  # give a bonus for succesfully entering the corridor without touching the keep-out zone
@@ -332,7 +328,10 @@ class RendezvousEnv(gym.Env):
         """
 
         # phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
-        phi = (1 - np.linalg.norm(self.rc)/self.max_axial_distance)**2
+        if self.check_collision():
+            phi = 0
+        else:
+            phi = (1 - np.linalg.norm(self.rc)/self.max_axial_distance)**2
 
         return phi
 
