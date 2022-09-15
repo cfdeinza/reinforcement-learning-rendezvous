@@ -55,7 +55,9 @@ def train_function():
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
 
-        model.learn(total_timesteps=10_000, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
+        total_timesteps = wandb.config["n_steps"] * 10  # every run will have 10 rollout-optimization loops
+
+        model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
 
     return
 

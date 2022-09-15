@@ -50,7 +50,9 @@ def train_function():
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
 
-        model.learn(total_timesteps=10_000, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
+        total_timesteps = wandb.config["n_steps"] * 10  # every run will have 10 rollout-optimization loops
+
+        model.learn(total_timesteps=20_000, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
 
     return
 
@@ -77,28 +79,28 @@ def configure_sweep():
                 # "values": [1e-5, 1e-4],
             },
             "n_steps": {
-                "distribution": "uniform",  # categorical?
-                "min": 512,
-                "max": 8320,
-                # "values": [512, 1024, 2048, 4096, 8192],
+                "distribution": "categorical",  # uniform, categorical?
+                # "min": 512,
+                # "max": 8320,
+                "values": [512, 1024, 2048, 4096, 8192],
             },
             "batch_size": {
-                "distribution": "uniform",
-                "min": 8,
-                "max": 512,
-                # "values": [8, 16, 32, 64, 128, 256, 512],  # all factors of n_steps to avoid batch truncation
+                "distribution": "categorical",
+                # "min": 8,
+                # "max": 512,
+                "values": [8, 16, 32, 64, 128, 256, 512],  # all factors of n_steps to avoid batch truncation
             },
             "n_epochs": {
-                "distribution": "uniform",
+                "distribution": "int_uniform",
                 "min": 1,
                 "max": 100,
                 # "values": [1, 4, 8, 16, 32, 64, 100]
             },
             "clip_range": {
-                "distribution": "uniform",
-                "min": 0.02,
-                "max": 0.8,
-                # "values": [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 1, 2],
+                "distribution": "categorical",
+                # "min": 0.02,
+                # "max": 0.8,
+                "values": [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 1, 2],
             },
         },
     }
