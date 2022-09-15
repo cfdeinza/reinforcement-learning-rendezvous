@@ -61,9 +61,9 @@ class RendezvousEnv(gym.Env):
         # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
-        self.max_axial_distance = 100   # maximum distance allowed on each axis [m]
-        self.max_axial_speed = 10       # maximum speed allowed on each axis [m]
-        self.max_rotation_rate = np.pi  # maximum chaser rotation rate [rad/s]
+        self.max_axial_distance = np.linalg.norm(self.nominal_rc0) + 10  # maximum distance allowed on each axis [m]
+        self.max_axial_speed = 10                                        # maximum speed allowed on each axis [m]
+        self.max_rotation_rate = np.pi                                   # maximum chaser rotation rate [rad/s]
 
         # Target properties:
         self.koz_radius = 5                         # radius of the keep-out zone [m]
@@ -170,14 +170,15 @@ class RendezvousEnv(gym.Env):
         obs = self.get_observation()
 
         # Calculate reward:
-        rew = self.get_bubble_reward(processed_action)
+        # rew = self.get_bubble_reward(processed_action)
+        rew = self.get_potential_reward()
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
 
         # Penalize total fuel usage only once the episode ends:
-        if done:
-            rew -= self.fuel_usage
+        # if done:
+        #     rew -= self.fuel_usage
 
         # Info: auxiliary information
         info = {
@@ -207,7 +208,7 @@ class RendezvousEnv(gym.Env):
         self.collided = self.check_collision()
         self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.fuel_usage = 0
-        self.prev_potential = 0
+        self.prev_potential = self.potential()
         self.t = 0
 
         obs = self.get_observation()
@@ -314,6 +315,14 @@ class RendezvousEnv(gym.Env):
         rew = phi - self.prev_potential
         self.prev_potential = phi
 
+        # Collision penalty:
+        if self.check_collision():
+            rew -= 0.5
+
+        # Success bonus:
+        if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
+            rew += 1  # give a bonus for succesfully entering the corridor without touching the keep-out zone
+
         return rew
 
     def potential(self):
@@ -322,7 +331,8 @@ class RendezvousEnv(gym.Env):
         :return:
         """
 
-        phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
+        # phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
+        phi = (1 - np.linalg.norm(self.rc)/self.max_axial_distance)**2
 
         return phi
 
