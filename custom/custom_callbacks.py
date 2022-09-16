@@ -14,7 +14,6 @@ import os
 import pickle
 import wandb
 import numpy as np
-from rendezvous_env import RendezvousEnv
 
 
 class CustomWandbCallback(BaseCallback):
@@ -25,7 +24,7 @@ class CustomWandbCallback(BaseCallback):
     saves the model if the current reward exceeds the previous highest reward.
     """
 
-    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None):
+    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None, reward_kwargs=None):
         """
         Instantiate callback object.
         Attributes inherited from BaseCallback:
@@ -48,6 +47,7 @@ class CustomWandbCallback(BaseCallback):
         self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
         self.best_model_save_path = os.path.join("models", "best_model")
+        self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
 
         # Attribute to track if the W&B run was initiated externally or by the callback:
         if wandb_run is not None:
@@ -155,6 +155,7 @@ class CustomWandbCallback(BaseCallback):
         self.check_and_save(result["ep_rew"])
         # self.model.save(os.path.join(wandb.run.dir, "last_model"))  # Save an extra copy of the model on W&B
         wandb.log({"max_rew": wandb.run.summary["max_rew"]})        # Log best reward for the sweep
+        # TODO: when tuning the reward function, don't log the max reward
 
         # Finish W&B run (only if it was started by the Callback):
         if not self.wandb_external_start:
@@ -169,7 +170,7 @@ class CustomWandbCallback(BaseCallback):
         """
 
         model = self.model
-        env = self.env()  # TODO: Instantiate the environment when the callback is instantiated
+        env = self.env(**self.reward_kwargs)
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0
@@ -237,12 +238,13 @@ class CustomCallback(BaseCallback):
     current model is saved.\n
     """
 
-    def __init__(self, env, verbose=0, prev_best_rew=None):
+    def __init__(self, env, verbose=0, prev_best_rew=None, reward_kwargs=None):
         """
         Instantiate callback object.
         :param env: environment to use for evaluations
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
+        :param reward_kwargs: dict with keyword arguments for the reward function
         """
         super(CustomCallback, self).__init__(verbose)
 
@@ -250,6 +252,7 @@ class CustomCallback(BaseCallback):
         self.prev_best_rew = prev_best_rew
         self.best_model_save_dir = os.path.join(".", "models")  # Directory where the best model will be saved
         self.best_model_save_path = os.path.join("models", "best_model")
+        self. reward_kwargs = {} if reward_kwargs is None else reward_kwargs
 
         pass
 
@@ -314,7 +317,7 @@ class CustomCallback(BaseCallback):
         """
 
         model = self.model
-        env = self.env()  # TODO: Instantiate the environment when the callback is instantiated
+        env = self.env(**self.reward_kwargs)
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0

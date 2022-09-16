@@ -13,7 +13,7 @@ class RendezvousEnv(gym.Env):
     Written by C. F. De Inza Niemeijer.\n
     """
 
-    def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None, quiet=False):
+    def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None, quiet=False, reward_kwargs=None):
         """
         Initializes the attributes of the environment, including chaser properties, target properties, orbit properties,
         observation space, action space, and more.\n
@@ -24,6 +24,7 @@ class RendezvousEnv(gym.Env):
         :param qt0: nominal initial attitude of the target (ndarray with shape 4,)
         :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,)
         :param quiet: whether or not to print episode results.
+        :param reward_kwargs: dict with keyword arguments for the reward function (used during tuning)
         """
 
         # State variables:  (initialized on reset() call)
@@ -89,6 +90,7 @@ class RendezvousEnv(gym.Env):
         self.bubble_decrease_rate = 0.1     # Rate at which the size of the bubble decreases (m/s)
         self.fuel_usage = None              # Keeps track of all the fuel used throughout the episode (dimensionless)
         self.prev_potential = None          # Potential of the previous state
+        self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -171,7 +173,7 @@ class RendezvousEnv(gym.Env):
 
         # Calculate reward:
         # rew = self.get_bubble_reward(processed_action)
-        rew = self.get_potential_reward()
+        rew = self.get_potential_reward(processed_action, **self.reward_kwargs)
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
@@ -208,8 +210,12 @@ class RendezvousEnv(gym.Env):
         self.collided = self.check_collision()
         self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.fuel_usage = 0
-        self.prev_potential = self.potential()
         self.t = 0
+
+        if len(self.reward_kwargs) == 0:
+            self.prev_potential = self.potential()
+        else:
+            self.prev_potential = self.potential(**self.reward_kwargs)
 
         obs = self.get_observation()
 
@@ -305,33 +311,41 @@ class RendezvousEnv(gym.Env):
 
         return rew
 
-    def get_potential_reward(self):
+    def get_potential_reward(self, action, collision_coef=1, bonus_coef=1, fuel_coef=0):
         """
         Potential-based reward.\n
+        :param action: action taken by the agent
+        :param collision_coef: scales down the potential when the chaser collides with the KOZ
+        :param bonus_coef: bonus given when successfully entering the corridor
+        :param fuel_coef: scales down the potential based on fuel used
         :return: reward
         """
 
-        phi = self.potential()
+        phi = self.potential(collision_coef)
         rew = phi - self.prev_potential
         self.prev_potential = phi
 
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
-            rew += 1  # give a bonus for succesfully entering the corridor without touching the keep-out zone
+            rew += 1 * bonus_coef  # give a bonus for succesfully entering the corridor without touching the KOZ
+
+        # Fuel penalty:
+        rew *= 1 - fuel_coef * np.abs(action[0:3]).sum() / 3
 
         return rew
 
-    def potential(self):
+    def potential(self, collision_coef=1):
         """
         Potential function based on distance.
+        :param collision_coef: scales down the potential when chaser is within KOZ
         :return:
         """
 
         # phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
+        phi = (1 - np.linalg.norm(self.rc) / self.max_axial_distance) ** 2
+
         if self.check_collision():
-            phi = 0
-        else:
-            phi = (1 - np.linalg.norm(self.rc)/self.max_axial_distance)**2
+            phi *= (1 - collision_coef)
 
         return phi
 

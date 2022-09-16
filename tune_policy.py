@@ -6,6 +6,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import ReLU, Sigmoid, Tanh
 from rendezvous_env import RendezvousEnv
 from custom.custom_callbacks import CustomWandbCallback
+from arguments import get_tune_args
+from functools import partial
 
 
 def make_model(policy, env, config):
@@ -40,7 +42,7 @@ def make_model(policy, env, config):
     return model
 
 
-def train_function():
+def train_function(iterations):
     """
     Function that will be executed on each run of the sweep.
     :return: None
@@ -55,7 +57,8 @@ def train_function():
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
 
-        total_timesteps = wandb.config["n_steps"] * 10  # every run will have 10 rollout-optimization loops
+        # every run will have the same number of rollout-optimization loops
+        total_timesteps = wandb.config["n_steps"] * iterations
 
         model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
 
@@ -69,6 +72,11 @@ def train_function():
 
 
 if __name__ == "__main__":
+
+    arguments = get_tune_args()
+    project_name = arguments.project
+    if project_name == "":
+        project_name = "net_sweep"
 
     # Set-up the sweep:
     sweep_configuration = {
@@ -96,7 +104,7 @@ if __name__ == "__main__":
             }
         },
     }
-    sweep_id = wandb.sweep(sweep=sweep_configuration, project="test_sweep1")
+    sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 
     # Run the sweep:
-    wandb.agent(sweep_id, function=train_function)
+    wandb.agent(sweep_id, function=partial(train_function, arguments.iterations))

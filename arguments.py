@@ -106,8 +106,17 @@ def get_tune_args():
         "--project",
         dest="project",
         type=str,
-        default="test_sweep",
+        default="",
         help="Set the name of the Weights & Biases project where this run(s) will be saved."
+    )
+
+    default_iterations = 25
+    parser.add_argument(
+        "--iterations",
+        dest="iterations",
+        type=int,
+        default=default_iterations,
+        help=f"Set the number of iterations (rollout-optimization loops). Default is {default_iterations}"
     )
 
     args = parser.parse_args()
