@@ -1,5 +1,14 @@
 This file contains ideas that have not yet been implemented in the code.
 
+
+
+# Try:
+- Train the model with dt = 1 (much quicker than 0.1), then evaluate with dt = 0.1 (remember to scale the control inputs)
+- gamma = 1
+- Try the potential reward with dt = 1.
+
+
+
 # Model the chaser as a uniform density cube with 12 thrusters (Gaudet2020d).
 
 # Consider expanding the initial position range in the x and z directions.

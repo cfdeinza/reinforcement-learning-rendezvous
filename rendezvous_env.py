@@ -46,7 +46,7 @@ class RendezvousEnv(gym.Env):
 
         # Time:
         self.t = None  # current time of episode [s]
-        self.dt = 0.1  # interval between timesteps [s]
+        self.dt = 1    # interval between timesteps [s]
         self.t_max = 60  # maximum length of episode [s]
 
         # Chaser properties:
@@ -87,7 +87,7 @@ class RendezvousEnv(gym.Env):
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
-        self.bubble_decrease_rate = 0.1     # Rate at which the size of the bubble decreases (m/s)
+        self.bubble_decrease_rate = 1 * self.dt  # Rate at which the size of the bubble decreases (m/s)
         self.fuel_usage = None              # Keeps track of all the fuel used throughout the episode (dimensionless)
         self.prev_potential = None          # Potential of the previous state
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
@@ -172,8 +172,8 @@ class RendezvousEnv(gym.Env):
         obs = self.get_observation()
 
         # Calculate reward:
-        # rew = self.get_bubble_reward(processed_action)
-        rew = self.get_potential_reward(processed_action, **self.reward_kwargs)
+        rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
+        # rew = self.get_potential_reward(processed_action, **self.reward_kwargs)
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
@@ -208,7 +208,8 @@ class RendezvousEnv(gym.Env):
         self.wt = self.nominal_wt0
 
         self.collided = self.check_collision()
-        self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
+        # self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
+        self.bubble_radius = self.max_axial_distance
         self.fuel_usage = 0
         self.t = 0
 
@@ -268,29 +269,33 @@ class RendezvousEnv(gym.Env):
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
-    def get_bubble_reward(self, action):
+    def get_bubble_reward(self, action, collision_coef=0.5, bonus_coef=10, fuel_coef=0):
         """
         Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
         :param action: current action chosen by the policy
+        :param collision_coef: coefficient that modifies the reward when the chaser is within the KOZ
+        :param bonus_coef: coefficient that modifies the reward when it achieves a goal
+        :param fuel_coef: coefficient that modifies the reward when it uses fuel
         :return: Current reward
         """
 
         assert action.shape == (6,)
 
-        rew = 1  # 0
+        rew = self.dt  # 0
 
         # Fuel efficiency:
+        rew -= self.dt * np.abs(action[0:3]).sum() / 3 * fuel_coef
         self.fuel_usage += np.abs(action[0:3]).sum() * self.max_delta_v  # Add delta_V to total fuel usage
         # rew += 1 - np.abs(action[0:3]).sum() / 3
         # rew += 1 - np.abs(action[3:]).sum() / 3
 
         # Collision penalty:
         if self.check_collision():
-            rew -= 1
+            rew -= self.dt * collision_coef
 
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
-            rew += 2  # give a bonus for successfully entering the corridor
+            rew += self.dt * bonus_coef  # give a bonus for successfully entering the corridor
 
             goal_pos = np.matmul(quat2mat(self.qt), self.rd)    # Goal position in the LVLH frame [m]
             goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
@@ -303,7 +308,7 @@ class RendezvousEnv(gym.Env):
 
             # Bonus for achieving success conditions:
             # rew += sum(2 * (errors < ranges))
-            bonus = 2
+            bonus = self.dt * bonus_coef
             if pos_error < self.max_rd_error:  # reward pos & vel only if pos is achieved
                 rew += bonus * (1 + (vel_error < self.max_vd_error))
             if att_error < self.max_qd_error:  # reward att and rot only if att is achieved

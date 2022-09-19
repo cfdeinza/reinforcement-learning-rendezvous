@@ -174,6 +174,7 @@ class CustomWandbCallback(BaseCallback):
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0
+        total_delta_v = 0
         done = False
 
         while not done:
@@ -191,15 +192,17 @@ class CustomWandbCallback(BaseCallback):
 
             # Add current reward to the total:
             total_reward += reward
+            total_delta_v += np.abs(action[0:3]).sum()
 
         end_time = env.t
         final_dist = np.linalg.norm(env.rc)
         print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
 
         output = {
-            "ep_rew": total_reward,  # Total reward achieved during the episode
-            "ep_len": end_time,      # Length of the episode (seconds)
-            "ep_dist": final_dist,   # Final distance of the chaser to the target (meters)
+            "ep_rew": total_reward,      # Total reward achieved during the episode
+            "ep_len": end_time,          # Length of the episode (seconds)
+            "ep_dist": final_dist,       # Final distance of the chaser to the target (meters)
+            "ep_delta_v": total_delta_v  # Total delta V used during the episode
         }
 
         return output
