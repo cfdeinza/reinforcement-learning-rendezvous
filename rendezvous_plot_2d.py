@@ -17,10 +17,10 @@ def plot2d(args):
     data = load_data(args.path)
     rc = data['rc']  # chaser position [m]
     vc = data['vc']
-    qc = data['qc']  # chaser attitude
+    # qc = data['qc']  # chaser attitude
     wc = data['wc']
-    qt = data['qt']  # target attitude
-    wt = data['wt']
+    # qt = data['qt']  # target attitude
+    # wt = data['wt']
     actions = data['a']
     actions[0:3] = actions[0:3] * data['max_delta_v']  # convert actions to delta_v and delta_w (in chaser body frame)
     actions[3:] = actions[3:] * data['max_delta_w']
@@ -31,51 +31,50 @@ def plot2d(args):
 
     # Create a matplotlib figure with 3 subplots:
     fig, ax = plt.subplots(2, 3, figsize=(12, 6))
+
+    # Chaser position:
     plot_2dcomponents(ax[0, 0], t, rc[0], rc[1], rc[2], labels=['x', 'y', 'z'],
                       xlabel='Time (s)', ylabel='Distance (m)', title='Position')
-    # Plot the overall distance from the target:
     dist = np.linalg.norm(rc, axis=0)
-    ax[0, 0].plot(t, dist, 'k--', label='Overall'), ax[0, 0].legend()
+    ax[0, 0].plot(t, dist, 'k--', label='Overall'), ax[0, 0].legend()  # Overall distance
 
-    # Plot the velocity of the chaser over time:
+    # Chaser velocity:
     plot_2dcomponents(ax[0, 1], t, vc[0], vc[1], vc[2], labels=[r'$v_x$', r'$v_y$', r'$v_z$'],
                       xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
-    # Plot the overall speed of the chaser:
     speed = np.linalg.norm(vc, axis=0)
-    ax[0, 1].plot(t, speed, 'k--', label='Overall'), ax[0, 1].legend()
+    ax[0, 1].plot(t, speed, 'k--', label='Overall'), ax[0, 1].legend()  # Overall speed
 
+    # Delta V:
     action_x, action_y, action_z = actions[0], actions[1], actions[2]
     sum_of_actions = np.abs(action_x) + np.abs(action_y) + np.abs(action_z)
-    plot_2dcomponents(ax[0, 2], t, action_x, action_y, action_z,
-                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='$\Delta V$ (m)',
-                      title='Actions. Total ' + r'$\Delta V = $' + str(round(np.nansum(sum_of_actions), 2)))
-    # Plot the overall control effort:
-    ax[0, 2].plot(t, sum_of_actions, 'k--', label='Overall'), ax[0, 2].legend()
+    plot_2dcomponents(ax[0, 2], t, action_x, action_y, action_z, labels=['x', 'y', 'z'],
+                      xlabel='Time (s)', ylabel='$\Delta V$ (m)', title='Actions. Total ' + r'$\Delta V = $' +
+                                                                        str(round(np.nansum(sum_of_actions), 2)))
+    ax[0, 2].plot(t, sum_of_actions, 'k--', label='Overall'), ax[0, 2].legend()  # Overall Delta V
 
-    # Plot the reward obtained by the chaser:
+    # Reward:
     ax[1, 0].plot(t, rewards)
     ax[1, 0].set_title(f'Rewards. Total = {round(np.nansum(rewards), 2)}')
     ax[1, 0].set_xlim([t[0], t[-1]])
-    ax[1, 0].set_ylim([min(np.nanmin(rewards), 0), np.nanmax(rewards) + 1])
+    ax[1, 0].set_ylim([min(float(np.nanmin(rewards)), 0), np.nanmax(rewards) + 1])
     ax[1, 0].grid()
 
-    # Plot the rotational velocity of the chaser over time:
+    # Chaser rotation rate:
     plot_2dcomponents(ax[1, 1], t, wc[0], wc[1], wc[2], labels=[r'$\omega_x$', r'$\omega_y$', r'$\omega_z$'],
                       xlabel='Time (s)', ylabel='Rotation rate (rad/s)', title='Rotation rate')
-    # Plot the overall rotation rate of the chaser:
     wc_norm = np.linalg.norm(wc, axis=0)
-    ax[1, 1].plot(t, wc_norm, 'k--', label='Overall'), ax[1, 1].legend()
+    ax[1, 1].plot(t, wc_norm, 'k--', label='Overall'), ax[1, 1].legend()  # Overall rotation rate
 
+    # Delta Omega:
     action_u, action_v, action_w = actions[3], actions[4], actions[5]
     sum_of_attitude_actions = np.abs(action_u) + np.abs(action_v) + np.abs(action_w)
-    plot_2dcomponents(ax[1, 2], t, action_u, action_v, action_w,
-                      labels=['x', 'y', 'z'], xlabel='Time (s)', ylabel='$\Delta \omega $ (rad/s)',
-                      title='Actions. Total ' + r'$\Delta \omega = $' + str(round(np.nansum(sum_of_attitude_actions), 2)))
-    # Plot the overall control effort:
-    ax[1, 2].plot(t, sum_of_attitude_actions, 'k--', label='Overall'), ax[1, 2].legend()
+    plot_2dcomponents(ax[1, 2], t, action_u, action_v, action_w, labels=['x', 'y', 'z'],
+                      xlabel='Time (s)', ylabel='$\Delta \omega $ (rad/s)',
+                      title='Actions. Total ' + r'$\Delta \omega = $' +
+                            str(round(np.nansum(sum_of_attitude_actions), 2)))
+    ax[1, 2].plot(t, sum_of_attitude_actions, 'k--', label='Overall'), ax[1, 2].legend()  # Overall Delta Omega
 
     plt.tight_layout()
-
     plt.show()
     plt.close()
     return
