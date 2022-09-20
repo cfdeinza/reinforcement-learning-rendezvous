@@ -45,9 +45,9 @@ class RendezvousEnv(gym.Env):
         self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
         # Time:
-        self.t = None  # current time of episode [s]
-        self.dt = 1    # interval between timesteps [s]
-        self.t_max = 60  # maximum length of episode [s]
+        self.t = None       # current time of episode [s]
+        self.dt = 1         # interval between timesteps [s]
+        self.t_max = 60     # maximum length of episode [s]
 
         # Chaser properties:
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
@@ -88,7 +88,8 @@ class RendezvousEnv(gym.Env):
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
         self.bubble_decrease_rate = 1 * self.dt  # Rate at which the size of the bubble decreases (m/s)
-        self.fuel_usage = None              # Keeps track of all the fuel used throughout the episode (dimensionless)
+        self.total_delta_v = None           # Keeps track of all the delta_V used during the episode
+        self.total_delta_w = None           # Keeps track of the total delta_omega used during the episode
         self.prev_potential = None          # Potential of the previous state
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
 
@@ -168,6 +169,10 @@ class RendezvousEnv(gym.Env):
         if self.bubble_radius > self.koz_radius:
             self.bubble_radius -= self.bubble_decrease_rate
 
+        # Update the deltas:
+        self.total_delta_v += np.abs(processed_action[0:3]).sum() * self.max_delta_v
+        self.total_delta_w += np.abs(processed_action[3:]).sum() * self.max_delta_w
+
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
 
@@ -180,7 +185,7 @@ class RendezvousEnv(gym.Env):
 
         # Penalize total fuel usage only once the episode ends:
         # if done:
-        #     rew -= self.fuel_usage
+        #     rew -= self.total_delta_v
 
         # Info: auxiliary information
         info = {
@@ -210,7 +215,8 @@ class RendezvousEnv(gym.Env):
         self.collided = self.check_collision()
         # self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.bubble_radius = self.max_axial_distance
-        self.fuel_usage = 0
+        self.total_delta_v = 0
+        self.total_delta_w = 0
         self.t = 0
 
         if len(self.reward_kwargs) == 0:
@@ -285,7 +291,7 @@ class RendezvousEnv(gym.Env):
 
         # Fuel efficiency:
         rew -= self.dt * np.abs(action[0:3]).sum() / 3 * fuel_coef
-        self.fuel_usage += np.abs(action[0:3]).sum() * self.max_delta_v  # Add delta_V to total fuel usage
+
         # rew += 1 - np.abs(action[0:3]).sum() / 3
         # rew += 1 - np.abs(action[3:]).sum() / 3
 
@@ -376,7 +382,13 @@ class RendezvousEnv(gym.Env):
         if any(end_conditions):
             done = True
             if not self.quiet:
-                print(f'Episode done. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
+                end_reasons = ['obs', 'time', 'bubble', 'attitude']  # reasons corresponding to end_conditions
+                # print(f'Episode end. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
+                print("Episode end" +
+                      " | r = " + str(round(dist, 2)).rjust(5) +                    # chaser position at episode end
+                      " | t = " + str(self.t).rjust(4) +                            # time of episode end
+                      " | " + end_reasons[end_conditions.index(True)].center(8) +   # reason for episode end
+                      " | " + ("Collided" if self.collided else " "))               # whether chaser entered KOZ
         else:
             done = False
 

@@ -84,7 +84,7 @@ wandb.log({"accuracy": 0.9, "epoch": 5})
 
 ## Hyperparameter tuning:
 - config: define the variables and ranges to sweep over, pick a search strategy (grid, random, bayesian, plus techniques such as early stopping), 
-	    pick the optimization metric (make sure you are logging this metric), etc.
+	    pick the optimization metric (make sure you are logging this metric; also note that if you log this metric more than once per run, it only uses the last recorded value for each run), etc.
 - initialize sweep: wandb.sweep(sweep_config)
 - run the sweep agent: wandb.agent(sweep_id, function=train)
 
