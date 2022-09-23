@@ -84,6 +84,7 @@ class RendezvousEnv(gym.Env):
         self.max_qd_error = np.radians(5)   # allowed error for the capture attitude [rad]
         self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None                # whether or not the chaser has collided during the current episode
+        self.success = None                 # shows if the chaser has achieved the terminal conditions w/o colliding
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
@@ -182,6 +183,8 @@ class RendezvousEnv(gym.Env):
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
+        if done:
+            self.success = self.check_success()
 
         # Penalize total fuel usage only once the episode ends:
         # if done:
@@ -213,6 +216,7 @@ class RendezvousEnv(gym.Env):
         self.wt = self.nominal_wt0
 
         self.collided = self.check_collision()
+        self.success = self.check_success()
         # self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
         self.bubble_radius = self.max_axial_distance
         self.total_delta_v = 0
@@ -301,19 +305,11 @@ class RendezvousEnv(gym.Env):
 
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
-            rew += self.dt * bonus_coef  # give a bonus for successfully entering the corridor
+            rew += self.dt * bonus_coef  # give a bonus for entering the corridor without touching KOZ
 
-            goal_pos = np.matmul(quat2mat(self.qt), self.rd)    # Goal position in the LVLH frame [m]
-            goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
-            pos_error = np.linalg.norm(self.rc - goal_pos)      # Position error [m]
-            vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
-            att_error = self.attitude_error()                   # Attitude error [rad]
-            rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
-            # errors = np.array([pos_error, vel_error, att_error, rot_error])
-            # ranges = np.array([self.max_rd_error, self.max_vd_error, self.max_qd_error, self.max_wd_error])
+            pos_error, vel_error, att_error, rot_error = self.get_errors()
 
-            # Bonus for achieving success conditions:
-            # rew += sum(2 * (errors < ranges))
+            # Bonus for achieving terminal conditions:
             bonus = self.dt * bonus_coef
             if pos_error < self.max_rd_error:  # reward pos & vel only if pos is achieved
                 rew += bonus * (1 + (vel_error < self.max_vd_error))
@@ -412,6 +408,24 @@ class RendezvousEnv(gym.Env):
 
         return collided
 
+    def check_success(self) -> bool:
+        """
+        Check if the chaser has achieved the terminal conditions without entering the KOZ.\n
+        :return: True if trajectory was successful, otherwise False
+        """
+
+        if self.collided:
+            success = False
+        else:
+            errors = self.get_errors()
+            error_ranges = np.array([self.max_rd_error, self.max_vd_error, self.max_qd_error, self.max_wd_error])
+            if np.all(errors <= error_ranges):
+                success = True
+            else:
+                success = False
+
+        return success
+
     def attitude_error(self):
         """
         Compute the chaser's attitude error. The chaser should always be pointing in the direction of the target's
@@ -423,6 +437,22 @@ class RendezvousEnv(gym.Env):
         error = angle_between_vectors(-self.rc, capture_axis)           # Attitude error [rad]
 
         return error
+
+    def get_errors(self) -> np.ndarray:
+        """
+        Compute the position error, velocity error, attitude error, and rotational velocity error.
+        (All relative to the desired terminal conditions).\n
+        :return: numpy array containing the errors
+        """
+
+        goal_pos = np.matmul(quat2mat(self.qt), self.rd)    # Goal position in the LVLH frame [m]
+        goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
+        pos_error = np.linalg.norm(self.rc - goal_pos)      # Position error [m]
+        vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
+        att_error = self.attitude_error()                   # Attitude error [rad]
+        rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
+
+        return np.array([pos_error, vel_error, att_error, rot_error])
 
     def integrate_chaser_attitude(self, torque):
         """

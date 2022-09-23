@@ -196,6 +196,7 @@ class CustomWandbCallback(BaseCallback):
         final_dist = np.linalg.norm(env.rc)
         total_delta_v = env.total_delta_v
         total_delta_w = env.total_delta_w
+        success = env.success
         print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
 
         output = {
@@ -203,7 +204,8 @@ class CustomWandbCallback(BaseCallback):
             "ep_len": end_time,           # Length of the episode (seconds)
             "ep_dist": final_dist,        # Final distance of the chaser to the target (meters)
             "ep_delta_v": total_delta_v,  # Total delta V used during the episode
-            "ep_delta_w": total_delta_w   # Total delta omega used during the episode
+            "ep_delta_w": total_delta_w,  # Total delta omega used during the episode
+            "ep_success": success,        # Whether the trajectory was successful (achieved capture without collision)
         }
 
         return output
