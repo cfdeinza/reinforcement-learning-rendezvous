@@ -159,9 +159,10 @@ class RendezvousEnv(gym.Env):
         # Update the attitude and rotation rate of the target:
         self.integrate_target_attitude(np.array([0, 0, 0]))
 
-        # Check for collision:
+        # Check for collision and success:
         if not self.collided:
             self.collided = self.check_collision()
+            self.success += self.check_success()
 
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
@@ -183,8 +184,6 @@ class RendezvousEnv(gym.Env):
 
         # Check if episode is done:
         done = self.get_done_condition(obs)
-        if done:
-            self.success = self.check_success()
 
         # Penalize total fuel usage only once the episode ends:
         # if done:
@@ -408,21 +407,21 @@ class RendezvousEnv(gym.Env):
 
         return collided
 
-    def check_success(self) -> bool:
+    def check_success(self) -> int:
         """
         Check if the chaser has achieved the terminal conditions without entering the KOZ.\n
         :return: True if trajectory was successful, otherwise False
         """
 
         if self.collided:
-            success = False
+            success = 0
         else:
             errors = self.get_errors()
             error_ranges = np.array([self.max_rd_error, self.max_vd_error, self.max_qd_error, self.max_wd_error])
             if np.all(errors <= error_ranges):
-                success = True
+                success = 1
             else:
-                success = False
+                success = 0
 
         return success
 
