@@ -22,10 +22,11 @@ def make_model(policy, env, config):
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
     net = [config["n_neurons"]] * config["n_layers"]
+    activations = {"ReLU": ReLU, "Sigmoid": Sigmoid, "Tanh": Tanh}
     policy_kwargs = {
         # "net_arch": config["net_arch"],
-        "net_arch": dict(vf=net, pi=net),
-        "activation_fn": config["activation_fn"],
+        "net_arch": [dict(vf=net, pi=net)],
+        "activation_fn": activations[config["activation_fn"]],
     }
     model = PPO(
         policy,
@@ -118,7 +119,7 @@ if __name__ == "__main__":
                 "values": [16, 32, 64],
             },
             "activation_fn": {
-                "values": [ReLU, Sigmoid, Tanh]
+                "values": ["ReLU", "Sigmoid", "Tanh"],
             }
         },
     }
