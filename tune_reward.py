@@ -55,7 +55,8 @@ def train_function(iterations):
         # print(f"clip_range: {model.clip_range(1)}")
 
         # every run will have the same number of rollout-optimization loops
-        total_timesteps = wandb.config["n_steps"] * iterations
+        # total_timesteps = wandb.config["n_steps"] * iterations
+        total_timesteps = model.n_steps * iterations
 
         model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
 
@@ -77,6 +78,7 @@ if __name__ == "__main__":
         project_name = "rew_sweep"
 
     # Set-up the sweep:
+    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
     sweep_configuration = {
         "name": "test_sweep",           # name of the sweep (not the project)
         "metric": {                     # metric to optimize, has to be logged with `wandb.log()`

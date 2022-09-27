@@ -24,7 +24,8 @@ def make_model(policy, env, config):
         policy,
         env,
         learning_rate=config["learning_rate"],
-        n_steps=config["n_steps"],
+        # n_steps=config["n_steps"],
+        n_steps=2048,
         batch_size=config["batch_size"],
         n_epochs=config["n_epochs"],
         clip_range=config["clip_range"],
@@ -52,7 +53,8 @@ def train_function(iterations):
         # print(f"clip_range: {model.clip_range(1)}")
 
         # every run will have the same number of rollout-optimization loops
-        total_timesteps = wandb.config["n_steps"] * iterations
+        # total_timesteps = wandb.config["n_steps"] * iterations
+        total_timesteps = model.n_steps * iterations
 
         model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
 
@@ -80,17 +82,17 @@ def configure_sweep():
                 # "values": [1e-6, 1e-5, 1e-4, 3e-4, 1e-3, 1e-2]
                 # "values": [1e-5, 1e-4],
             },
-            "n_steps": {
-                "distribution": "categorical",  # uniform, categorical?
-                # "min": 512,
-                # "max": 8320,
-                "values": [512, 1024, 2048, 4096, 8192],
-            },
+            # "n_steps": {
+            #     "distribution": "categorical",  # uniform, categorical?
+            #     # "min": 512,
+            #     # "max": 8192,
+            #     "values": [512, 1024, 2048, 4096],
+            # },
             "batch_size": {
                 "distribution": "categorical",
                 # "min": 8,
                 # "max": 512,
-                "values": [8, 16, 32, 64, 128, 256, 512],  # all factors of n_steps to avoid batch truncation
+                "values": [8, 32, 64, 128, 512],  # all factors of n_steps to avoid batch truncation
             },
             "n_epochs": {
                 "distribution": "int_uniform",
@@ -102,7 +104,7 @@ def configure_sweep():
                 "distribution": "categorical",
                 # "min": 0.02,
                 # "max": 0.8,
-                "values": [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 1, 2],
+                "values": [0.02, 0.1, 0.15, 0.2, 0.25, 0.3, 1, 2],
             },
         },
     }
@@ -113,11 +115,13 @@ if __name__ == "__main__":
 
     # Get arguments:
     arguments = get_tune_args()
+    arguments.iterations = 50
     project_name = arguments.project
     if project_name == "":
         project_name = "alg_sweep"
 
     # Set-up the sweep:
+    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
     sweep_configuration = configure_sweep()
     sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 
