@@ -223,6 +223,28 @@ This file contains ideas that have not yet been implemented in the code.
     new_points = rot.apply(points)
     new_x, new_y, new_z = new_points.T
 
+
+# Rotate a vector using the quaternion formulation (v' = q v q^-1)
+# I am not using this because it appears to be slower than using rotation matrices.
+    def rotate_vec(v: np.ndarray, q: np.ndarray) -> np.ndarray:
+    """
+    Rotate a 3D vector by a quaternion.\n
+    :param v: 3D vector
+    :param q: Unit quaternion expressing a rotation
+    :return: Rotated vector
+    """
+    assert v.shape == (3,)
+    assert q.shape == (4,)
+
+    q = q / quat_magnitude(q)
+
+    mag = np.linalg.norm(v)
+
+    prod = quat_product(quat_product(q, np.append(0, v / mag)), quat_inverse(q))
+
+    return prod[1:] * mag
+
+
 # Rendering on Google Colab:
 	"""
 	If we want to display any results, we also need the following packages:

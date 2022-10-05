@@ -119,7 +119,7 @@ class CustomWandbCallback(BaseCallback):
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(result["ep_rew"])
+        self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
 
         pass
 
@@ -152,10 +152,15 @@ class CustomWandbCallback(BaseCallback):
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(result["ep_rew"])
+        self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
         # self.model.save(os.path.join(wandb.run.dir, "last_model"))  # Save an extra copy of the model on W&B
-        wandb.log({"max_rew": wandb.run.summary["max_rew"]})        # Log best reward for the sweep
-        # TODO: when tuning the reward function, don't log the max reward
+
+        # Log the metrics of the run with the highest reward:
+        wandb.log({
+            "max_rew": wandb.run.summary["max_rew"],            # best reward achieved during the run
+            "max_success": wandb.run.summary["max_success"],    # success of best reward
+            "max_delta_v": wandb.run.summary["max_delta_v"],    # delta V of best reward
+        })
 
         # Finish W&B run (only if it was started by the Callback):
         if not self.wandb_external_start:
@@ -210,10 +215,12 @@ class CustomWandbCallback(BaseCallback):
 
         return output
 
-    def check_and_save(self, rew) -> None:
+    def check_and_save(self, rew, success, delta_v) -> None:
         """
         Check if the current reward is better than the previous best. If so, save the current model.\n
         :param rew: reward obtained from the most recent evaluation.
+        :param success: amount of timesteps that the chaser achieved the final conditions (without entering KOZ)
+        :param delta_v: amount of delta V used during the episode.
         :return: None
         """
 
@@ -225,6 +232,8 @@ class CustomWandbCallback(BaseCallback):
             # Update the summary of the W&B run:
             wandb.run.summary["max_rew"] = rew
             wandb.run.summary["timstep_of_max_rew"] = self.num_timesteps
+            wandb.run.summary["max_success"] = success
+            wandb.run.summary["max_delta_v"] = delta_v
             # wandb.run.summary["best_reward"] = f"{round(rew, 2)} at {self.num_timesteps} steps."
 
             # Save the current model:

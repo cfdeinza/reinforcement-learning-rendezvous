@@ -127,3 +127,7 @@ if __name__ == "__main__":
 
     # Run the sweep:
     wandb.agent(sweep_id, function=partial(train_function, arguments.iterations))
+
+    # To continue an unfinished run: use the old sweep ID and project name.
+    # old_sweep_id = ""  # look at the the ID of the sweep on W&B
+    # wandb.agent(old_sweep_id, project=project_name, function=partial(train_function, arguments.iterations))

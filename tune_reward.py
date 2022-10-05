@@ -24,7 +24,8 @@ def make_model(policy, env, config):
     model = PPO(
         policy,
         env,
-        gamma=config["gamma"],
+        # gamma=config["gamma"],
+        gamma=1,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
         verbose=1,
@@ -45,7 +46,7 @@ def train_function(iterations):
 
         reward_kwargs = {
             "collision_coef": wandb.config["collision_coef"],
-            "bonus_coef": wandb.config["bonus_coeff"],
+            "bonus_coef": wandb.config["bonus_coef"],
             "fuel_coef": wandb.config["fuel_coef"],
         }
 
@@ -73,6 +74,7 @@ if __name__ == "__main__":
 
     # Get arguments:
     arguments = get_tune_args()
+    arguments.iterations = 250
     project_name = arguments.project
     if project_name == "":
         project_name = "rew_sweep"
@@ -85,26 +87,29 @@ if __name__ == "__main__":
             "name": "max_rew",
             "goal": "maximize",
         },
-        "method": "random",             # search method ("grid", "random", or "bayes")
+        "method": "grid",             # search method ("grid", "random", or "bayes")
         "parameters": {                 # parameters to sweep through
-            "gamma": {                  # discount factor
-                "distribution": "categorical",
-                "values": [0.8, 0.9, 0.99, 1]
-            },
+            # "gamma": {                  # discount factor
+            #     "distribution": "categorical",
+            #     "values": [0.8, 0.9, 0.99, 1]
+            # },
             "collision_coef": {
-                "distribution": "uniform",
-                "min": 0,
-                "max": 10,
+                # "distribution": "uniform",
+                # "min": 0,
+                # "max": 1,
+                "values": [0.5],
             },
             "bonus_coef": {
-                "distribution": "uniform",
-                "min": 0,
-                "max": 10,
+                # "distribution": "uniform",
+                # "min": 0,
+                # "max": 10,
+                "values": [10],
             },
             "fuel_coef": {
-                "distribution": "uniform",
-                "min": 0,
-                "max": 10,
+                # "distribution": "uniform",
+                # "min": 0,
+                # "max": 1,
+                "values": [0, 0.01, 0.1, 0.25, 0.5, 1]
             },
         },
     }
