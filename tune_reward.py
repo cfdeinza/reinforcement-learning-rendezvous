@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # Set-up the sweep:
     wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
     sweep_configuration = {
-        "name": "test_sweep",           # name of the sweep (not the project)
+        "name": "reward_sweep",           # name of the sweep (not the project)
         "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
             "name": "max_rew",
             "goal": "maximize",

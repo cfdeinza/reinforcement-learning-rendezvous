@@ -225,7 +225,7 @@ class RendezvousEnv(gym.Env):
         if len(self.reward_kwargs) == 0:
             self.prev_potential = self.potential()
         else:
-            self.prev_potential = self.potential(**self.reward_kwargs)
+            self.prev_potential = self.potential(self.reward_kwargs["collision_coef"])
 
         obs = self.get_observation()
 
