@@ -93,7 +93,7 @@ if __name__ == "__main__":
     sweep_configuration = {
         "name": "test_sweep",           # name of the sweep (not the project)
         "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
-            "name": "max_rew",
+            "name": "best_rew",
             "goal": "maximize",
         },
         "method": "grid",               # search method ("grid", "random", or "bayes")

@@ -3,7 +3,7 @@ from stable_baselines3.ppo import PPO
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-# from torch.nn import ReLU, Sigmoid, Tanh
+# from torch.nn import Tanh  # ReLU, Sigmoid, Tanh
 from rendezvous_env import RendezvousEnv
 from custom.custom_callbacks import CustomWandbCallback
 from arguments import get_tune_args
@@ -21,11 +21,13 @@ def make_model(policy, env, config):
 
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
+    # policy_kwargs = {"activation_fn": Tanh}
     model = PPO(
         policy,
         env,
         # gamma=config["gamma"],
         gamma=1,
+        # policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
         verbose=1,
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     sweep_configuration = {
         "name": "reward_sweep",           # name of the sweep (not the project)
         "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
-            "name": "max_rew",
+            "name": "best_rew",
             "goal": "maximize",
         },
         "method": "grid",             # search method ("grid", "random", or "bayes")

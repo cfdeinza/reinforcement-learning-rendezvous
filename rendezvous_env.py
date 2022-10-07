@@ -370,7 +370,7 @@ class RendezvousEnv(gym.Env):
             not self.observation_space.contains(obs),   # observation outside of observation space
             self.t >= self.t_max,                       # episode time limit reached
             dist > self.bubble_radius,                  # chaser outside of bubble
-            self.attitude_error() > np.pi / 6,          # chaser attitude error too large
+            self.get_attitude_error() > np.pi / 6,          # chaser attitude error too large
         ]
 
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
@@ -425,17 +425,32 @@ class RendezvousEnv(gym.Env):
 
         return success
 
-    def attitude_error(self):
+    def get_attitude_error(self):
         """
         Compute the chaser's attitude error. The chaser should always be pointing in the direction of the target's
         center of mass.\n
         :return: angle between the actual and desired pointing direction (in radians)
         """
 
-        capture_axis = np.matmul(quat2mat(self.qc), self.capture_axis)  # capture axis expressed in LVLH
+        capture_axis = np.matmul(quat2mat(self.qc), self.capture_axis)  # capture axis of the chaser expressed in LVLH
         error = angle_between_vectors(-self.rc, capture_axis)           # Attitude error [rad]
 
         return error
+
+    def get_goal_pos(self):
+        """
+        Compute the position of the goal (expressed in the LVLH frame).\n
+        :return: position of the goal (in meters)
+        """
+        return np.matmul(quat2mat(self.qt), self.rd)
+
+    def get_pos_error(self, goal_position):
+        """
+        Compute the position error (the distance between the chaser and the goal position).\n
+        :param goal_position: position of the goal [m] (expressed in LVLH)
+        :return: position error [m]
+        """
+        return np.linalg.norm(self.rc - goal_position)
 
     def get_errors(self) -> np.ndarray:
         """
@@ -444,11 +459,11 @@ class RendezvousEnv(gym.Env):
         :return: numpy array containing the errors
         """
 
-        goal_pos = np.matmul(quat2mat(self.qt), self.rd)    # Goal position in the LVLH frame [m]
+        goal_pos = self.get_goal_pos()                      # Goal position in the LVLH frame [m]
         goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
-        pos_error = np.linalg.norm(self.rc - goal_pos)      # Position error [m]
+        pos_error = self.get_pos_error(goal_pos)            # Position error [m]
         vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
-        att_error = self.attitude_error()                   # Attitude error [rad]
+        att_error = self.get_attitude_error()               # Attitude error [rad]
         rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
 
         return np.array([pos_error, vel_error, att_error, rot_error])

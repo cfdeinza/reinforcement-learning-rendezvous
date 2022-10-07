@@ -70,7 +70,7 @@ def configure_sweep():
     sweep_config = {
         "name": "test_sweep",   # name of the sweep (not the project)
         "metric": {             # metric to optimize, has to be logged with `wandb.log()`
-            "name": "max_rew",
+            "name": "best_rew",
             "goal": "maximize",
         },
         "method": "random",     # search method ("grid", "random", or "bayes")

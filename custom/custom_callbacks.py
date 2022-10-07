@@ -46,6 +46,7 @@ class CustomWandbCallback(BaseCallback):
         self.env = env
         self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
+        self.best_results = None
         self.best_model_save_path = os.path.join("models", "best_model")
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
 
@@ -119,7 +120,8 @@ class CustomWandbCallback(BaseCallback):
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
+        # self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
+        self.check_and_save(result)
 
         pass
 
@@ -152,15 +154,17 @@ class CustomWandbCallback(BaseCallback):
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
+        # self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
+        self.check_and_save(result)
         # self.model.save(os.path.join(wandb.run.dir, "last_model"))  # Save an extra copy of the model on W&B
 
         # Log the metrics of the run with the highest reward:
-        wandb.log({
-            "max_rew": wandb.run.summary["max_rew"],            # best reward achieved during the run
-            "max_success": wandb.run.summary["max_success"],    # success of best reward
-            "max_delta_v": wandb.run.summary["max_delta_v"],    # delta V of best reward
-        })
+        # wandb.log({
+        #     "max_rew": wandb.run.summary["max_rew"],            # best reward achieved during the run
+        #     "max_success": wandb.run.summary["max_success"],    # success of best reward
+        #     "max_delta_v": wandb.run.summary["max_delta_v"],    # delta V of best reward
+        # })
+        wandb.log(self.best_results)
 
         # Finish W&B run (only if it was started by the Callback):
         if not self.wandb_external_start:
@@ -175,10 +179,19 @@ class CustomWandbCallback(BaseCallback):
         """
 
         model = self.model
-        env = self.env(**self.reward_kwargs)
+        env = self.env(**self.reward_kwargs)  # Make an instance of the environment with the given arguments
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0
+        chaser_in_koz = env.check_collision()
+        if chaser_in_koz:
+            collisions = 1  # keeps track of the amount of collisions that occur during the episode
+            time_of_first_collision = env.t  # records the time at which the first collision occurs
+            min_pos_error = None  # records the minimum position error achieved by the chaser without entering the KOZ
+        else:
+            collisions = 0
+            time_of_first_collision = None
+            min_pos_error = env.get_pos_error(env.get_goal_pos())
         done = False
 
         while not done:
@@ -196,8 +209,16 @@ class CustomWandbCallback(BaseCallback):
 
             # Add current reward to the total:
             total_reward += reward
+            chaser_in_koz = env.check_collision()
+            if chaser_in_koz:
+                collisions += 1
+                if time_of_first_collision is None:
+                    time_of_first_collision = env.t
+                    min_pos_error = env.get_pos_error(env.get_goal_pos())
 
         end_time = env.t
+        steps = end_time/env.dt
+        collision_percentage = collisions / steps * 100
         final_dist = np.linalg.norm(env.rc)
         total_delta_v = env.total_delta_v
         total_delta_w = env.total_delta_w
@@ -211,30 +232,36 @@ class CustomWandbCallback(BaseCallback):
             "ep_delta_v": total_delta_v,  # Total delta V used during the episode
             "ep_delta_w": total_delta_w,  # Total delta omega used during the episode
             "ep_success": success,        # Whether the trajectory was successful (achieved capture without collision)
+            "ep_collision_percentage": collision_percentage,  # percentage of timesteps where chaser was inside KOZ
+            "ep_time_of_first_collision": time_of_first_collision,  # time at which the chaser first entered the KOZ
+            "ep_min_pos_error": min_pos_error,  # minimum position error achieved by the chaser without entering KOZ
         }
 
         return output
 
-    def check_and_save(self, rew, success, delta_v) -> None:
+    def check_and_save(self, results) -> None:
         """
         Check if the current reward is better than the previous best. If so, save the current model.\n
-        :param rew: reward obtained from the most recent evaluation.
-        :param success: amount of timesteps that the chaser achieved the final conditions (without entering KOZ)
-        :param delta_v: amount of delta V used during the episode.
+        :param results: dictionary containing information about the episode
         :return: None
         """
 
-        if self.prev_best_rew is None or rew > self.prev_best_rew:
+        if self.prev_best_rew is None or results["ep_rew"] > self.prev_best_rew:
 
             # Update the best reward:
-            self.prev_best_rew = rew
+            self.prev_best_rew = results["ep_rew"]
 
             # Update the summary of the W&B run:
-            wandb.run.summary["max_rew"] = rew
-            wandb.run.summary["timstep_of_max_rew"] = self.num_timesteps
-            wandb.run.summary["max_success"] = success
-            wandb.run.summary["max_delta_v"] = delta_v
-            # wandb.run.summary["best_reward"] = f"{round(rew, 2)} at {self.num_timesteps} steps."
+            self.best_results = {
+                "best_rew": results["ep_rew"],
+                "timestep_of_best_rew": self.num_timesteps,
+                "best_success": results["ep_success"],
+                "best_delta_v": results["ep_delta_v"],
+                "best_ep_len": results["ep_len"],
+                "best_collision_percentage": results["ep_collision_percentage"],
+                "best_time_of_first_collision": results["ep_time_of_first_collision"],
+                "best_min_pos_error": results["ep_min_pos_error"],
+            }
 
             # Save the current model:
             print(f'New best reward. Saving model on {self.best_model_save_path}')
