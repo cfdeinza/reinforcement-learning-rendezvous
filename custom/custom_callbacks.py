@@ -187,10 +187,10 @@ class CustomWandbCallback(BaseCallback):
         if chaser_in_koz:
             collisions = 1  # keeps track of the amount of collisions that occur during the episode
             time_of_first_collision = env.t  # records the time at which the first collision occurs
-            min_pos_error = None  # records the minimum position error achieved by the chaser without entering the KOZ
+            min_pos_error = -1  # records the minimum position error achieved by the chaser without entering the KOZ
         else:
             collisions = 0
-            time_of_first_collision = None
+            time_of_first_collision = -1  # Using -1 instead of None (so that W&B can record it properly)
             min_pos_error = env.get_pos_error(env.get_goal_pos())
         done = False
 
@@ -212,7 +212,7 @@ class CustomWandbCallback(BaseCallback):
             chaser_in_koz = env.check_collision()
             if chaser_in_koz:
                 collisions += 1
-                if time_of_first_collision is None:
+                if time_of_first_collision == -1:
                     time_of_first_collision = env.t
                     min_pos_error = env.get_pos_error(env.get_goal_pos())
 
