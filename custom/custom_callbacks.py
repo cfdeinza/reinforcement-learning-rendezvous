@@ -24,7 +24,7 @@ class CustomWandbCallback(BaseCallback):
     saves the model if the current reward exceeds the previous highest reward.
     """
 
-    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None, reward_kwargs=None):
+    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None, save_name=None, reward_kwargs=None):
         """
         Instantiate callback object.
         Attributes inherited from BaseCallback:
@@ -40,14 +40,16 @@ class CustomWandbCallback(BaseCallback):
         :param wandb_run: current Weights & Biases run
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
+        :param save_name: name of the zip file to save the best model in
+        :param reward_kwargs: dictionary containing keyword arguments for the reward function
         """
         super(CustomWandbCallback, self).__init__(verbose)
 
         self.env = env
         self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
-        self.best_results = None
-        self.best_model_save_path = os.path.join("models", "best_model")
+        self.best_results = None  # Dictionary that records the best result of the current run.
+        self.save_path = os.path.join("models", "best_model") if save_name is None else os.path.join("models", save_name)
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
 
         # Attribute to track if the W&B run was initiated externally or by the callback:
@@ -266,10 +268,10 @@ class CustomWandbCallback(BaseCallback):
             }
 
             # Save the current model:
-            print(f'New best reward. Saving model on {self.best_model_save_path}')
-            self.model.save(self.best_model_save_path)  # Save a local copy
+            print(f'New best reward. Saving model on {self.save_path}')
+            self.model.save(self.save_path)  # Save a local copy
             self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
-            # wandb.save(self.best_model_save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
+            # wandb.save(self.save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
 
         pass
 
@@ -401,7 +403,7 @@ class CustomCallback(BaseCallback):
             self.prev_best_rew = rew
 
             # Save the current model:
-            print(f'New best reward. Saving model on {self.best_model_save_path}')
+            print(f'New best reward. Saving model on {self.save_path}')
             self.model.save(self.best_model_save_path)  # save a local copy
 
         pass
