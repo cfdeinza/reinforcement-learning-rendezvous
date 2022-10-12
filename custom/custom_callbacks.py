@@ -214,7 +214,9 @@ class CustomWandbCallback(BaseCallback):
                 collisions += 1
                 if time_of_first_collision == -1:
                     time_of_first_collision = env.t
-                    min_pos_error = env.get_pos_error(env.get_goal_pos())
+            else:
+                if time_of_first_collision == -1:
+                    min_pos_error = min(min_pos_error, env.get_pos_error(env.get_goal_pos()))
 
         end_time = env.t
         steps = end_time/env.dt
