@@ -270,7 +270,8 @@ class CustomWandbCallback(BaseCallback):
             # Save the current model:
             print(f'New best reward. Saving model on {self.save_path}')
             self.model.save(self.save_path)  # Save a local copy
-            self.model.save(os.path.join(wandb.run.dir, "best_model"))  # Save an extra copy of the model on W&B
+            # Save an extra copy of the model on W&B:
+            self.model.save(os.path.join(wandb.run.dir, os.path.split(self.save_path)[1]))
             # wandb.save(self.save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
 
         pass
