@@ -3,7 +3,7 @@ from stable_baselines3.ppo import PPO
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-# from torch.nn import Tanh  # ReLU, Sigmoid, Tanh
+from torch.nn import Tanh  # ReLU, Sigmoid, Tanh
 from rendezvous_env import RendezvousEnv
 from custom.custom_callbacks import CustomWandbCallback
 from arguments import get_tune_args
@@ -21,13 +21,13 @@ def make_model(policy, env, config):
 
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
-    # policy_kwargs = {"activation_fn": Tanh}
+    policy_kwargs = {"activation_fn": Tanh}
     model = PPO(
         policy,
         env,
         # gamma=config["gamma"],
         gamma=1,
-        # policy_kwargs=policy_kwargs,
+        policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
         verbose=1,
@@ -61,7 +61,15 @@ def train_function(iterations):
         # total_timesteps = wandb.config["n_steps"] * iterations
         total_timesteps = model.n_steps * iterations
 
-        model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
+        model.learn(
+            total_timesteps=total_timesteps,
+            callback=CustomWandbCallback(
+                RendezvousEnv,
+                reward_kwargs=reward_kwargs,
+                wandb_run=run,
+                save_name="rew_tune_model",
+            )
+        )
 
     return
 
@@ -76,7 +84,7 @@ if __name__ == "__main__":
 
     # Get arguments:
     arguments = get_tune_args()
-    arguments.iterations = 250
+    arguments.iterations = 486  # 250
     project_name = arguments.project
     if project_name == "":
         project_name = "rew_sweep"
@@ -84,8 +92,8 @@ if __name__ == "__main__":
     # Set-up the sweep:
     wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
     sweep_configuration = {
-        "name": "reward_sweep",           # name of the sweep (not the project)
-        "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
+        "name": "reward_sweep",  # name of the sweep (not the project)
+        "metric": {              # metric to optimize, has to be logged with `wandb.log()`
             "name": "best_rew",
             "goal": "maximize",
         },

@@ -181,7 +181,8 @@ class CustomWandbCallback(BaseCallback):
         """
 
         model = self.model
-        env = self.env(**self.reward_kwargs)  # Make an instance of the environment with the given arguments
+        # Make an instance of the environment with the given arguments:
+        env = self.env(**{"reward_kwargs": self.reward_kwargs})
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
         obs = env.reset()
         total_reward = 0
