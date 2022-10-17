@@ -26,14 +26,18 @@ class RunState:
         return
 
 
-def make_animation(args):
+def make_animation(args, data=None):
     """
     Load trajectory data from a pickle file and display an animation of the trajectory.\n
     :param args: command-line arguments.
+    :param data: dictionary containing trajectory data
     :return: None
     """
 
-    data = load_data(args.path)
+    if data is None:
+        data = load_data(args.path)
+    else:
+        assert isinstance(data, dict), "parameter 'data' must be a dictionary"
     rc = data['rc']                     # chaser position [m]
     qc = data['qc']                     # chaser attitude
     qt = data['qt']                     # target attitude

@@ -13,8 +13,11 @@ from utils.general import load_data
 from utils.animations import plot_2dcomponents
 
 
-def plot2d(args):
-    data = load_data(args.path)
+def plot2d(args, data=None):
+    if data is None:
+        data = load_data(args.path)
+    else:
+        assert isinstance(data, dict), "parameter 'data' must be a dictionary"
     rc = data['rc']  # chaser position [m]
     vc = data['vc']
     # qc = data['qc']  # chaser attitude
@@ -26,6 +29,7 @@ def plot2d(args):
     actions[3:] = actions[3:] * data['max_delta_w']
     rewards = data['rew'][0]
     t = data['t'][0]
+    t_max = data["t_max"]
     assert rc.shape[0] == 3
     # print(actions)
 
@@ -37,12 +41,14 @@ def plot2d(args):
                       xlabel='Time (s)', ylabel='Distance (m)', title='Position')
     dist = np.linalg.norm(rc, axis=0)
     ax[0, 0].plot(t, dist, 'k--', label='Overall'), ax[0, 0].legend()  # Overall distance
+    ax[0, 0].set_xlim([t[0], t_max])
 
     # Chaser velocity:
     plot_2dcomponents(ax[0, 1], t, vc[0], vc[1], vc[2], labels=[r'$v_x$', r'$v_y$', r'$v_z$'],
                       xlabel='Time (s)', ylabel='Velocity (m/s)', title='Velocity')
     speed = np.linalg.norm(vc, axis=0)
     ax[0, 1].plot(t, speed, 'k--', label='Overall'), ax[0, 1].legend()  # Overall speed
+    ax[0, 1].set_xlim([t[0], t_max])
 
     # Delta V:
     action_x, action_y, action_z = actions[0], actions[1], actions[2]
@@ -51,11 +57,12 @@ def plot2d(args):
                       xlabel='Time (s)', ylabel='$\Delta V$ (m)', title='Actions. Total ' + r'$\Delta V = $' +
                                                                         str(round(np.nansum(sum_of_actions), 2)))
     ax[0, 2].plot(t, sum_of_actions, 'k--', label='Overall'), ax[0, 2].legend()  # Overall Delta V
+    ax[0, 2].set_xlim([t[0], t_max])
 
     # Reward:
     ax[1, 0].plot(t, rewards)
     ax[1, 0].set_title(f'Rewards. Total = {round(np.nansum(rewards), 2)}')
-    ax[1, 0].set_xlim([t[0], t[-1]])
+    ax[1, 0].set_xlim([t[0], t_max])
     ax[1, 0].set_ylim([min(float(np.nanmin(rewards)), 0), np.nanmax(rewards) + 1])
     ax[1, 0].grid()
 
@@ -64,6 +71,7 @@ def plot2d(args):
                       xlabel='Time (s)', ylabel='Rotation rate (rad/s)', title='Rotation rate')
     wc_norm = np.linalg.norm(wc, axis=0)
     ax[1, 1].plot(t, wc_norm, 'k--', label='Overall'), ax[1, 1].legend()  # Overall rotation rate
+    ax[1, 1].set_xlim([t[0], t_max])
 
     # Delta Omega:
     action_u, action_v, action_w = actions[3], actions[4], actions[5]
@@ -73,6 +81,7 @@ def plot2d(args):
                       title='Actions. Total ' + r'$\Delta \omega = $' +
                             str(round(np.nansum(sum_of_attitude_actions), 2)))
     ax[1, 2].plot(t, sum_of_attitude_actions, 'k--', label='Overall'), ax[1, 2].legend()  # Overall Delta Omega
+    ax[1, 2].set_xlim([t[0], t_max])
 
     plt.tight_layout()
     plt.show()

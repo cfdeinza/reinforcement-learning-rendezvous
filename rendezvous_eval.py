@@ -33,6 +33,13 @@ def get_action(model, obs):
 
 
 def evaluate(model, env, args):
+    """
+    Evaluate one episode.\n
+    :param model: model that picks the actions
+    :param env: environment
+    :param args: command-line arguments
+    :return: dictionary with episode data
+    """
 
     env.reset()
 
@@ -116,25 +123,25 @@ def evaluate(model, env, args):
 
     print(f'\nTotal reward: {round(total_reward, 2)}')
 
+    # Create dictionary of env attributes:
+    data = vars(env)
+
+    # Add new pairs to dictionary:
+    new_pairs = [
+        ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc),
+        ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t),
+        ('process_action', None),  # pickle cannot handle lambda functions
+    ]
+    for key, val in new_pairs:
+        data[key] = val
+
+    # Remove unwanted attributes:
+    unwanted_attributes = ['viewer']
+    for key in unwanted_attributes:
+        data.pop(key)  # Will raise a KeyError if key does not exist
+        # data.pop(key, None)  # Will not raise an error if key does not exist
+
     if args.save:
-        # Create dictionary of env attributes:
-        data = vars(env)
-
-        # Add new pairs to dictionary:
-        new_pairs = [
-            ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc),
-            ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t),
-            ('process_action', None),  # pickle cannot handle lambda functions
-        ]
-        for key, val in new_pairs:
-            data[key] = val
-
-        # Remove unwanted attributes:
-        unwanted_attributes = ['viewer']
-        for key in unwanted_attributes:
-            data.pop(key)  # Will raise a KeyError if key does not exist
-            # data.pop(key, None)  # Will not raise an error if key does not exist
-
         # Name of the output file:
         file_num = 0
         name = os.path.join('data', 'rdv_data' + str(file_num).zfill(2) + '.pickle')
@@ -147,7 +154,7 @@ def evaluate(model, env, args):
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print(f'Saved trajectory data: {name}')
 
-    return
+    return data
 
 
 def get_args():
