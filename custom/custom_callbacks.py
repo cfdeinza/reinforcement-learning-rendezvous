@@ -6,12 +6,12 @@ This file contains custom callbacks. For more info on how to make custom callbac
 Written by C. F. De Inza Niemeijer.
 """
 
+import os
 from stable_baselines3.common.callbacks import BaseCallback
 # from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
-import os
 # import warnings
 # from typing import Any, Dict, Optional  # , Callable, List, Union
-import pickle
+# import pickle
 import wandb
 import numpy as np
 
@@ -24,7 +24,16 @@ class CustomWandbCallback(BaseCallback):
     saves the model if the current reward exceeds the previous highest reward.
     """
 
-    def __init__(self, env, wandb_run=None, verbose=0, prev_best_rew=None, save_name=None, reward_kwargs=None):
+    def __init__(
+            self,
+            env,
+            wandb_run=None,
+            verbose=0,
+            prev_best_rew=None,
+            save_name=None,
+            reward_kwargs=None,
+            n_evals=1,
+    ):
         """
         Instantiate callback object.
         Attributes inherited from BaseCallback:
@@ -42,6 +51,7 @@ class CustomWandbCallback(BaseCallback):
         :param prev_best_rew: previous best reward
         :param save_name: name of the zip file to save the best model in
         :param reward_kwargs: dictionary containing keyword arguments for the reward function
+        :param n_evals: number of episodes evaluated per rollout.
         """
         super(CustomWandbCallback, self).__init__(verbose)
 
@@ -49,8 +59,13 @@ class CustomWandbCallback(BaseCallback):
         self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
         self.best_results = None  # Dictionary that records the best result of the current run.
-        self.save_path = os.path.join("models", "best_model") if save_name is None else os.path.join("models", save_name)
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
+        if save_name is None:
+            save_name = "best_model"
+        self.save_path = os.path.join("models", save_name)
+        assert isinstance(n_evals, int), "The number of evaluations must be an integer"
+        assert n_evals > 0, "The number of evaluations must be greater than zero."
+        self.n_evals = n_evals
 
         # Attribute to track if the W&B run was initiated externally or by the callback:
         if wandb_run is not None:
@@ -182,64 +197,91 @@ class CustomWandbCallback(BaseCallback):
 
         model = self.model
         # Make an instance of the environment with the given arguments:
-        env = self.env(**{"reward_kwargs": self.reward_kwargs})
+        # env = self.env(**{"reward_kwargs": self.reward_kwargs})
+        env = self.env(reward_kwargs=self.reward_kwargs)
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
-        obs = env.reset()
-        total_reward = 0
-        chaser_in_koz = env.check_collision()
-        if chaser_in_koz:
-            collisions = 1  # keeps track of the amount of collisions that occur during the episode
-            time_of_first_collision = env.t  # records the time at which the first collision occurs
-            min_pos_error = -1  # records the minimum position error achieved by the chaser without entering the KOZ
-        else:
-            collisions = 0
-            time_of_first_collision = -1  # Using -1 instead of None (so that W&B can record it properly)
-            min_pos_error = env.get_pos_error(env.get_goal_pos())
-        done = False
 
-        while not done:
+        ep_rews = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_end_times = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_dists = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_delta_vs = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_delta_ws = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_successes = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_collision_percentages = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_times_of_first_collision = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_min_pos_errors = np.zeros(shape=(self.n_evals,)) * np.nan
 
-            # Get action from the model:
-            action, state = model.predict(
-                observation=obs,        # input to the policy network
-                state=None,             # last hidden state (used for recurrent policies)
-                episode_start=None,     # the last mask? (used for recurrent policies)
-                deterministic=True      # whether or not to return deterministic actions (default is False)
-            )
-
-            # Step forward in time:
-            obs, reward, done, info = env.step(action)
-
-            # Add current reward to the total:
-            total_reward += reward
+        for i in range(self.n_evals):
+            obs = env.reset()
+            total_reward = 0
             chaser_in_koz = env.check_collision()
             if chaser_in_koz:
-                collisions += 1
-                if time_of_first_collision == -1:
-                    time_of_first_collision = env.t
+                collisions = 1  # keeps track of the amount of collisions that occur during the episode
+                time_of_first_collision = env.t  # records the time at which the first collision occurs
+                min_pos_error = -1  # records the minimum position error achieved by the chaser without entering the KOZ
             else:
-                if time_of_first_collision == -1:
-                    min_pos_error = min(min_pos_error, env.get_pos_error(env.get_goal_pos()))
+                collisions = 0
+                time_of_first_collision = -1  # Using -1 instead of None (so that W&B can record it properly)
+                min_pos_error = env.get_pos_error(env.get_goal_pos())
+            lstm_states = None
+            ep_start = np.ones(shape=(1,), dtype=bool)
+            done = False
 
-        end_time = env.t
-        steps = end_time/env.dt
-        collision_percentage = collisions / steps * 100
-        final_dist = np.linalg.norm(env.rc)
-        total_delta_v = env.total_delta_v
-        total_delta_w = env.total_delta_w
-        success = env.success
-        print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
+            while not done:
+
+                # Get action from the model:
+                action, lstm_states = model.predict(
+                    observation=obs,         # input to the policy network
+                    state=lstm_states,       # last hidden state (used for recurrent policies)
+                    episode_start=ep_start,  # the last mask? (used for recurrent policies)
+                    deterministic=True       # whether or not to return deterministic actions (default is False)
+                )
+
+                # Step forward in time:
+                obs, reward, done, info = env.step(action)
+                ep_start[0] = done
+
+                # Add current reward to the total:
+                total_reward += reward
+                chaser_in_koz = env.check_collision()
+                if chaser_in_koz:
+                    collisions += 1
+                    if time_of_first_collision == -1:
+                        time_of_first_collision = env.t
+                else:
+                    if time_of_first_collision == -1:
+                        min_pos_error = min(min_pos_error, env.get_pos_error(env.get_goal_pos()))
+
+            end_time = env.t
+            steps = end_time/env.dt
+            # collision_percentage = collisions / steps * 100
+            # final_dist = np.linalg.norm(env.rc)
+            # total_delta_v = env.total_delta_v
+            # total_delta_w = env.total_delta_w
+            # success = env.success
+            print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
+            ep_rews[i] = total_reward
+            ep_end_times[i] = end_time
+            ep_dists[i] = np.linalg.norm(env.rc)
+            ep_delta_vs[i] = env.total_delta_v
+            ep_delta_ws[i] = env.total_delta_w
+            ep_successes[i] = env.success
+            ep_collision_percentages[i] = collisions / steps * 100
+            ep_times_of_first_collision[i] = time_of_first_collision
+            ep_min_pos_errors[i] = min_pos_error
+
+        print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
         output = {
-            "ep_rew": total_reward,       # Total reward achieved during the episode
-            "ep_len": end_time,           # Length of the episode (seconds)
-            "ep_dist": final_dist,        # Final distance of the chaser to the target (meters)
-            "ep_delta_v": total_delta_v,  # Total delta V used during the episode
-            "ep_delta_w": total_delta_w,  # Total delta omega used during the episode
-            "ep_success": success,        # Whether the trajectory was successful (achieved capture without collision)
-            "ep_collision_percentage": collision_percentage,  # percentage of timesteps where chaser was inside KOZ
-            "ep_time_of_first_collision": time_of_first_collision,  # time at which the chaser first entered the KOZ
-            "ep_min_pos_error": min_pos_error,  # minimum position error achieved by the chaser without entering KOZ
+            "ep_rew": ep_rews.mean(),           # Total reward achieved during the episode
+            "ep_len": ep_end_times.mean(),      # Length of the episode (seconds)
+            "ep_dist": ep_dists.mean(),         # Final distance of the chaser to the target (meters)
+            "ep_delta_v": ep_delta_vs.mean(),   # Total delta V used during the episode
+            "ep_delta_w": ep_delta_ws.mean(),   # Total delta omega used during the episode
+            "ep_success": ep_successes.mean(),  # Whether the trajectory was successful (achieved capture w/o collision)
+            "ep_collision_percentage": ep_collision_percentages.mean(),  # % of timesteps where chaser was inside KOZ
+            "ep_time_of_first_collision": ep_times_of_first_collision.mean(),  # time when chaser first entered the KOZ
+            "ep_min_pos_error": ep_min_pos_errors.mean(),  # minimum position error of the chaser without entering KOZ
         }
 
         return output
@@ -286,21 +328,26 @@ class CustomCallback(BaseCallback):
     current model is saved.\n
     """
 
-    def __init__(self, env, verbose=0, prev_best_rew=None, reward_kwargs=None):
+    def __init__(self, env, verbose=0, prev_best_rew=None, reward_kwargs=None, save_name=None, n_evals=1):
         """
         Instantiate callback object.
         :param env: environment to use for evaluations
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
         :param reward_kwargs: dict with keyword arguments for the reward function
+        :param save_name: name of the file where the best model will be saved
+        :param n_evals: number of episodes evaluated
         """
         super(CustomCallback, self).__init__(verbose)
 
         self.env = env
         self.prev_best_rew = prev_best_rew
         self.best_model_save_dir = os.path.join(".", "models")  # Directory where the best model will be saved
-        self.best_model_save_path = os.path.join("models", "best_model")
         self. reward_kwargs = {} if reward_kwargs is None else reward_kwargs
+        if save_name is None:
+            save_name = "best_model"
+        self.save_path = os.path.join("models", save_name)
+        self.n_evals = n_evals
 
         pass
 
@@ -322,10 +369,10 @@ class CustomCallback(BaseCallback):
         """
 
         # Evaluate the current policy, and save the total reward achieved during the episode.
-        rew, t_end = self.evaluate_policy()
+        results = self.evaluate_policy()
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(rew)
+        self.check_and_save(results)
 
         pass
 
@@ -351,83 +398,100 @@ class CustomCallback(BaseCallback):
         """
 
         # Evaluate the current policy, and save the total reward achieved during the episode.
-        rew, t_end = self.evaluate_policy()
+        results = self.evaluate_policy()
 
         # Save the model if the reward is better than last time:
-        self.check_and_save(rew)
+        self.check_and_save(results)
 
         pass
 
     def evaluate_policy(self):
         """
         Run one episode with the current model.
-        :return: total reward, episode_duration
+        :return: dictionary with results
         """
 
         model = self.model
-        env = self.env(**self.reward_kwargs)
+        env = self.env(reward_kwargs=self.reward_kwargs)
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
-        obs = env.reset()
-        total_reward = 0
-        done = False
 
-        while not done:
+        print("Evaluating...")
+        ep_rews = np.zeros(shape=(self.n_evals,)) * np.nan
+        ep_end_times = np.zeros(shape=(self.n_evals,)) * np.nan
+        for i in range(self.n_evals):
+            obs = env.reset()
+            total_reward = 0
+            lstm_states = None
+            ep_start = np.ones(shape=(1,), dtype=bool)
+            done = False
 
-            # Get action from the model:
-            action, state = model.predict(
-                observation=obs,        # input to the policy network
-                state=None,             # last hidden state (used for recurrent policies)
-                episode_start=None,     # the last mask? (used for recurrent policies)
-                deterministic=True      # whether or not to return deterministic actions (default is False)
-            )
+            while not done:
 
-            # Step forward in time:
-            obs, reward, done, info = env.step(action)
+                # Get action from the model:
+                action, lstm_states = model.predict(
+                    observation=obs,         # input to the policy network
+                    state=lstm_states,       # last hidden state (used for recurrent policies)
+                    episode_start=ep_start,  # the last mask? (used for recurrent policies)
+                    deterministic=True       # whether or not to return deterministic actions (default is False)
+                )
 
-            # Add current reward to the total:
-            total_reward += reward
+                # Step forward in time:
+                obs, reward, done, info = env.step(action)
+                ep_start[0] = done
 
-        end_time = env.t
-        print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
+                # Add current reward to the total:
+                total_reward += reward
 
-        return total_reward, end_time
+            end_time = env.t
+            print(f'Episode complete. Total reward = {round(total_reward, 2)} at {end_time}')
+            ep_rews[i] = total_reward
+            ep_end_times[i] = end_time
+            print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
-    def check_and_save(self, rew) -> None:
+        output = {
+            "ep_rew": ep_rews.mean(),
+            "ep_len": ep_end_times.mean(),
+        }
+
+        return output
+
+    def check_and_save(self, results) -> None:
         """
         Check if the current reward is better than the previous best. If so, save the current model.\n
-        :param rew: reward obtained from the most recent evaluation.
+        :param results: dictionary containing results from the most recent evaluation.
         :return: None
         """
 
-        if self.prev_best_rew is None or rew > self.prev_best_rew:
+        if self.prev_best_rew is None or results["ep_rew"] > self.prev_best_rew:
 
             # Update the best reward:
-            self.prev_best_rew = rew
+            self.prev_best_rew = results["ep_rew"]
 
             # Save the current model:
             print(f'New best reward. Saving model on {self.save_path}')
-            self.model.save(self.best_model_save_path)  # save a local copy
+            self.model.save(self.save_path)  # save a local copy
 
         pass
 
 
-def my_eval_callback(locals_, globals_) -> None:
-    """
-    Callback passed to the evaluate_policy function in order to save the evaluated trajectories (actions and states).
-    If multiple trajectories are evaluated, only the first one is saved.
-    I use the 'done' variable to check when a trajectory is finished. Then I save  the whole instance of the environment
-    as a dictionary using the pickle module.
-    Note that 'self.trajectory' and 'self.actions' must be stored in 'info', otherwise they get deleted by the reset()
-    function before we can save them.
-    """
-    obj = locals_['env'].envs[0].env
-    n = locals_['episode_counts'][0]  # The current evaluation episode
-    if (n == 0) & locals_['done']:
-        data = vars(obj)
-        data['trajectory'] = locals_['info']['trajectory']
-        data['actions'] = locals_['info']['actions']
-        name = f'logs/eval_trajectory_{n}.pickle'
-        with open(name, 'wb') as handle:
-            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print(f'Saved trajectory data: {name}')
-    return
+# # Old callback:
+# def my_eval_callback(locals_, globals_) -> None:
+#     """
+#     Callback passed to the evaluate_policy function in order to save the evaluated trajectories (actions and states).
+#     If multiple trajectories are evaluated, only the first one is saved.
+#     I use the 'done' variable to check when a trajectory is finished. Then I save the whole instance of the env as a
+#     dictionary using the pickle module.
+#     Note that 'self.trajectory' and 'self.actions' must be stored in 'info', otherwise they get deleted by the reset()
+#     function before we can save them.
+#     """
+#     obj = locals_['env'].envs[0].env
+#     n = locals_['episode_counts'][0]  # The current evaluation episode
+#     if (n == 0) & locals_['done']:
+#         data = vars(obj)
+#         data['trajectory'] = locals_['info']['trajectory']
+#         data['actions'] = locals_['info']['actions']
+#         name = f'logs/eval_trajectory_{n}.pickle'
+#         with open(name, 'wb') as handle:
+#             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+#             print(f'Saved trajectory data: {name}')
+#     return

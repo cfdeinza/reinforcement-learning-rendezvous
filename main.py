@@ -27,8 +27,7 @@ def load_model(args, env):
 
     if model_path == '':
         print('No model provided for training. Making new model...')
-        # n_steps = 640*3  # 3648  # num of steps to run between each model update  # each env does this amount of steps
-        n_steps = 2048
+        n_steps = 2048  # num of steps per rollout  # each env does this amount of steps
         gamma = 1
         # model = CustomPPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
         model = PPO(MlpPolicy, env, n_steps=n_steps, gamma=gamma, verbose=1)
@@ -61,7 +60,10 @@ def train(args, model):
 
     if save:
         if args.wandb:
-            callback = CustomWandbCallback(RendezvousEnv)   # Custom callback to track experiment with Weights & Biases
+            callback = CustomWandbCallback(
+                env=RendezvousEnv,
+                reward_kwargs=None,
+            )   # Custom callback to track experiment with Weights & Biases
         else:
             callback = CustomCallback(RendezvousEnv)        # Custom callback to save the best model
         print(f'The best model will be saved in {callback.save_path}')

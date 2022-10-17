@@ -48,6 +48,8 @@ def evaluate(model, env, args):
 
     obs = env.get_observation()
     total_reward = 0
+    lstm_states = None
+    ep_start = np.ones(shape=(1,), dtype=bool)
     done = False
     # info = {}
 
@@ -78,16 +80,23 @@ def evaluate(model, env, args):
     while not done:
 
         # Select action:
-        action = get_action(model, obs)
-        # if k == 5:
-        #     action = np.array([0, 0, 0, 0, 1200*torque, 1e-3])
-        # # elif k == 92:
-        # #     action = np.array([0, 0, 0, torque, 0, -torque])
-        # else:
-        #     action = np.array([0, 0, 0, 0, 0, 0])
+        # action = get_action(model, obs)
+        action, lstm_states = model.predict(
+            observation=obs,            # input to the policy network
+            state=lstm_states,          # last hidden state (used for recurrent policies)
+            episode_start=ep_start,     # the last mask? (used for recurrent policies)
+            deterministic=True          # whether or not to return deterministic actions (default is False)
+        )
+        """
+        The outputs of `model.predict()` are the action and the next hidden state.
+        for more information on the inputs and outpus of the predict function, 
+        see https://github.com/DLR-RM/stable-baselines3/blob/ef10189d80dbb2efb3b5391cba4eb3c2ab5c7aae/
+        stable_baselines3/common/policies.py#L307
+        """
 
         # Step forward in time:
         obs, reward, done, info = env.step(action)
+        ep_start[0] = done
 
         # Save current values:
         total_reward += reward
