@@ -23,14 +23,14 @@ def get_main_args():
     """
     parser = argparse.ArgumentParser()
 
-    default_mode = 'train'
-    parser.add_argument(
-        '--mode',
-        dest='mode',
-        type=str,
-        default=default_mode,
-        help=f'Use \'train\' to train the model, \'eval\' to evaluate the model. Default is \'{default_mode}\'.'
-    )
+    # default_mode = 'train'
+    # parser.add_argument(
+    #     '--mode',
+    #     dest='mode',
+    #     type=str,
+    #     default=default_mode,
+    #     help=f'Use \'train\' to train the model, \'eval\' to evaluate the model. Default is \'{default_mode}\'.'
+    # )
     parser.add_argument(
         '--model',
         dest='model',
@@ -46,13 +46,13 @@ def get_main_args():
         default=default_steps,
         help=f'Select the number of training steps. Default is {default_steps}.'
     )
-    parser.add_argument(
-        '--env',
-        dest='env',
-        type=str,
-        default='rdv',
-        help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment.'
-    )
+    # parser.add_argument(
+    #     '--env',
+    #     dest='env',
+    #     type=str,
+    #     default='rdv',
+    #     help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment.'
+    # )
     parser.add_argument(
         '--nosave',
         dest='nosave',
