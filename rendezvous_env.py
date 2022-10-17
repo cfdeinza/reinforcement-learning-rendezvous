@@ -310,10 +310,9 @@ class RendezvousEnv(gym.Env):
 
             # Bonus for achieving terminal conditions:
             bonus = self.dt * bonus_coef
-            if pos_error < self.max_rd_error:  # reward pos & vel only if pos is achieved
-                rew += bonus * (1 + (vel_error < self.max_vd_error))
-            if att_error < self.max_qd_error:  # reward att and rot only if att is achieved
-                rew += bonus * (1 + (rot_error < self.max_wd_error))
+            if pos_error < self.max_rd_error:  # give terminal rewards only if the terminal position has been achieved
+                rew += bonus * (1 + (vel_error < self.max_vd_error))  # pos & vel
+                rew += bonus * ((att_error < self.max_qd_error) + (rot_error < self.max_wd_error))  # att & rot rate
 
         return rew
 
