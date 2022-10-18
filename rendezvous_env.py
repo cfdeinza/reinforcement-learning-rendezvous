@@ -1,8 +1,9 @@
+import random
 import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
-from utils.quaternions import quat2mat
+from utils.quaternions import quat2mat, rot2quat, quat_product  # quat2rot
 from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors
 
 
@@ -22,7 +23,7 @@ class RendezvousEnv(gym.Env):
         :param qc0: nominal initial attitude of the chaser (ndarray with shape 4,)
         :param wc0: nominal initial rotation rate of the chaser (ndarray with shape 3,)
         :param qt0: nominal initial attitude of the target (ndarray with shape 4,)
-        :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,)
+        :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,) (expressed in LVLH only here)
         :param quiet: whether or not to print episode results.
         :param reward_kwargs: dict with keyword arguments for the reward function (used during tuning)
         """
@@ -44,6 +45,9 @@ class RendezvousEnv(gym.Env):
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
         self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
+        # Randomness of initial conditions:
+        self.target_attitude_range = np.radians(45)
+
         # Time:
         self.t = None       # current time of episode [s]
         self.dt = 1         # interval between timesteps [s]
@@ -53,8 +57,8 @@ class RendezvousEnv(gym.Env):
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
         self.inertia = np.array([  # moment of ineria [kg.m^2]
             [1, 0, 0],
-            [0, 2, 0],
-            [0, 0, 3]
+            [0, 1, 0],
+            [0, 0, 1],
         ])
         self.inv_inertia = np.linalg.inv(self.inertia)
         self.max_delta_v = 0.1*self.dt        # Maximum delta V for each axis [m/s]
@@ -206,13 +210,24 @@ class RendezvousEnv(gym.Env):
         """
 
         # TODO: randomize initial conditions
+        # Randomize the initial attitude of the target:
+        theta_t = random.uniform(0, self.target_attitude_range)
+        euler_t = 2 * np.random.rand(3) - 1
+        euler_t = euler_t / np.linalg.norm(euler_t)
+        qt_random = rot2quat(axis=euler_t, theta=theta_t)
+        qt0 = quat_product(self.nominal_qt0, qt_random)  # sequential rotations
+        # qt0 = rot2quat(axis=euler_t, theta=theta_t)
+        wt0 = np.matmul(quat2mat(qt0).T, np.array(self.nominal_wt0))  # convert wt0 to target body frame
 
         self.rc = self.nominal_rc0
         self.vc = self.nominal_vc0
         self.qc = self.nominal_qc0
         self.wc = self.nominal_wc0
-        self.qt = self.nominal_qt0
-        self.wt = self.nominal_wt0
+        # self.qt = self.nominal_qt0
+        # self.wt = self.nominal_wt0
+        self.qt = qt0
+        self.wt = wt0
+        # print(f"qt: {quat2rot(self.qt)}")
 
         self.collided = self.check_collision()
         self.success = self.check_success()

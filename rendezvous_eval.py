@@ -43,7 +43,7 @@ def evaluate(model, env, args):
 
     env.reset()
 
-    print(f'Initial state: {np.hstack((env.rc, env.vc, env.qc, env.wc))}')
+    print(f'Initial state: {np.hstack((env.rc, env.vc, env.qc, env.wc, env.qt))}')
     # print(f'Starting rotation rate: {env.state[4:]}')
 
     obs = env.get_observation()
