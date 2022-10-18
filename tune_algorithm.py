@@ -56,7 +56,15 @@ def train_function(iterations):
         # total_timesteps = wandb.config["n_steps"] * iterations
         total_timesteps = model.n_steps * iterations
 
-        model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
+        model.learn(
+            total_timesteps=total_timesteps,
+            callback=CustomWandbCallback(
+                env=RendezvousEnv,
+                reward_kwargs=None,
+                wandb_run=run,
+                save_name="alg_tune_model",
+            )
+        )
 
     return
 
@@ -68,7 +76,7 @@ def configure_sweep():
     """
 
     sweep_config = {
-        "name": "test_sweep",   # name of the sweep (not the project)
+        "name": "algorithm_sweep",   # name of the sweep (not the project)
         "metric": {             # metric to optimize, has to be logged with `wandb.log()`
             "name": "best_rew",
             "goal": "maximize",
@@ -76,9 +84,10 @@ def configure_sweep():
         "method": "random",     # search method ("grid", "random", or "bayes")
         "parameters": {         # parameters to sweep through
             "learning_rate": {
-                "distribution": "uniform",
+                # "distribution": "uniform",
+                "distribution": "log_uniform_values",
                 "min": 1e-6,
-                "max": 1e-2,
+                "max": 1e-1,
                 # "values": [1e-6, 1e-5, 1e-4, 3e-4, 1e-3, 1e-2]
                 # "values": [1e-5, 1e-4],
             },
@@ -92,7 +101,7 @@ def configure_sweep():
                 "distribution": "categorical",
                 # "min": 8,
                 # "max": 512,
-                "values": [8, 32, 64, 128, 512],  # all factors of n_steps to avoid batch truncation
+                "values": [32, 64, 128, 512],  # all factors of n_steps to avoid batch truncation
             },
             "n_epochs": {
                 "distribution": "int_uniform",
@@ -104,7 +113,7 @@ def configure_sweep():
                 "distribution": "categorical",
                 # "min": 0.02,
                 # "max": 0.8,
-                "values": [0.02, 0.1, 0.15, 0.2, 0.25, 0.3, 1, 2],
+                "values": [0.02, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5, 1, 2],
             },
         },
     }
@@ -127,3 +136,8 @@ if __name__ == "__main__":
 
     # Run the sweep:
     wandb.agent(sweep_id, function=partial(train_function, arguments.iterations))
+
+    # # To continue an unfinished sweep: use the old sweep ID and project name (can be found on the W&B platform)
+    # old_sweep_id = ""
+    # old_project_name = ""
+    # wandb.agent(old_sweep_id, project=old_project_name, function=partial(train_function, arguments.iterations))

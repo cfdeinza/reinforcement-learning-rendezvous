@@ -14,6 +14,21 @@ This file contains ideas that have not yet been implemented in the code.
 # Consider expanding the initial position range in the x and z directions.
 # (So the agent might learn the controls in those directions better. Right now its always close to zero)
 
+# How to rotate from reference frame to reference frame:
+    def rotate_lvlh2target(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Rotate a vector from the LVLH reference frame to the target reference frame.\n
+        :param vec: 3D vector to be rotated
+        :return: rotated vector
+        """
+        return np.matmul(quat2mat(self.qt).T, vec)
+
+# How to convert to successive rotations into 1 quaternion (useful when adding randomness to initial attitudes)
+
+    q_result = quat_product(q_first, q_second)
+
+    From: https://onlinelibrary.wiley.com/doi/pdf/10.1002/9780470682906.app4#:~:text=Quaternions%20can%20be%20used%20for,nature%20of%20three%2Ddimensional%20space.
+
 # Render: Display some sort of warning when the chaser enters the keep-out-zone. Draw a red circle:
 
     if self.absolute_position() < self.target_radius:

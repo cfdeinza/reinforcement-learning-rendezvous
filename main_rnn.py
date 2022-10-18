@@ -9,48 +9,20 @@ Written by C. F. De Inza Niemeijer.
 # import os
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
+from sb3_contrib import RecurrentPPO
+from torch.nn import Tanh
 from rendezvous_env import RendezvousEnv
-from custom.custom_att_env import Attitude
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from arguments import get_main_args
-from sb3_contrib import RecurrentPPO
 # from sb3_contrib.ppo_recurrent import MlpLstmPolicy
-
-
-def load_env(args):
-    """
-    Create an instance of the environment and wrap it in the required Gym wrappers.\n
-    :param args: Namespace containing arguments.
-    :return: Wrapped environment.
-    """
-
-    env = None
-
-    if args.env == 'rdv':
-        env = RendezvousEnv()
-        # env = Rendezvous3DOF()  # this works
-        # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-        # env = PendulumEnv()  # this has no 'done' condition
-        # env = gym.make('Pendulum-v1')  # this works
-    elif args.env == 'att':
-        env = Attitude()
-    elif args.env == '':
-        print('Need to specify an environment.\nExiting')
-        exit()
-    else:
-        print(f'Environment "{args.env}" not recognized.\nExiting')
-        exit()
-
-    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
-    env = Monitor(env)
-    env = DummyVecEnv([lambda: env])
-
-    return env
 
 
 def load_model(args, env):
     """
-    Load an existing PPO model if a valid file name is given. Otherwise, create a new PPO model.\n
+    Loads an existing Recurrent PPO model (a valid path must be specified), otherwise creates a new model.\n
+    :param args: arguments from the command-line.
+    :param env: Instance of the environment
+    :return: model
     """
 
     model_path = args.model
@@ -59,11 +31,13 @@ def load_model(args, env):
     if model_path == '':
         print('No model provided for training. Making new model...')
         model = RecurrentPPO(
-            policy="MlpLstmPolicy",
-            env=RendezvousEnv(),
+            policy="MlpLstmPolicy",     # Network used for the policy and value function
+            env=env,                    # environment where data is collected
+            n_steps=2048,               # default is 2048 (multiple of batch_size, which is 64 by default)
+            n_epochs=40,                # number of gradient descent steps per iteration
+            gamma=1,                    # discount factor
+            policy_kwargs={"activation_fn": Tanh},
             verbose=1,
-            n_steps=2048,  # default is 2048 (multiple of batch_size, which is 64 by default)
-            gamma=1,
         )
         """
         MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64, with tanh func).
@@ -106,6 +80,9 @@ def train(args, model):
     Train the model for a given number of time steps.
     Uses the EvalCallback to periodically evaluate and save the model.
     By default, it runs 5 episodes on each evaluation.\n
+    :param args: arguments from the command-line.
+    :param model: model to be trained
+    :return: None
     """
 
     steps = args.steps
@@ -118,6 +95,7 @@ def train(args, model):
                 reward_kwargs=None,
                 wandb_run=None,
                 save_name="rnn_model",
+                n_evals=5,
                 verbose=0,
             )
         else:
@@ -125,6 +103,7 @@ def train(args, model):
                 env=RendezvousEnv,
                 reward_kwargs=None,
                 save_name="rnn_model",
+                n_evals=5,
                 verbose=0,
             )
         print(f"The best model will be saved in {callback.save_path}")
@@ -157,8 +136,10 @@ def train(args, model):
 
 def main(args):
     """
-    Main function to run.
+    Main function to run when this file is executed.
     The arguments ("mode" and "model") are parsed from the command line.\n
+    :param args: arguments from the command-line.
+    :return: None
     """
 
     # Create an instance of the environment:

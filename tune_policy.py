@@ -69,7 +69,15 @@ def train_function(iterations):
         # total_timesteps = wandb.config["n_steps"] * iterations
         total_timesteps = model.n_steps * iterations
 
-        model.learn(total_timesteps=total_timesteps, callback=CustomWandbCallback(RendezvousEnv, wandb_run=run))
+        model.learn(
+            total_timesteps=total_timesteps,
+            callback=CustomWandbCallback(
+                env=RendezvousEnv,
+                reward_kwargs=None,
+                wandb_run=run,
+                save_name="net_tune_model",
+            )
+        )
 
     return
 
@@ -91,7 +99,7 @@ if __name__ == "__main__":
     # Set-up the sweep:
     wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
     sweep_configuration = {
-        "name": "test_sweep",           # name of the sweep (not the project)
+        "name": "network_sweep",           # name of the sweep (not the project)
         "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
             "name": "best_rew",
             "goal": "maximize",
@@ -128,6 +136,7 @@ if __name__ == "__main__":
     # Run the sweep:
     wandb.agent(sweep_id, function=partial(train_function, arguments.iterations))
 
-    # To continue an unfinished run: use the old sweep ID and project name.
-    # old_sweep_id = ""  # look at the the ID of the sweep on W&B
-    # wandb.agent(old_sweep_id, project=project_name, function=partial(train_function, arguments.iterations))
+    # # To continue an unfinished sweep: use the old sweep ID and project name (can be found on the W&B platform)
+    # old_sweep_id = ""
+    # old_project_name = ""
+    # wandb.agent(old_sweep_id, project=old_project_name, function=partial(train_function, arguments.iterations))

@@ -8,6 +8,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
+from torch.nn import Tanh
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from rendezvous_env import RendezvousEnv
 from arguments import get_main_args
@@ -16,10 +17,10 @@ from arguments import get_main_args
 
 def load_model(args, env):
     """
-    Load an existing PPO model if a valid file name is given. Otherwise, create a new PPO model.\n
+    Load an existing PPO model if a valid path is given. Otherwise, create a new PPO model.\n
     :param args: command-line arguments.
     :param env: gym environment.
-    :return: trained model.
+    :return: model.
     """
 
     model_path = args.model
@@ -27,10 +28,16 @@ def load_model(args, env):
 
     if model_path == '':
         print('No model provided for training. Making new model...')
-        n_steps = 2048  # num of steps per rollout  # each env does this amount of steps
-        gamma = 1
         # model = CustomPPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
-        model = PPO(MlpPolicy, env, n_steps=n_steps, gamma=gamma, verbose=1)
+        model = PPO(
+            policy=MlpPolicy,   # Network used for the Policy and Value function
+            env=env,            # environment where data is collected
+            n_steps=2048,       # num of steps per rollout  # each env does this amount of steps
+            n_epochs=40,        # number of gradient descent steps per iteration
+            gamma=1,            # discount factor
+            policy_kwargs={"activation_fn": Tanh},
+            verbose=1,
+        )
     else:
         print(f'Loading saved model "{model_path}"...', end=' ')
         try:
@@ -49,8 +56,8 @@ def train(args, model):
     Uses the EvalCallback to periodically evaluate and save the model.
     By default, it runs 5 episodes on each evaluation.\n
     :param args: command-line arguments.
-    :param model: PPO model.
-    :return:
+    :param model: PPO model to be trained.
+    :return: None
     """
 
     # model.wandb_start()
@@ -63,9 +70,19 @@ def train(args, model):
             callback = CustomWandbCallback(
                 env=RendezvousEnv,
                 reward_kwargs=None,
+                wandb_run=None,
+                save_name="mlp_model",
+                n_evals=5,
+                verbose=0,
             )   # Custom callback to track experiment with Weights & Biases
         else:
-            callback = CustomCallback(RendezvousEnv)        # Custom callback to save the best model
+            callback = CustomCallback(
+                env=RendezvousEnv,
+                reward_kwargs=None,
+                save_name="mlp_model",
+                n_evals=5,
+                verbose=0,
+            )   # Custom callback to save the best model
         print(f'The best model will be saved in {callback.save_path}')
     else:
         callback = None
@@ -81,14 +98,14 @@ def train(args, model):
 
 def main(args):
     """
-    Main function to run.
+    Main function to run when this file is executed.
     The arguments ("mode" and "model") are parsed from the command line.\n
     :param args: command-line arguments.
     :return: None
     """
 
     # Create an instance of the environment:
-    env = RendezvousEnv()
+    env = RendezvousEnv(reward_kwargs=None)
 
     # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
     env = Monitor(env)

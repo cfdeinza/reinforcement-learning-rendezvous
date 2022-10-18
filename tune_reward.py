@@ -64,7 +64,7 @@ def train_function(iterations):
         model.learn(
             total_timesteps=total_timesteps,
             callback=CustomWandbCallback(
-                RendezvousEnv,
+                env=RendezvousEnv,
                 reward_kwargs=reward_kwargs,
                 wandb_run=run,
                 save_name="rew_tune_model",
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 # "distribution": "uniform",
                 # "min": 0,
                 # "max": 1,
-                "values": [0.5],
+                "values": [0.5],  # [0, 0.1, 0.25, 0.5, 1]
             },
             "bonus_coef": {
                 # "distribution": "uniform",
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 # "distribution": "uniform",
                 # "min": 0,
                 # "max": 1,
-                "values": [0, 0.01, 0.1, 0.25, 0.5, 1]
+                "values": [0, 0.05, 0.1, 0.25, 0.5, 1],  # [0]
             },
         },
     }
@@ -127,3 +127,8 @@ if __name__ == "__main__":
 
     # Run the sweep:
     wandb.agent(sweep_id, function=partial(train_function, arguments.iterations))
+
+    # # To continue an unfinished sweep: use the old sweep ID and project name (can be found on the W&B platform)
+    # old_sweep_id = ""
+    # old_project_name = ""
+    # wandb.agent(old_sweep_id, project=old_project_name, function=partial(train_function, arguments.iterations))
