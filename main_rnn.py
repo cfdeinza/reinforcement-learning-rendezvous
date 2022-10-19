@@ -96,6 +96,8 @@ def train(args, model):
                 wandb_run=None,
                 save_name="rnn_model",
                 n_evals=5,
+                project=None,
+                run_id=None,
                 verbose=0,
             )
         else:
@@ -126,10 +128,10 @@ def train(args, model):
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
 
-    if save:  # Save the model when training is complete
-        last_model_path = './models/last_model.zip'
-        model.save(last_model_path)
-        print(f'Saved the last model to "{last_model_path}"')
+    # if save:  # Save the model when training is complete
+    #     last_model_path = './models/last_model.zip'
+    #     model.save(last_model_path)
+    #     print(f'Saved the last model to "{last_model_path}"')
 
     return
 

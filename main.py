@@ -73,6 +73,8 @@ def train(args, model):
                 wandb_run=None,
                 save_name="mlp_model",
                 n_evals=5,
+                project=None,
+                run_id=None,  # use this to resume a paused/crashed run
                 verbose=0,
             )   # Custom callback to track experiment with Weights & Biases
         else:

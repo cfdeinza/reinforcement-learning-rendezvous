@@ -28,11 +28,13 @@ class CustomWandbCallback(BaseCallback):
             self,
             env,
             wandb_run=None,
-            verbose=0,
             prev_best_rew=None,
-            save_name=None,
-            reward_kwargs=None,
-            n_evals=1,
+            save_name: str=None,
+            reward_kwargs: dict=None,
+            n_evals: int=1,
+            project: str=None,
+            run_id: str=None,
+            verbose: int=0,
     ):
         """
         Instantiate callback object.
@@ -51,7 +53,9 @@ class CustomWandbCallback(BaseCallback):
         :param prev_best_rew: previous best reward
         :param save_name: name of the zip file to save the best model in
         :param reward_kwargs: dictionary containing keyword arguments for the reward function
-        :param n_evals: number of episodes evaluated per rollout.
+        :param n_evals: number of episodes evaluated per rollout
+        :param project: name of the project where the run will be saved
+        :param run_id: id of the run to be resumed
         """
         super(CustomWandbCallback, self).__init__(verbose)
 
@@ -66,10 +70,14 @@ class CustomWandbCallback(BaseCallback):
         assert isinstance(n_evals, int), "The number of evaluations must be an integer"
         assert n_evals > 0, "The number of evaluations must be greater than zero."
         self.n_evals = n_evals
+        self.project = project
+        self.run_id = run_id
 
         # Attribute to track if the W&B run was initiated externally or by the callback:
         if wandb_run is not None:
             self.wandb_external_start = True
+            self.project = None  # Project is overridden if the run was started externally (e.g. by the tuning script)
+            self.run_id = None  # Do NOT try to resume a run if it was started externally (e.g. by the tuning script)
         else:
             self.wandb_external_start = False
 
@@ -104,13 +112,14 @@ class CustomWandbCallback(BaseCallback):
 
             # Initialize W&B run:
             self.wandb_run = wandb.init(
-                project=None,
+                project=self.project,
                 entity=None,
                 config=wandb_config,
                 job_type="Train",
                 name=None,
                 mode="online",
-                id=None,
+                id=self.run_id,
+                resume="must" if self.run_id is not None else "allow",  # raises an error if the run_id does not exist
             )
 
         pass
@@ -328,7 +337,15 @@ class CustomCallback(BaseCallback):
     current model is saved.\n
     """
 
-    def __init__(self, env, verbose=0, prev_best_rew=None, reward_kwargs=None, save_name=None, n_evals=1):
+    def __init__(
+            self,
+            env,
+            prev_best_rew=None,
+            reward_kwargs=None,
+            save_name=None,
+            n_evals=1,
+            verbose=0,
+    ):
         """
         Instantiate callback object.
         :param env: environment to use for evaluations
