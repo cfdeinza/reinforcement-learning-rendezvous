@@ -237,6 +237,33 @@ def quat_derivative(q, w):
     return q_dot
 
 
+def normalize_value(val, low, high, custom_range=None):
+    """
+    Normalize a value to [-1, 1], or to some custom range.\n
+    :param val: value(s) to normalize (can be an ndarray)
+    :param low: minimum bound for the un-normalized value
+    :param high: maximum bound for the un-normalized value
+    :param custom_range: some custom range [a, b] to normalize the value to
+    :return: normalized value
+    """
+    if custom_range is None:
+        custom_range = [-1, 1]
+
+    a, b = custom_range
+    norm_val = (b - a) * (val - low) / (high - low) + a
+
+    return norm_val
+
+
+def random_unit_vector() -> np.ndarray:
+    """
+    Generate a 3D unit vector pointed in a random direction (sampled from a uniform distribution).\n
+    :return: numpy array of shape (3,)
+    """
+    vec = np.random.uniform(low=-1, high=1, size=(3,))
+    return vec / np.linalg.norm(vec)
+
+
 def dydt(t, y, inertia, inv_inertia, torque):
     """
     Compute the derivative of the attitude and rotational rate of a rigid body.
@@ -265,24 +292,6 @@ def dydt(t, y, inertia, inv_inertia, torque):
     dy = np.append(q_dot, w_dot)
 
     return dy
-
-
-def normalize_value(val, low, high, custom_range=None):
-    """
-    Normalize a value to [-1, 1], or to some custom range.\n
-    :param val: value(s) to normalize (can be an ndarray)
-    :param low: minimum bound for the un-normalized value
-    :param high: maximum bound for the un-normalized value
-    :param custom_range: some custom range [a, b] to normalize the value to
-    :return: normalized value
-    """
-    if custom_range is None:
-        custom_range = [-1, 1]
-
-    a, b = custom_range
-    norm_val = (b - a) * (val - low) / (high - low) + a
-
-    return norm_val
 
 
 # Tests:

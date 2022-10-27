@@ -1,10 +1,9 @@
-import random
 import gym
 from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
 from utils.quaternions import quat2mat, rot2quat, quat_product  # quat2rot
-from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors
+from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors, random_unit_vector
 
 
 class RendezvousEnv(gym.Env):
@@ -45,8 +44,13 @@ class RendezvousEnv(gym.Env):
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
         self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
 
-        # Randomness of initial conditions:
-        self.target_attitude_range = np.radians(45)
+        # Range of initial conditions: (initial conditions are sampled uniformly from this range)
+        self.rc0_range = 0                  # 1   [m]
+        self.vc0_range = 0                  # 0.1 [m/s]
+        self.qc0_range = np.radians(0)      # 5   [deg]
+        self.wc0_range = np.radians(0)      # 3   [deg/s]
+        self.qt0_range = np.radians(45)     # 45  [deg]
+        self.wt0_range = np.radians(0)      # 3   [deg/s]
 
         # Time:
         self.t = None       # current time of episode [s]
@@ -209,30 +213,41 @@ class RendezvousEnv(gym.Env):
         :return: observation
         """
 
-        # TODO: randomize initial conditions
-        # Randomize the initial attitude of the target:
-        theta_t = random.uniform(0, self.target_attitude_range)
-        euler_t = 2 * np.random.rand(3) - 1
-        euler_t = euler_t / np.linalg.norm(euler_t)
-        qt_random = rot2quat(axis=euler_t, theta=theta_t)
-        qt0 = quat_product(self.nominal_qt0, qt_random)  # sequential rotations
-        # qt0 = rot2quat(axis=euler_t, theta=theta_t)
-        wt0 = np.matmul(quat2mat(qt0).T, np.array(self.nominal_wt0))  # convert wt0 to target body frame
+        # Generate random deviations for the state of the system:
+        # Chaser position:
+        rc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.rc0_range)
 
-        self.rc = self.nominal_rc0
-        self.vc = self.nominal_vc0
-        self.qc = self.nominal_qc0
-        self.wc = self.nominal_wc0
-        # self.qt = self.nominal_qt0
-        # self.wt = self.nominal_wt0
-        self.qt = qt0
-        self.wt = wt0
-        # print(f"qt: {quat2rot(self.qt)}")
+        # Chaser velocity:
+        vc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.vc0_range)
 
+        # Chaser attitude:
+        theta_c = np.random.uniform(low=0, high=self.qc0_range)
+        euler_c = random_unit_vector()
+        qc_deviation = rot2quat(axis=euler_c, theta=theta_c)
+
+        # Chaser rotation rate:
+        wc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.wc0_range)  # Expressed in LVLH
+
+        # Target attitude:
+        theta_t = np.random.uniform(low=0, high=self.qt0_range)
+        euler_t = random_unit_vector()
+        qt_deviation = rot2quat(axis=euler_t, theta=theta_t)
+
+        # Target rotation rate:
+        wt0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.wt0_range)  # Expressed in LVLH
+
+        # Apply randomness to nominal initial conditions:
+        self.rc = self.nominal_rc0 + rc0_deviation
+        self.vc = self.nominal_vc0 + vc0_deviation
+        self.qc = quat_product(self.nominal_qc0, qc_deviation)    # apply sequential rotation (first nominal, then dev)
+        self.wc = self.lvlh2chaser(self.nominal_wc0 + wc0_deviation)  # convert wc0 from LVLH to chaser body frame
+        self.qt = quat_product(self.nominal_qt0, qt_deviation)    # apply sequential rotation (first nominal, then dev)
+        self.wt = self.lvlh2target(self.nominal_wt0 + wt0_deviation)  # convert wt0 from LVLH to target body frame
+
+        # Reset time and other parameters:
         self.collided = self.check_collision()
         self.success = self.check_success()
-        # self.bubble_radius = np.linalg.norm(self.rc) + self.koz_radius
-        self.bubble_radius = self.max_axial_distance
+        self.bubble_radius = self.max_axial_distance  # OR: np.linalg.norm(self.rc) + self.koz_radius
         self.total_delta_v = 0
         self.total_delta_w = 0
         self.t = 0
@@ -481,6 +496,36 @@ class RendezvousEnv(gym.Env):
         rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
 
         return np.array([pos_error, vel_error, att_error, rot_error])
+
+    def lvlh2chaser(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the LVLH frame into the chaser body frame.\n
+        :param vec: 3D vector expressed in the LVLH frame
+        :return: same vector expressed in the chaser body frame
+        """
+        assert self.qc is not None, "Cannot convert vector to chaser body frame. Chaser attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qc).T, vec)
+
+    def lvlh2target(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the LVLH frame into the Target Body (TB) frame.\n
+        :param vec: 3D vector expressed in the LVLH frame
+        :return: same vector expressed in the TB frame
+        """
+        assert self.qt is not None, "Cannot convert vector to target body frame. Target attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qt).T, vec)
+
+    # def tb2lvlh(self, vec):
+    #     """
+    #     Convert a vector from the Target Body (TB) frame into the LVLH frame.\n
+    #     :param vec: 3D vector expressed in the TB frame
+    #     :return: same vector expressed in the LVLH frame
+    #     """
+    #     assert self.qt is not None, "Cannot convert vector to TB frame. Target attitude is undefined."
+    #     assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+    #     return np.matmul(quat2mat(self.qt), vec)
 
     def integrate_chaser_attitude(self, torque):
         """
