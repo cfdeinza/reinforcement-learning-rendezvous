@@ -26,6 +26,10 @@ def load_model(args, env):
     model_path = args.model
     model = None
 
+    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
+    env = Monitor(env)
+    env = DummyVecEnv([lambda: env])
+
     if model_path == '':
         print('No model provided for training. Making new model...')
         # model = CustomPPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
@@ -50,26 +54,48 @@ def load_model(args, env):
     return model
 
 
-def train(args, model):
+def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
     """
-    Train the model for a given number of time steps.
-    Uses the EvalCallback to periodically evaluate and save the model.
-    By default, it runs 5 episodes on each evaluation.\n
-    :param args: command-line arguments.
-    :param model: PPO model to be trained.
-    :return: None
+    Creates an instance of the Rendezvous environment.\n
+    :param reward_kwargs: dictionary containing keyword arguments for the reward function
+    :param quiet: `True` to supress printed outputs, `False` to print outputs
+    :return:
     """
 
-    # model.wandb_start()
+    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
+
+    return env
+
+
+def main(args):
+    """
+    Main function to run when this script is executed.\n
+    - Creates the environments for training and evaluation\n
+    - Creates/loads an MLP model\n
+    - Trains the model for a given number of time steps.\n
+    - Uses a custom callback to periodically evaluate and save the model.\n
+    :param args: command-line arguments.
+    :return: None
+    """
 
     steps = args.steps
     save = not args.nosave
 
+    # Make envs:
+    reward_kwargs = None
+    train_env = make_env(reward_kwargs, quiet=False)
+    eval_env = make_env(reward_kwargs, quiet=False)
+    if reward_kwargs is None:
+        print("Note: reward_kwargs have not been defined. Using default values.")
+
+    # Load/create model:
+    model = load_model(args, env=train_env)
+
+    # Set-up the callback function:
     if save:
         if args.wandb:
             callback = CustomWandbCallback(
-                env=RendezvousEnv,
-                reward_kwargs=None,
+                env=eval_env,
                 wandb_run=None,
                 save_name="mlp_model",
                 n_evals=5,
@@ -79,8 +105,7 @@ def train(args, model):
             )   # Custom callback to track experiment with Weights & Biases
         else:
             callback = CustomCallback(
-                env=RendezvousEnv,
-                reward_kwargs=None,
+                env=eval_env,
                 save_name="mlp_model",
                 n_evals=5,
                 verbose=0,
@@ -90,36 +115,11 @@ def train(args, model):
         callback = None
         print(f'Note: The model will NOT be saved.')
 
+    # Train the model:
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
 
-    # model.wandb_end()
-
     return
-
-
-def main(args):
-    """
-    Main function to run when this file is executed.
-    The arguments ("mode" and "model") are parsed from the command line.\n
-    :param args: command-line arguments.
-    :return: None
-    """
-
-    # Create an instance of the environment:
-    env = RendezvousEnv(reward_kwargs=None)
-
-    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
-    env = Monitor(env)
-    env = DummyVecEnv([lambda: env])
-
-    # Load/create the model:
-    model = load_model(args, env)
-
-    # Train the model:
-    train(args, model)
-
-    pass
 
 
 if __name__ == '__main__':

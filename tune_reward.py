@@ -36,6 +36,19 @@ def make_model(policy, env, config):
     return model
 
 
+def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
+    """
+    Creates an instance of the Rendezvous environment.\n
+    :param reward_kwargs: dictionary containing keyword arguments for the reward function
+    :param quiet: `True` to supress printed outputs, `False` to print outputs
+    :return:
+    """
+
+    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
+
+    return env
+
+
 def train_function(iterations):
     """
     Function that will be executed on each run of the sweep.
@@ -52,7 +65,14 @@ def train_function(iterations):
             "fuel_coef": wandb.config["fuel_coef"],
         }
 
-        model = make_model(MlpPolicy, RendezvousEnv(quiet=True, reward_kwargs=reward_kwargs), config=wandb.config)
+        # Make environments:
+        train_env = make_env(reward_kwargs, quiet=True)
+        eval_env = make_env(reward_kwargs, quiet=False)
+        if reward_kwargs is None:
+            print("Note: reward_kwargs have not been defined. Using default values")
+
+        # model = make_model(MlpPolicy, RendezvousEnv(quiet=True, reward_kwargs=reward_kwargs), config=wandb.config)
+        model = make_model(MlpPolicy, train_env, config=wandb.config)
         # Check that the hyperparameters have been updated:
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
@@ -64,8 +84,7 @@ def train_function(iterations):
         model.learn(
             total_timesteps=total_timesteps,
             callback=CustomWandbCallback(
-                env=RendezvousEnv,
-                reward_kwargs=reward_kwargs,
+                env=eval_env,
                 wandb_run=run,
                 save_name="rew_tune_model",
             )

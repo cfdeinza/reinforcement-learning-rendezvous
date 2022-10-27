@@ -209,7 +209,11 @@ if __name__ == '__main__':
     # arguments.save = True
     # arguments.render = True
 
-    environment = RendezvousEnv()
+    reward_kwargs = None
+    environment = RendezvousEnv(reward_kwargs=reward_kwargs)
+    if reward_kwargs is None:
+        print("Note: reward_kwargs have not been defined. Using default values.")
+
     # environment.dt = 0.1  # you can set a new time interval here
     # environment = load_env(arguments)
     saved_model = load_model(path=arguments.model, env=environment)

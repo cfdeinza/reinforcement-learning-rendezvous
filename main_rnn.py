@@ -28,15 +28,32 @@ def load_model(args, env):
     model_path = args.model
     model = None
 
+    # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
+    env = Monitor(env)
+    env = DummyVecEnv([lambda: env])
+
     if model_path == '':
         print('No model provided for training. Making new model...')
+        policy_kwargs = {
+            "net_arch": None,
+            "activation_fn": Tanh,
+            "lstm_hidden_size": 256,    # number of hidden units for each LSTM layer
+            "n_lstm_layers": 1,         # number of LSTM layers
+            "shared_lstm": False,       # whether the LSTM is shared between the actor and the critic
+            "lstm_kwargs": None,        # additional kwargs for LSTM constructor
+            # https://sb3-contrib.readthedocs.io/en/master/modules/ppo_recurrent.html#recurrentppo-policies
+            # https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html
+        }
         model = RecurrentPPO(
             policy="MlpLstmPolicy",     # Network used for the policy and value function
             env=env,                    # environment where data is collected
-            n_steps=2048,               # default is 2048 (multiple of batch_size, which is 64 by default)
-            n_epochs=40,                # number of gradient descent steps per iteration
+            n_steps=128,                # default is 128
+            batch_size=128,
+            learning_rate=3e-4,
+            clip_range=0.2,
+            n_epochs=10,                # number of gradient descent steps per iteration
             gamma=1,                    # discount factor
-            policy_kwargs={"activation_fn": Tanh},
+            policy_kwargs=policy_kwargs,
             verbose=1,
         )
         """
@@ -75,24 +92,52 @@ def lr_schedule(initial_value: float):
     return func
 
 
-def train(args, model):
+def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
     """
-    Train the model for a given number of time steps.
-    Uses the EvalCallback to periodically evaluate and save the model.
-    By default, it runs 5 episodes on each evaluation.\n
-    :param args: arguments from the command-line.
-    :param model: model to be trained
+    Creates an instance of the Rendezvous environment.\n
+    :param reward_kwargs: dictionary containing keyword arguments for the reward function
+    :param quiet: `True` to supress printed outputs, `False` to print outputs
+    :return:
+    """
+
+    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
+    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
+    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
+    # env = Rendezvous3DOF()  # this works
+    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
+
+    return env
+
+
+def main(args):
+    """
+    Main function to run when this script is executed.\n
+    - Creates the environments for training and evaluation\n
+    - Creates/loads an RNN model\n
+    - Trains the model for a given number of time steps.\n
+    - Uses a custom callback to periodically evaluate and save the model.\n
+    :param args: command-line arguments.
     :return: None
     """
 
     steps = args.steps
     save = not args.nosave
 
+    # Make envs:
+    reward_kwargs = None
+    train_env = make_env(reward_kwargs, quiet=False)
+    eval_env = make_env(reward_kwargs, quiet=False)
+    if reward_kwargs is None:
+        print("Note: reward_kwargs have not been defined. Using default values.")
+
+    # Load/create model:
+    model = load_model(args, env=train_env)
+
+    # Set-up the callback function:
     if save:
         if args.wandb:
             callback = CustomWandbCallback(
-                env=RendezvousEnv,
-                reward_kwargs=None,
+                env=eval_env,
                 wandb_run=None,
                 save_name="rnn_model",
                 n_evals=5,
@@ -102,8 +147,7 @@ def train(args, model):
             )
         else:
             callback = CustomCallback(
-                env=RendezvousEnv,
-                reward_kwargs=None,
+                env=eval_env,
                 save_name="rnn_model",
                 n_evals=5,
                 verbose=0,
@@ -112,53 +156,12 @@ def train(args, model):
     else:
         callback = None
         print(f"Note. The model will NOT be saved.")
-        # eval_env = model.env
-        # n_envs = eval_env.num_envs
-        #
-        # callback = EvalCallback(
-        #     eval_env,  # Environment used for evaluation (must be identical to the training environment)
-        #     best_model_save_path='./models/',  # Path to the folder where the best model is saved (best_model.zip)
-        #     log_path='./logs/',         # Path to the folder where the the evaluations info is saved (evaluations.npz)
-        #     n_eval_episodes=1,          # Number of episodes tested in each evaluation
-        #     eval_freq=10000/n_envs,     # Time steps between evaluations
-        #     deterministic=True,         # Stochastic or deterministic actions used for evaluations
-        #     render=args.render          # Render the evaluations
-        # )
-        # print(f'The best model will be saved in {callback.save_path}')
+
+    # Train the model:
     print('Training...')
     model.learn(total_timesteps=steps, callback=callback)
 
-    # if save:  # Save the model when training is complete
-    #     last_model_path = './models/last_model.zip'
-    #     model.save(last_model_path)
-    #     print(f'Saved the last model to "{last_model_path}"')
-
     return
-
-
-def main(args):
-    """
-    Main function to run when this file is executed.
-    The arguments ("mode" and "model") are parsed from the command line.\n
-    :param args: arguments from the command-line.
-    :return: None
-    """
-
-    # Create an instance of the environment:
-    env = RendezvousEnv(reward_kwargs=None)
-    env = Monitor(env)
-    env = DummyVecEnv([lambda: env])
-    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
-    # env = Rendezvous3DOF()  # this works
-    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-
-    # args.model = 'PPO_model'
-    model = load_model(args, env)  # Load/create the model
-
-    train(args, model)
-
-    pass
 
 
 if __name__ == '__main__':

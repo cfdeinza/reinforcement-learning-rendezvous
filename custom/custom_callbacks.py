@@ -30,7 +30,6 @@ class CustomWandbCallback(BaseCallback):
             wandb_run=None,
             prev_best_rew=None,
             save_name: str=None,
-            reward_kwargs: dict=None,
             n_evals: int=1,
             project: str=None,
             run_id: str=None,
@@ -52,7 +51,6 @@ class CustomWandbCallback(BaseCallback):
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
         :param save_name: name of the zip file to save the best model in
-        :param reward_kwargs: dictionary containing keyword arguments for the reward function
         :param n_evals: number of episodes evaluated per rollout
         :param project: name of the project where the run will be saved
         :param run_id: id of the run to be resumed
@@ -63,7 +61,6 @@ class CustomWandbCallback(BaseCallback):
         self.wandb_run = wandb_run
         self.prev_best_rew = prev_best_rew
         self.best_results = None  # Dictionary that records the best result of the current run.
-        self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
         if save_name is None:
             save_name = "best_model"
         self.save_path = os.path.join("models", save_name)
@@ -117,7 +114,7 @@ class CustomWandbCallback(BaseCallback):
                 config=wandb_config,
                 job_type="Train",
                 name=None,
-                mode="online",
+                mode="online",  # Use "disabled" for testing
                 id=self.run_id,
                 resume="must" if self.run_id is not None else "allow",  # raises an error if the run_id does not exist
             )
@@ -205,33 +202,30 @@ class CustomWandbCallback(BaseCallback):
         """
 
         model = self.model
-        # Make an instance of the environment with the given arguments:
-        # env = self.env(**{"reward_kwargs": self.reward_kwargs})
-        env = self.env(reward_kwargs=self.reward_kwargs)
-        # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
 
-        ep_rews = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_end_times = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_dists = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_delta_vs = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_delta_ws = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_successes = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_collision_percentages = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_times_of_first_collision = np.zeros(shape=(self.n_evals,)) * np.nan
-        ep_min_pos_errors = np.zeros(shape=(self.n_evals,)) * np.nan
+        # Make arrays to record results of each evaluation:
+        ep_rews = np.zeros(shape=(self.n_evals,)) * np.nan  # reward achieved throughout the episode
+        ep_end_times = np.zeros(shape=(self.n_evals,)) * np.nan  # time at which the episode ended
+        ep_dists = np.zeros(shape=(self.n_evals,)) * np.nan  # minimum distance of the chaser to the origin
+        ep_delta_vs = np.zeros(shape=(self.n_evals,)) * np.nan  # Delta V used throughout the episode
+        ep_delta_ws = np.zeros(shape=(self.n_evals,)) * np.nan  # Delta omega used throughout the episode
+        ep_successes = np.zeros(shape=(self.n_evals,)) * np.nan  # Num of timesteps where chaser achieved final conds.
+        ep_collision_percentages = np.zeros(shape=(self.n_evals,)) * np.nan  # Percentage of steps where chaser collided
+        ep_times_of_first_collision = np.zeros(shape=(self.n_evals,)) * np.nan  # Time of first collision
+        ep_min_pos_errors = np.zeros(shape=(self.n_evals,)) * np.nan  # Minimum chaser position error (w/o colliding)
 
         for i in range(self.n_evals):
-            obs = env.reset()
+            obs = self.env.reset()
             total_reward = 0
-            chaser_in_koz = env.check_collision()
+            chaser_in_koz = self.env.check_collision()
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
-                time_of_first_collision = env.t  # records the time at which the first collision occurs
+                time_of_first_collision = self.env.t  # records the time at which the first collision occurs
                 min_pos_error = -1  # records the minimum position error achieved by the chaser without entering the KOZ
             else:
                 collisions = 0
                 time_of_first_collision = -1  # Using -1 instead of None (so that W&B can record it properly)
-                min_pos_error = env.get_pos_error(env.get_goal_pos())
+                min_pos_error = self.env.get_pos_error(self.env.get_goal_pos())
             lstm_states = None
             ep_start = np.ones(shape=(1,), dtype=bool)
             done = False
@@ -247,34 +241,29 @@ class CustomWandbCallback(BaseCallback):
                 )
 
                 # Step forward in time:
-                obs, reward, done, info = env.step(action)
+                obs, reward, done, info = self.env.step(action)
                 ep_start[0] = done
 
                 # Add current reward to the total:
                 total_reward += reward
-                chaser_in_koz = env.check_collision()
+                chaser_in_koz = self.env.check_collision()
                 if chaser_in_koz:
                     collisions += 1
                     if time_of_first_collision == -1:
-                        time_of_first_collision = env.t
+                        time_of_first_collision = self.env.t
                 else:
                     if time_of_first_collision == -1:
-                        min_pos_error = min(min_pos_error, env.get_pos_error(env.get_goal_pos()))
+                        min_pos_error = min(min_pos_error, self.env.get_pos_error(self.env.get_goal_pos()))
 
-            end_time = env.t
-            steps = end_time/env.dt
-            # collision_percentage = collisions / steps * 100
-            # final_dist = np.linalg.norm(env.rc)
-            # total_delta_v = env.total_delta_v
-            # total_delta_w = env.total_delta_w
-            # success = env.success
+            end_time = self.env.t
+            steps = end_time / self.env.dt
             print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
             ep_rews[i] = total_reward
             ep_end_times[i] = end_time
-            ep_dists[i] = np.linalg.norm(env.rc)
-            ep_delta_vs[i] = env.total_delta_v
-            ep_delta_ws[i] = env.total_delta_w
-            ep_successes[i] = env.success
+            ep_dists[i] = np.linalg.norm(self.env.rc)
+            ep_delta_vs[i] = self.env.total_delta_v
+            ep_delta_ws[i] = self.env.total_delta_w
+            ep_successes[i] = self.env.success
             ep_collision_percentages[i] = collisions / steps * 100
             ep_times_of_first_collision[i] = time_of_first_collision
             ep_min_pos_errors[i] = min_pos_error
@@ -341,7 +330,7 @@ class CustomCallback(BaseCallback):
             self,
             env,
             prev_best_rew=None,
-            reward_kwargs=None,
+            # reward_kwargs=None,  # dict with keyword arguments for the reward function
             save_name=None,
             n_evals=1,
             verbose=0,
@@ -351,7 +340,6 @@ class CustomCallback(BaseCallback):
         :param env: environment to use for evaluations
         :param verbose: 0 for no output, 1 for info, 2 for debug
         :param prev_best_rew: previous best reward
-        :param reward_kwargs: dict with keyword arguments for the reward function
         :param save_name: name of the file where the best model will be saved
         :param n_evals: number of episodes evaluated
         """
@@ -360,7 +348,7 @@ class CustomCallback(BaseCallback):
         self.env = env
         self.prev_best_rew = prev_best_rew
         self.best_model_save_dir = os.path.join(".", "models")  # Directory where the best model will be saved
-        self. reward_kwargs = {} if reward_kwargs is None else reward_kwargs
+        # self. reward_kwargs = {} if reward_kwargs is None else reward_kwargs
         if save_name is None:
             save_name = "best_model"
         self.save_path = os.path.join("models", save_name)
@@ -429,14 +417,14 @@ class CustomCallback(BaseCallback):
         """
 
         model = self.model
-        env = self.env(reward_kwargs=self.reward_kwargs)
+        # env = self.env(reward_kwargs=self.reward_kwargs)
         # env = self.training_env.envs[0].env  # I'm worried this might affect the environment used for training
 
         print("Evaluating...")
         ep_rews = np.zeros(shape=(self.n_evals,)) * np.nan
         ep_end_times = np.zeros(shape=(self.n_evals,)) * np.nan
         for i in range(self.n_evals):
-            obs = env.reset()
+            obs = self.env.reset()
             total_reward = 0
             lstm_states = None
             ep_start = np.ones(shape=(1,), dtype=bool)
@@ -453,13 +441,13 @@ class CustomCallback(BaseCallback):
                 )
 
                 # Step forward in time:
-                obs, reward, done, info = env.step(action)
+                obs, reward, done, info = self.env.step(action)
                 ep_start[0] = done
 
                 # Add current reward to the total:
                 total_reward += reward
 
-            end_time = env.t
+            end_time = self.env.t
             print(f'Episode complete. Total reward = {round(total_reward, 2)} at {end_time}')
             ep_rews[i] = total_reward
             ep_end_times[i] = end_time
