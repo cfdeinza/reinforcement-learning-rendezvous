@@ -1,6 +1,7 @@
 import wandb
-from stable_baselines3.ppo import PPO
-from stable_baselines3.ppo.policies import MlpPolicy
+# from stable_baselines3.ppo import PPO
+# from stable_baselines3.ppo.policies import MlpPolicy
+from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import Tanh  # ReLU, Sigmoid, Tanh
@@ -21,12 +22,21 @@ def make_model(policy, env, config):
 
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
-    policy_kwargs = {"activation_fn": Tanh}
-    model = PPO(
+    policy_kwargs = {
+        "activation_fn": Tanh,      # Default: Tanh
+        "lstm_hidden_size": 256,    # Default: 256
+        "n_lstm_layers": 1,         # Default: 1
+        "shared_lstm": False,       # Default: False
+    }
+    model = RecurrentPPO(
         policy,
         env,
-        # gamma=config["gamma"],
-        gamma=1,
+        learning_rate=3e-4,     # Default: 3e-4 for MLP and RNN
+        n_steps=2048,           # Default: 2048 for MLP, 128 for RNN
+        batch_size=128,         # Default: 64 for MLP, 128 for RNN
+        n_epochs=10,            # Default: 10 for MLP and RNN
+        clip_range=0.2,         # Default: 0.2 for MLP and RNN
+        gamma=0.99,             # Default: 0.99 for MLP and RNN
         policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
@@ -59,23 +69,19 @@ def train_function(iterations):
 
         # print(f"Starting Weights & Biases run. ID: {run.id}")
 
+        # Make environments:
         reward_kwargs = {
             "collision_coef": wandb.config["collision_coef"],
             "bonus_coef": wandb.config["bonus_coef"],
             "fuel_coef": wandb.config["fuel_coef"],
         }
-
-        # Make environments:
         train_env = make_env(reward_kwargs, quiet=True)
         eval_env = make_env(reward_kwargs, quiet=False)
         if reward_kwargs is None:
             print("Note: reward_kwargs have not been defined. Using default values")
 
         # model = make_model(MlpPolicy, RendezvousEnv(quiet=True, reward_kwargs=reward_kwargs), config=wandb.config)
-        model = make_model(MlpPolicy, train_env, config=wandb.config)
-        # Check that the hyperparameters have been updated:
-        # print(f"learning_rate: {model.learning_rate}")
-        # print(f"clip_range: {model.clip_range(1)}")
+        model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
 
         # every run will have the same number of rollout-optimization loops
         # total_timesteps = wandb.config["n_steps"] * iterations
@@ -86,38 +92,27 @@ def train_function(iterations):
             callback=CustomWandbCallback(
                 env=eval_env,
                 wandb_run=run,
-                save_name="rew_tune_model",
+                save_name="rew_tune_model",  # name of the file where the best model will be saved
             )
         )
 
     return
 
 
-# hyperparameter_defaults = {
-#     "learning_rate": 3e-4,
-#     "clip_range": 0.2,
-# }
+def configure_sweep():
+    """
+    Create the dictionary used to configure the sweep.\n
+    :return: configuration dictionary
+    """
 
-
-if __name__ == "__main__":
-
-    # Get arguments:
-    arguments = get_tune_args()
-    arguments.iterations = 486  # 250
-    project_name = arguments.project
-    if project_name == "":
-        project_name = "rew_sweep"
-
-    # Set-up the sweep:
-    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
-    sweep_configuration = {
+    sweep_config = {
         "name": "reward_sweep",  # name of the sweep (not the project)
-        "metric": {              # metric to optimize, has to be logged with `wandb.log()`
+        "metric": {  # metric to optimize, has to be logged with `wandb.log()`
             "name": "best_rew",
             "goal": "maximize",
         },
-        "method": "grid",             # search method ("grid", "random", or "bayes")
-        "parameters": {                 # parameters to sweep through
+        "method": "grid",  # search method ("grid", "random", or "bayes")
+        "parameters": {  # parameters to sweep through
             # "gamma": {                  # discount factor
             #     "distribution": "categorical",
             #     "values": [0.8, 0.9, 0.99, 1]
@@ -142,6 +137,22 @@ if __name__ == "__main__":
             },
         },
     }
+
+    return sweep_config
+
+
+if __name__ == "__main__":
+
+    # Get arguments:
+    arguments = get_tune_args()
+    arguments.iterations = 486  # 250
+    project_name = arguments.project
+    if project_name == "":
+        project_name = "rew_sweep"
+
+    # Set-up the sweep:
+    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
+    sweep_configuration = configure_sweep()
     sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 
     # Run the sweep:

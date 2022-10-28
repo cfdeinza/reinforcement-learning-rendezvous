@@ -1,8 +1,10 @@
 import wandb
-from stable_baselines3.ppo import PPO
-from stable_baselines3.ppo.policies import MlpPolicy
+# from stable_baselines3.ppo import PPO
+# from stable_baselines3.ppo.policies import MlpPolicy
+from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
+from torch.nn import Tanh
 from rendezvous_env import RendezvousEnv
 from custom.custom_callbacks import CustomWandbCallback
 from arguments import get_tune_args
@@ -20,15 +22,22 @@ def make_model(policy, env, config):
 
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
-    model = PPO(
+    policy_kwargs = {
+        "activation_fn": Tanh,      # Default: Tanh
+        "lstm_hidden_size": 256,    # Default: 256
+        "n_lstm_layers": 1,         # Default: 1
+        "shared_lstm": False,       # Default: False
+        }
+    model = RecurrentPPO(
         policy,
         env,
-        learning_rate=config["learning_rate"],
-        # n_steps=config["n_steps"],
-        n_steps=2048,
-        batch_size=config["batch_size"],
-        n_epochs=config["n_epochs"],
-        clip_range=config["clip_range"],
+        learning_rate=config["learning_rate"],  # Default: 3e-4 for MLP and RNN
+        n_steps=2048,                           # Default: 2048 for MLP, 128 for RNN
+        batch_size=config["batch_size"],        # Default: 64 for MLP, 128 for RNN
+        n_epochs=config["n_epochs"],            # Default: 10 for MLP and RNN
+        clip_range=config["clip_range"],        # Default: 0.2 for MLP and RNN
+        gamma=0.99,                             # Default: 0.99 for MLP and RNN
+        policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
         verbose=1,
@@ -67,7 +76,7 @@ def train_function(iterations):
         if reward_kwargs is None:
             print("Note: reward_kwargs have not been defined. Using default values")
 
-        model = make_model(MlpPolicy, train_env, config=wandb.config)
+        model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
         # Check that the hyperparameters have been updated:
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
@@ -81,7 +90,7 @@ def train_function(iterations):
             callback=CustomWandbCallback(
                 env=eval_env,
                 wandb_run=run,
-                save_name="alg_tune_model",
+                save_name="alg_tune_model",  # name of the file where the best model will be saved
             )
         )
 

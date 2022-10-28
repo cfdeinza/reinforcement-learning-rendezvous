@@ -1,6 +1,11 @@
+"""
+A script to tune the policy (actor and critic networks) using a Weights&Biases sweep.
+"""
+
 import wandb
-from stable_baselines3.ppo import PPO
-from stable_baselines3.ppo.policies import MlpPolicy
+# from stable_baselines3.ppo import PPO
+# from stable_baselines3.ppo.policies import MlpPolicy
+from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import ReLU, Sigmoid, Tanh
@@ -24,11 +29,13 @@ def make_model(policy, env, config):
     net = [config["n_neurons"]] * config["n_layers"]
     activations = {"ReLU": ReLU, "Sigmoid": Sigmoid, "Tanh": Tanh}
     policy_kwargs = {
-        # "net_arch": config["net_arch"],
         "net_arch": [dict(vf=net, pi=net)],
-        "activation_fn": activations[config["activation_fn"]],
+        "activation_fn": activations[config["activation_fn"]],  # Default: Tanh
+        "lstm_hidden_size": config["lstm_hidden_size"],         # Default: 256
+        "n_lstm_layers": config["n_lstm_layers"],               # Default: 1
+        "shared_lstm": bool(config["shared_lstm"]),             # Default: False
     }
-    model = PPO(
+    model = RecurrentPPO(
         policy,
         env,
         # learning_rate=config["learning_rate"],
@@ -36,11 +43,12 @@ def make_model(policy, env, config):
         # batch_size=config["batch_size"],
         # n_epochs=config["n_epochs"],
         # clip_range=config["clip_range"],
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=64,
-        n_epochs=10,
-        clip_range=0.2,
+        learning_rate=3e-4,     # Default: 3e-4 for MLP and RNN
+        n_steps=2048,           # Default: 2048 for MLP, 128 for RNN
+        batch_size=128,         # Default: 64 for MLP, 128 for RNN
+        n_epochs=10,            # Default: 10 for MLP and RNN
+        clip_range=0.2,         # Default: 0.2 for MLP and RNN
+        gamma=0.99,             # Default: 0.99 for MLP and RNN
         policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
         seed=0,
@@ -80,7 +88,7 @@ def train_function(iterations):
         if reward_kwargs is None:
             print("Note: reward_kwargs have not been defined. Using default values")
 
-        model = make_model(MlpPolicy, train_env, config=wandb.config)
+        model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
         # Check that the hyperparameters have been updated:
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
@@ -94,37 +102,27 @@ def train_function(iterations):
             callback=CustomWandbCallback(
                 env=eval_env,
                 wandb_run=run,
-                save_name="net_tune_model",
+                save_name="net_tune_model",  # name of the file where the best model will be saved
             )
         )
 
     return
 
 
-# hyperparameter_defaults = {
-#     "learning_rate": 3e-4,
-#     "clip_range": 0.2,
-# }
+def configure_sweep():
+    """
+    Create the dictionary used to configure the sweep.\n
+    :return: configuration dictionary
+    """
 
-
-if __name__ == "__main__":
-
-    arguments = get_tune_args()
-    arguments.iterations = 100
-    project_name = arguments.project
-    if project_name == "":
-        project_name = "net_sweep"
-
-    # Set-up the sweep:
-    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
-    sweep_configuration = {
-        "name": "network_sweep",           # name of the sweep (not the project)
-        "metric": {                     # metric to optimize, has to be logged with `wandb.log()`
+    sweep_config = {
+        "name": "network_sweep",  # name of the sweep (not the project)
+        "metric": {  # metric to optimize, has to be logged with `wandb.log()`
             "name": "best_rew",
             "goal": "maximize",
         },
-        "method": "grid",               # search method ("grid", "random", or "bayes")
-        "parameters": {                 # parameters to sweep through
+        "method": "grid",  # search method ("grid", "random", or "bayes")
+        "parameters": {  # parameters to sweep through
             # "learning_rate": {"values": [3e-4]},
             # "n_steps": {"values": [2048]},
             # "batch_size": {"values": [64]},
@@ -140,16 +138,40 @@ if __name__ == "__main__":
             #     ],
             # },
             "n_layers": {
-                "values": [2, 3, 4],
+                "values": [2, 3, 4],            # Default is 2
             },
             "n_neurons": {
-                "values": [16, 32, 64],
+                "values": [16, 32, 64],         # Default is 64
             },
             "activation_fn": {
                 "values": ["ReLU", "Sigmoid", "Tanh"],
+            },
+            "lstm_hidden_size": {
+                "values": [32, 64, 128, 256],   # Default is 256
+            },
+            "n_lstm_layers": {
+                "values": [1, 2, 3],            # Default is 1
+            },
+            "shared_lstm": {
+                "values": [0, 1]                # Default is False
             }
         },
     }
+
+    return sweep_config
+
+
+if __name__ == "__main__":
+
+    arguments = get_tune_args()
+    arguments.iterations = 250  # 100
+    project_name = arguments.project
+    if project_name == "":
+        project_name = "net_sweep"
+
+    # Set-up the sweep:
+    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
+    sweep_configuration = configure_sweep()
     sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 
     # Run the sweep:
