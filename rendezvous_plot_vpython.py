@@ -39,6 +39,7 @@ def make_animation(args, data=None):
     else:
         assert isinstance(data, dict), "parameter 'data' must be a dictionary"
     rc = data['rc']                     # chaser position [m]
+    vc = data['vc']                     # chaser velocity [m]
     qc = data['qc']                     # chaser attitude
     qt = data['qt']                     # target attitude
     t = data['t'][0]                    # time [s]
@@ -48,9 +49,11 @@ def make_animation(args, data=None):
     # Resampling: resample the data to display the animation in real time
     print("Resampling data to match FPS".ljust(40, "."), end=" ")
     fps = 30  # frames per second
+    fast_forward = 1  # how much to speed-up the animation
     # fps = 1 / data['dt']
-    new_t = np.arange(t[0], t[-1], 1/fps)  # new time data
+    new_t = np.arange(t[0], t[-1], 1 / fps * fast_forward)  # new time data
     rc = interp(rc, t, new_t)
+    vc = np.linalg.norm(interp(vc, t, new_t), axis=0)
     qc = interp(qc, t, new_t)
     qt = interp(qt, t, new_t)
     t = new_t
@@ -79,10 +82,23 @@ def make_animation(args, data=None):
     # Create a scene and the objects:
     print("Creating scene and graph objects".ljust(40, "."), end=" ")
     myscene = create_scene(title=f'Rendezvous: {os.path.split(args.path)[1]}\n', caption='')
+    # print(myscene.width)
+    # print(myscene.height)
+    # exit()
     create_frame(np.array([0, 0, 0]))
     chaser = create_chaser(rc0=rc[:, 0])
     target = create_target(koz_radius)
     create_koz(koz_radius)
+    textbox = label(
+        pixel_pos=True,
+        align="left",
+        pos=vector(10, myscene.height - 16, 0),  # vector(70, 380, 0),
+        text=textbox_content(time=t[0], pos=chaser.pos.mag, vel=vc[0]),
+        xoffset=0,
+        yoffset=0,
+        font="monospace",
+        color=vector(0, 0, 0),
+    )
 
     # Rotate bodies to their initial orientation:
     chaser.rotate(qc_angles[0], axis=qc_axes[0])
@@ -120,10 +136,12 @@ def make_animation(args, data=None):
                 else:
                     sleep(0.5)  # time delay to allow the images to be saved in correct order
 
-            # Update chaser position and attitude:
+            # Update position and attitude of the chaser and the target:
             chaser.pos = vector(rc[0, k], rc[1, k], rc[2, k])
             chaser.rotate(angle=qc_angles[k], axis=qc_axes[k], origin=chaser.pos)
             target.rotate(angle=qt_angles[k], axis=qt_axes[k], origin=target.pos)
+            # Update label:
+            textbox.text = textbox_content(time=t[k], pos=chaser.pos.mag, vel=vc[k])
             # Plot position on the graph:
             f1.plot([t[k], chaser.pos.x])
             f2.plot([t[k], chaser.pos.y])
@@ -149,6 +167,7 @@ def make_animation(args, data=None):
                 target.axis = vector(1, 0, 0)
                 target.up = vector(0, 1, 0)
                 target.rotate(angle=qt_angles[0], axis=qt_axes[0], origin=target.pos)
+                textbox.text = textbox_content(time=t[0], pos=chaser.pos.mag, vel=vc[0])
                 k = 1
     pass
 
@@ -172,6 +191,20 @@ def play_pause(b: button, run: RunState):
         b.text = " Play "
 
     return
+
+
+def textbox_content(time=np.nan, pos=np.nan, vel=np.nan) -> str:
+    """
+    Text for the label on the animation.
+    :param time: time of the current frame[s]
+    :param pos: position (magnitude) of the chaser [m]
+    :param vel: velovity (magnitude) of the chaser [m/s]
+    :return: text
+    """
+    out = "time: " + str(round(time, 1)).rjust(4) + \
+          " s  \n pos: " + str(round(pos, 1)).rjust(4) + \
+          " m  \n vel: " + str(round(vel, 1)).rjust(4) + " m/s"
+    return out
 
 
 def get_args():
