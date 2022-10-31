@@ -34,6 +34,7 @@ def make_model(policy, env, config):
         "lstm_hidden_size": config["lstm_hidden_size"],         # Default: 256
         "n_lstm_layers": config["n_lstm_layers"],               # Default: 1
         "shared_lstm": bool(config["shared_lstm"]),             # Default: False
+        "enable_critic_lstm": not bool(config["shared_lstm"]),  # Default: True
     }
     model = RecurrentPPO(
         policy,
