@@ -6,7 +6,7 @@ Written by C. F. De Inza Niemeijer.
 
 # from stable_baselines3.common.evaluation import evaluate_policy
 # from stable_baselines3.common.callbacks import EvalCallback
-# import os
+import os
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from sb3_contrib import RecurrentPPO
@@ -37,10 +37,11 @@ def load_model(args, env):
         policy_kwargs = {
             "net_arch": None,
             "activation_fn": Tanh,
-            "lstm_hidden_size": 256,    # number of hidden units for each LSTM layer
-            "n_lstm_layers": 1,         # number of LSTM layers
-            "shared_lstm": False,       # whether the LSTM is shared between the actor and the critic
-            "lstm_kwargs": None,        # additional kwargs for LSTM constructor
+            "lstm_hidden_size": 256,        # number of hidden units for each LSTM layer. Default is 256
+            "n_lstm_layers": 1,             # number of LSTM layers. Default is 1
+            "shared_lstm": False,           # whether the LSTM is shared by the actor and the critic. Default is False
+            "enable_critic_lstm": True,     # must be set to True if `shared_lstm` is False, and vice-versa
+            "lstm_kwargs": None,            # additional kwargs for LSTM constructor
             # https://sb3-contrib.readthedocs.io/en/master/modules/ppo_recurrent.html#recurrentppo-policies
             # https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html
         }
@@ -52,7 +53,7 @@ def load_model(args, env):
             learning_rate=3e-4,
             clip_range=0.2,
             n_epochs=10,                # number of gradient descent steps per iteration
-            gamma=1,                    # discount factor
+            gamma=0.99,                 # discount factor
             policy_kwargs=policy_kwargs,
             verbose=1,
         )
@@ -167,6 +168,7 @@ def main(args):
 if __name__ == '__main__':
     arguments = get_main_args()
     # arguments.nosave = False
-    # arguments.model = os.path.join("models", "best_model.zip")
+    # arguments.model = os.path.join("models", "rnn_model.zip")
     # arguments.wandb = True
+    # arguments.steps = 20_000_000
     main(arguments)

@@ -64,7 +64,7 @@ def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
     Creates an instance of the Rendezvous environment.\n
     :param reward_kwargs: dictionary containing keyword arguments for the reward function
     :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return:
+    :return: instance of the environment
     """
 
     env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
@@ -145,7 +145,7 @@ def configure_sweep():
                 "values": [16, 32, 64],         # Default is 64
             },
             "activation_fn": {
-                "values": ["ReLU", "Sigmoid", "Tanh"],
+                "values": ["ReLU", "Sigmoid", "Tanh"],  # Default is Tanh
             },
             "lstm_hidden_size": {
                 "values": [32, 64, 128, 256],   # Default is 256

@@ -4,6 +4,7 @@ Main script used for training a PPO model.
 Written by C. F. De Inza Niemeijer.
 """
 
+import os
 from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
@@ -38,7 +39,7 @@ def load_model(args, env):
             env=env,            # environment where data is collected
             n_steps=2048,       # num of steps per rollout  # each env does this amount of steps
             n_epochs=40,        # number of gradient descent steps per iteration
-            gamma=1,            # discount factor
+            gamma=0.99,         # discount factor
             policy_kwargs={"activation_fn": Tanh},
             verbose=1,
         )
@@ -125,6 +126,8 @@ def main(args):
 if __name__ == '__main__':
     arguments = get_main_args()
     # arguments.n_envs = 4
-    # arguments.model = r'models\best_model.zip'
     # arguments.nosave = True
+    # arguments.model = os.path.join("models", "mlp_model.zip")
+    # arguments.wandb = True
+    # arguments.steps = 20_000_000
     main(arguments)

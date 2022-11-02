@@ -23,10 +23,11 @@ def make_model(policy, env, config):
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
     policy_kwargs = {
-        "activation_fn": Tanh,      # Default: Tanh
-        "lstm_hidden_size": 256,    # Default: 256
-        "n_lstm_layers": 1,         # Default: 1
-        "shared_lstm": False,       # Default: False
+        "activation_fn": Tanh,          # Default: Tanh
+        "lstm_hidden_size": 256,        # Default: 256
+        "n_lstm_layers": 1,             # Default: 1
+        "shared_lstm": False,           # Default: False
+        "enable_critic_lstm": True,     # Default: True (must set to False if `shared_lstm` is True)
     }
     model = RecurrentPPO(
         policy,
@@ -51,7 +52,7 @@ def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
     Creates an instance of the Rendezvous environment.\n
     :param reward_kwargs: dictionary containing keyword arguments for the reward function
     :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return:
+    :return: instance of the environment
     """
 
     env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
