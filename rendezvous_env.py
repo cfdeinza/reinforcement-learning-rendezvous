@@ -13,27 +13,38 @@ class RendezvousEnv(gym.Env):
     Written by C. F. De Inza Niemeijer.\n
     """
 
-    def __init__(self, rc0=None, vc0=None, qc0=None, wc0=None, qt0=None, wt0=None, quiet=False, reward_kwargs=None):
+    def __init__(self,
+                 rc0: np.ndarray=None,              # nominal initial position of the chaser [m]
+                 vc0: np.ndarray=None,              # nominal initial velocity of the chaser [m/s]
+                 qc0: np.ndarray=None,              # nominal initial attitude of the chaser [-]
+                 wc0: np.ndarray=None,              # nominal initial rotation rate of the chaser [rad/s]
+                 qt0: np.ndarray=None,              # nominal initial attitude of the target [-]
+                 wt0: np.ndarray=None,              # nominal initial rotation rate of the target [rad/s]
+                 rc0_range: float=None,             # range of the initial position of the chaser [m] (float)
+                 vc0_range: float=None,             # range of the initial velocity of the chaser [m/s] (float)
+                 qc0_range: float=None,             # range of the initial attitude of the chaser [-] (float)
+                 wc0_range: float=None,             # range of the initial rotation rate of the chaser [rad/s] (float)
+                 qt0_range: float=None,             # range of the initial attitude of the target [-] (float)
+                 wt0_range: float=None,             # range of the initial rotation rate of the target [rad/s] (float)
+                 reward_kwargs: dict=None,          # dictionary with keyword arguments for the reward function (dict)
+                 koz_radius: float=None,            # radius of the keep-out zone around the target [m] (float)
+                 corridor_half_angle: float=None,   # half-angle of the conic entry corridor [rad] (float)
+                 h: float=None,                     # altitude of the orbit [m]
+                 dt: float=None,                    # size of time step [s]
+                 quiet: bool=False,                 # whether or not to print episode results
+                 ):
         """
-        Initializes the attributes of the environment, including chaser properties, target properties, orbit properties,
-        observation space, action space, and more.\n
-        :param rc0: nominal initial position of the chaser (ndarray with shape 3,)
-        :param vc0: nominal initial velocity of the chaser (ndarray with shape 3,)
-        :param qc0: nominal initial attitude of the chaser (ndarray with shape 4,)
-        :param wc0: nominal initial rotation rate of the chaser (ndarray with shape 3,)
-        :param qt0: nominal initial attitude of the target (ndarray with shape 4,)
-        :param wt0: nominal initial rotation rate of the target (ndarray with shape 3,) (expressed in LVLH only here)
-        :param quiet: whether or not to print episode results.
-        :param reward_kwargs: dict with keyword arguments for the reward function (used during tuning)
+        This function nitializes the attributes of the environment, including chaser properties, target properties,
+        orbit properties, observation space, action space, and more.\n
         """
 
         # State variables:  (initialized on reset() call)
         # self.state = None   # state of the system [r_c, v_c, q_c, w_c, q_t] (17,)
         self.rc = None      # position of the chaser [m] expressed in LVLH frame
         self.vc = None      # velocity of the chaser [m/s] expressed in LVLH frame
-        self.qc = None      # attitude of the chaser [-]
+        self.qc = None      # attitude of the chaser [-] expressed as a quaternion orientation relative to LVLH
         self.wc = None      # rotation rate of the chaser [rad/s] expressed in chaser body frame
-        self.qt = None      # attitude of the target [-]
+        self.qt = None      # attitude of the target [-] expressed as a quaternion orientation relative to LVLH
         self.wt = None      # rotation rate of the target [rad/s] expressed in target body frame
 
         # Nominal initial state:
@@ -42,20 +53,20 @@ class RendezvousEnv(gym.Env):
         self.nominal_qc0 = np.array([1., 0., 0., 0.]) if qc0 is None else qc0
         self.nominal_wc0 = np.array([0., 0., 0.]) if wc0 is None else wc0
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
-        self.nominal_wt0 = np.array([0., 0., np.radians(3)]) if wt0 is None else wt0
+        self.nominal_wt0 = np.array([0., 0., 0.]) if wt0 is None else wt0  # [0., 0., np.radians(3)]
 
         # Range of initial conditions: (initial conditions are sampled uniformly from this range)
-        self.rc0_range = 0                  # 1   [m]
-        self.vc0_range = 0                  # 0.1 [m/s]
-        self.qc0_range = np.radians(0)      # 5   [deg]
-        self.wc0_range = np.radians(0)      # 3   [deg/s]
-        self.qt0_range = np.radians(45)     # 45  [deg]
-        self.wt0_range = np.radians(0)      # 3   [deg/s]
+        self.rc0_range = 1 if rc0_range is None else rc0_range                  # 1   [m]
+        self.vc0_range = 0.1 if vc0_range is None else vc0_range                # 0.1 [m/s]
+        self.qc0_range = np.radians(1) if qc0_range is None else qc0_range      # 5   [deg]
+        self.wc0_range = np.radians(0.1) if wc0_range is None else wc0_range    # 3   [deg/s]
+        self.qt0_range = np.radians(45) if qt0_range is None else qt0_range     # 45  [deg]
+        self.wt0_range = np.radians(3) if wt0_range is None else wt0_range      # 3   [deg/s]
 
         # Time:
-        self.t = None       # current time of episode [s]
-        self.dt = 1         # interval between timesteps [s]
-        self.t_max = 60     # maximum length of episode [s]
+        self.t = None                       # current time of episode [s]
+        self.dt = 1 if dt is None else dt   # interval between timesteps [s]
+        self.t_max = 60                     # maximum length of episode [s]
 
         # Chaser properties:
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
@@ -75,8 +86,8 @@ class RendezvousEnv(gym.Env):
         self.max_rotation_rate = np.pi                                   # maximum chaser rotation rate [rad/s]
 
         # Target properties:
-        self.koz_radius = 5                         # radius of the keep-out zone [m]
-        self.corridor_half_angle = np.radians(30)   # half-angle of the conic entry corridor [rad]
+        self.koz_radius = 5 if koz_radius is None else koz_radius  # radius of the keep-out zone [m]
+        self.corridor_half_angle = np.radians(30) if corridor_half_angle is None else corridor_half_angle
         self.corridor_axis = np.array([0, -1, 0])   # entry corridor expressed in the target body frame (constant)
         self.inertia_target = np.array([            # moment of inertia of the target [kg.m^2]
             [1, 0, 0],
@@ -105,7 +116,7 @@ class RendezvousEnv(gym.Env):
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
         self.Re = 6371e3                            # Radius of the Earth [m]
-        self.h = 800e3                              # Altitude of the orbit [m]
+        self.h = 800e3 if h is None else h          # Altitude of the orbit [m]
         self.ro = self.Re + self.h                  # Radius of the orbit [m]
         self.n = np.sqrt(self.mu / self.ro ** 3)    # Mean motion of the orbit [rad/s]
 
