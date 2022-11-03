@@ -10,7 +10,7 @@ from rendezvous_env import RendezvousEnv
 from utils.general import load_model
 # from utils.quaternions import quat2mat
 from rendezvous_eval import evaluate
-from rendezvous_plot_2d import plot2d
+from rendezvous_plot_2d import plot2d_response, plot2d_error
 from rendezvous_plot_vpython import make_animation
 
 
@@ -61,8 +61,9 @@ def main(args):
     saved_model = load_model(path=args.model, env=eval_env)
     # Evaluate the model:
     data = evaluate(saved_model, eval_env, args)
-    # make_animation(args, data=data)
-    plot2d(args, data=data)
+    plot2d_response(args, data=data)
+    plot2d_error(args, data=data)
+    make_animation(args, data=data)
 
     # # Iterate over multiple models:
     # data = {}
@@ -71,7 +72,7 @@ def main(args):
     #     saved_model = load_model(path=args.model, env=eval_env)
     #     data[i] = evaluate(saved_model, eval_env, args)
     # for i in range(1, 7):
-    #     plot2d(args, data=data[i])
+    #     plot2d_response(args, data=data[i])
     #     # make_animation(args, data=data)
 
 
@@ -84,5 +85,5 @@ if __name__ == "__main__":
     arguments.path = ""     # prevent make_animation from crashing
     arguments.save = False  # make sure we don't save a gif of the animation
     # arguments.model = os.path.join("models_fuel_coef_sweep_02", "model01.zip")
-    arguments.model = os.path.join("models", "rnn_model_01.zip")
+    arguments.model = os.path.join("models", "mlp_model_att_01.zip")
     main(arguments)

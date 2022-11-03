@@ -61,14 +61,20 @@ def evaluate(model, env, args):
 
     # Create empty arrays to save values:
     expected_timesteps = int(env.t_max / env.dt) + 1    # size of the empty arrays
+    # State:
     rc = np.full((3, expected_timesteps), np.nan)       # chaser position
     vc = np.full((3, expected_timesteps), np.nan)       # chaser velocity
     qc = np.full((4, expected_timesteps), np.nan)       # chaser attitude
     wc = np.full((3, expected_timesteps), np.nan)       # chaser rotation rate
     qt = np.full((4, expected_timesteps), np.nan)       # target attitude
     wt = np.full((3, expected_timesteps), np.nan)       # target rotation rate
+    # Action and reward:
     a = np.full((6, expected_timesteps), np.nan)        # actions (last obs has no action)
     rew = np.full((1, expected_timesteps), np.nan)      # rewards (first state has no reward)
+    # Errors:
+    # array of errors expressed in magnitudes (pos [m], vel [m/s], att [rad], rotation rate [rad/s])
+    errors = np.full((4, expected_timesteps), np.nan)
+    # Time:
     t = np.full((1, expected_timesteps), np.nan)        # times
 
     # Save the initial values:
@@ -78,6 +84,7 @@ def evaluate(model, env, args):
     wc[:, 0] = env.wc
     qt[:, 0] = env.qt
     wt[:, 0] = env.wt
+    errors[:, 0] = env.get_errors()
     t[0, 0] = env.t
 
     # torque = 3e-2
@@ -117,6 +124,7 @@ def evaluate(model, env, args):
         processed_action = env.process_action(action)
         a[:, k-1] = processed_action
         rew[0, k] = reward
+        errors[:, k] = env.get_errors()
         t[0, k] = env.t
         print(f'Step: {env.t}', end='\r')
         k += 1
@@ -135,6 +143,7 @@ def evaluate(model, env, args):
         wt = wt[:, 0:t.size]
         a = a[:, 0:t.size]
         rew = rew[:, 0:t.size]
+        errors = errors[:, 0:t.size]
 
     print(f'\nTotal reward: {round(total_reward, 2)}')
 
@@ -143,8 +152,8 @@ def evaluate(model, env, args):
 
     # Add new pairs to dictionary:
     new_pairs = [
-        ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc),
-        ('qt', qt), ('wt', wt), ('a', a), ('rew', rew), ('t', t),
+        ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc), ('qt', qt), ('wt', wt),
+        ('a', a), ('rew', rew), ('errors', errors), ('t', t),
         ('process_action', None),  # pickle cannot handle lambda functions
     ]
     for key, val in new_pairs:

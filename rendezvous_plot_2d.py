@@ -13,7 +13,7 @@ from utils.general import load_data
 from utils.animations import plot_2dcomponents
 
 
-def plot2d(args, data=None):
+def plot2d_response(args, data=None):
     if data is None:
         data = load_data(args.path)
     else:
@@ -33,7 +33,7 @@ def plot2d(args, data=None):
     assert rc.shape[0] == 3
     # print(actions)
 
-    # Create a matplotlib figure with 3 subplots:
+    # Create a matplotlib figure with 6 subplots:
     fig, ax = plt.subplots(2, 3, figsize=(12, 6))
 
     # Chaser position:
@@ -89,6 +89,57 @@ def plot2d(args, data=None):
     return
 
 
+def plot2d_error(args, data=None):
+    if data is None:
+        data = load_data(args.path)
+    else:
+        assert isinstance(data, dict), "parameter `data` must be a dictionary"
+
+    t = data["t"][0]
+    t_max = data["t_max"]
+    errors = data["errors"]
+    assert errors.shape[0] == 4, f"array of errors has an unexpected shape: {errors.shape}"
+    pos_error = errors[0, :]
+    vel_error = errors[1, :]
+    att_error = np.degrees(errors[2, :])
+    rot_error = np.degrees(errors[3, :])
+
+    # Create a matplotlib figure with 4 subplots:
+    n_rows, n_cols = 2, 2
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(12, 6))
+    plot_error_component(ax[0, 0], t, pos_error, data["max_rd_error"],
+                         xlim=[0, t_max], ylim=[0, max(20, np.max(pos_error))],
+                         xlabel="Time", ylabel="Position [m]", title="Position",
+                         )
+    plot_error_component(ax[0, 1], t, vel_error, data["max_vd_error"],
+                         xlim=[0, t_max], ylim=[0, max(2, np.max(vel_error))],
+                         xlabel="Time [s]", ylabel="Velocity [m/s]", title="Velocity",
+                         )
+    plot_error_component(ax[1, 0], t, att_error, np.degrees(data["max_qd_error"]),
+                         xlim=[0, t_max], ylim=[0, np.degrees(data["max_attitude_error"])],
+                         xlabel="Time [s]", ylabel="Attitude [deg]", title="Attitude"
+                         )
+    plot_error_component(ax[1, 1], t, rot_error, np.degrees(data["max_wd_error"]),
+                         xlim=[0, t_max], ylim=[0, max(10, np.max(rot_error))],
+                         xlabel="Time [s]", ylabel="Rotation rate [deg/s]", title="Rotation rate"
+                         )
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+
+    return
+
+
+def plot_error_component(ax, x, y, constraint, xlim, ylim=None, xlabel=None, ylabel=None, title=None):
+    ax.plot(x, y, label="Error")
+    ax.plot(xlim, [constraint] * 2, "r--", label="Constraint")
+    ax.set_xlim(xlim), ax.set_ylim(ylim)
+    ax.set_xlabel(xlabel), ax.set_ylabel(ylabel)
+    ax.grid(), ax.legend()
+    ax.set_title(title)
+    return
+
+
 def get_args():
     """
     Get the arguments when running the script from the command line.
@@ -121,7 +172,8 @@ if __name__ == '__main__':
         print('Path must be an existing file.\nExiting')
         sys.exit()
 
-    plot2d(arguments)
+    plot2d_response(arguments)
+    plot2d_error(arguments)
 
     print('Finished')
 
