@@ -12,7 +12,7 @@ from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import Tanh
-from rendezvous_env import RendezvousEnv
+from utils.environment_utils import make_env, copy_env
 from custom.custom_callbacks import CustomWandbCallback
 from arguments import get_tune_args
 from functools import partial
@@ -48,42 +48,6 @@ def make_model(policy, env, config=None):
     return model
 
 
-def make_env(reward_kwargs, quiet=True, config=None) -> RendezvousEnv:
-    """
-    Creates an instance of the Rendezvous environment.\n
-    :param reward_kwargs: dictionary containing keyword arguments for the reward function
-    :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :param config: dictionary with additional configuration parameters
-    :return: instance of the environment
-    """
-
-    if config is None:
-        config = {}
-
-    env = RendezvousEnv(
-        rc0=None if config.get("rc0") is None else np.array([0, -config.get("rc0"), 0]),
-        vc0=config.get("vc0"),
-        qc0=config.get("qc0"),
-        wc0=config.get("wc0"),
-        qt0=config.get("qt0"),
-        wt0=None if config.get("wt0") is None else np.array([0, 0, config.get("wt0")]),
-        rc0_range=0,  # config.get("rc0_range"),
-        vc0_range=0,  # config.get("vc0_range"),
-        qc0_range=0,  # config.get("qc0_range"),
-        wc0_range=0,  # config.get("wc0_range"),
-        qt0_range=0,  # config.get("qt0_range"),
-        wt0_range=0,  # config.get("wt0_range"),
-        koz_radius=config.get("koz_radius"),
-        corridor_half_angle=config.get("corridor_half_angle"),
-        h=config.get("h"),
-        dt=config.get("dt"),
-        reward_kwargs=reward_kwargs,
-        quiet=quiet
-    )
-
-    return env
-
-
 def train_function(iterations):
     """
     Function that will be executed on each run of the sweep.
@@ -96,15 +60,16 @@ def train_function(iterations):
 
         # Make environments:
         reward_kwargs = None
-        train_env = make_env(reward_kwargs, quiet=True, config=wandb.config)
-        eval_env = make_env(reward_kwargs, quiet=False, config=wandb.config)
-        if reward_kwargs is None:
-            print("Note: reward_kwargs have not been defined. Using default values")
-
-        print("check: envs created correctly.")
+        env_config = wandb.config
+        # Convert scalar values to arrays:
+        if env_config.get("rc0"):
+            env_config["rc0"] = np.array([0, -env_config.get("rc0"), 0])
+        if env_config.get("wt0"):
+            env_config["wt0"] = np.array([0, 0, env_config.get("wt0")])
+        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=False)
+        eval_env = copy_env(train_env)
 
         model = make_model(MlpPolicy, train_env, config=wandb.config)
-        print("check: model created correctly")
         # Check that the hyperparameters have been updated:
         # print(f"learning_rate: {model.learning_rate}")
         # print(f"clip_range: {model.clip_range(1)}")
@@ -130,7 +95,7 @@ def configure_sweep(params: list):
     """
     Create the dictionary used to configure the sweep.\n
     :param params: list of parameter names to include in the sweep
-    :return: configuration dictionary
+    :return: sweep configuration dictionary
     """
 
     all_params = {

@@ -5,8 +5,9 @@ either as an animation or in a 2d plot.
 
 import os
 import argparse
-# import numpy as np
-from rendezvous_env import RendezvousEnv
+import numpy as np
+# from rendezvous_env import RendezvousEnv
+from utils.environment_utils import make_env
 from utils.general import load_model
 # from utils.quaternions import quat2mat
 from rendezvous_eval import evaluate
@@ -36,24 +37,13 @@ def get_args():
     return args
 
 
-def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
-    """
-    Creates an instance of the Rendezvous environment.\n
-    :param reward_kwargs: dictionary containing keyword arguments for the reward function
-    :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return:
-    """
-
-    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
-
-    return env
-
-
 def main(args):
 
     # Make an instance of the environment:
     reward_kwargs = None
-    eval_env = make_env(reward_kwargs, quiet=False)
+    config = None
+    # config = {"wt0": np.array([0, 0, np.radians(5)])}
+    eval_env = make_env(reward_kwargs, quiet=False, config=config, stochastic=True)
     if reward_kwargs is None:
         print("Note: reward_kwargs have not been defined. Using default values.")
 

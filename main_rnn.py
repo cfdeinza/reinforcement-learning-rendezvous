@@ -11,7 +11,8 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from sb3_contrib import RecurrentPPO
 from torch.nn import Tanh
-from rendezvous_env import RendezvousEnv
+# from rendezvous_env import RendezvousEnv
+from utils.environment_utils import make_env, copy_env
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from arguments import get_main_args
 # from sb3_contrib.ppo_recurrent import MlpLstmPolicy
@@ -48,11 +49,11 @@ def load_model(args, env):
         model = RecurrentPPO(
             policy="MlpLstmPolicy",     # Network used for the policy and value function
             env=env,                    # environment where data is collected
-            n_steps=128,                # default is 128
-            batch_size=128,
-            learning_rate=3e-4,
-            clip_range=0.2,
-            n_epochs=10,                # number of gradient descent steps per iteration
+            n_steps=128,                # default is 128 (for RNN)
+            batch_size=128,             # Default is 128 (for RNN)
+            learning_rate=3e-4,         # Default is 3e-4
+            clip_range=0.2,             # Default is 0.2
+            n_epochs=10,                # Default is 10 (number of gradient descent steps per iteration)
             gamma=0.99,                 # discount factor
             policy_kwargs=policy_kwargs,
             verbose=1,
@@ -93,23 +94,6 @@ def lr_schedule(initial_value: float):
     return func
 
 
-def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
-    """
-    Creates an instance of the Rendezvous environment.\n
-    :param reward_kwargs: dictionary containing keyword arguments for the reward function
-    :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return:
-    """
-
-    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
-    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
-    # env = Rendezvous3DOF()  # this works
-    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
-
-    return env
-
-
 def main(args):
     """
     Main function to run when this script is executed.\n
@@ -126,10 +110,8 @@ def main(args):
 
     # Make envs:
     reward_kwargs = None
-    train_env = make_env(reward_kwargs, quiet=False)
-    eval_env = make_env(reward_kwargs, quiet=False)
-    if reward_kwargs is None:
-        print("Note: reward_kwargs have not been defined. Using default values.")
+    train_env = make_env(reward_kwargs, quiet=False, config=None, stochastic=True)
+    eval_env = copy_env(train_env)
 
     # Load/create model:
     model = load_model(args, env=train_env)
@@ -141,8 +123,8 @@ def main(args):
                 env=eval_env,
                 wandb_run=None,
                 save_name="rnn_model",
-                n_evals=5,
-                project=None,
+                n_evals=10,
+                project="train",
                 run_id=None,
                 verbose=0,
             )
@@ -150,7 +132,7 @@ def main(args):
             callback = CustomCallback(
                 env=eval_env,
                 save_name="rnn_model",
-                n_evals=5,
+                n_evals=10,
                 verbose=0,
             )
         print(f"The best model will be saved in {callback.save_path}")
@@ -167,7 +149,7 @@ def main(args):
 
 if __name__ == '__main__':
     arguments = get_main_args()
-    # arguments.nosave = False
+    # arguments.nosave = True
     # arguments.model = os.path.join("models", "rnn_model.zip")
     # arguments.wandb = True
     # arguments.steps = 20_000_000

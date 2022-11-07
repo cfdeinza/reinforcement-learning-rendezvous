@@ -29,6 +29,12 @@ This file contains ideas that have not yet been implemented in the code.
 
     From: https://onlinelibrary.wiley.com/doi/pdf/10.1002/9780470682906.app4#:~:text=Quaternions%20can%20be%20used%20for,nature%20of%20three%2Ddimensional%20space.
 
+# Different envs:
+    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
+    # env = gym.make('Pendulum-v1')  # simply using PendulumEnv() yields no `done` condition.
+    # env = Rendezvous3DOF()  # this works
+    # env = Rendezvous3DOF(config=None)  # this was briefly used for ray rllib
+
 # Render: Display some sort of warning when the chaser enters the keep-out-zone. Draw a red circle:
 
     if self.absolute_position() < self.target_radius:

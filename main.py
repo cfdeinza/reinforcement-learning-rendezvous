@@ -10,8 +10,9 @@ from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import Tanh
+# from rendezvous_env import RendezvousEnv
+from utils.environment_utils import make_env, copy_env
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
-from rendezvous_env import RendezvousEnv
 from arguments import get_main_args
 # from custom.custom_model import CustomPPO
 
@@ -55,19 +56,6 @@ def load_model(args, env):
     return model
 
 
-def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
-    """
-    Creates an instance of the Rendezvous environment.\n
-    :param reward_kwargs: dictionary containing keyword arguments for the reward function
-    :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return:
-    """
-
-    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
-
-    return env
-
-
 def main(args):
     """
     Main function to run when this script is executed.\n
@@ -84,10 +72,8 @@ def main(args):
 
     # Make envs:
     reward_kwargs = None
-    train_env = make_env(reward_kwargs, quiet=False)
-    eval_env = make_env(reward_kwargs, quiet=False)
-    if reward_kwargs is None:
-        print("Note: reward_kwargs have not been defined. Using default values.")
+    train_env = make_env(reward_kwargs, quiet=False, config=None, stochastic=True)
+    eval_env = copy_env(train_env)
 
     # Load/create model:
     model = load_model(args, env=train_env)
@@ -99,8 +85,8 @@ def main(args):
                 env=eval_env,
                 wandb_run=None,
                 save_name="mlp_model",
-                n_evals=5,
-                project=None,
+                n_evals=10,
+                project="train",
                 run_id=None,  # use this to resume a paused/crashed run
                 verbose=0,
             )   # Custom callback to track experiment with Weights & Biases
@@ -108,7 +94,7 @@ def main(args):
             callback = CustomCallback(
                 env=eval_env,
                 save_name="mlp_model",
-                n_evals=5,
+                n_evals=10,
                 verbose=0,
             )   # Custom callback to save the best model
         print(f'The best model will be saved in {callback.save_path}')

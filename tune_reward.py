@@ -5,7 +5,8 @@ from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import Tanh  # ReLU, Sigmoid, Tanh
-from rendezvous_env import RendezvousEnv
+# from rendezvous_env import RendezvousEnv
+from utils.environment_utils import make_env, copy_env
 from custom.custom_callbacks import CustomWandbCallback
 from arguments import get_tune_args
 from functools import partial
@@ -47,19 +48,6 @@ def make_model(policy, env, config):
     return model
 
 
-def make_env(reward_kwargs, quiet=True) -> RendezvousEnv:
-    """
-    Creates an instance of the Rendezvous environment.\n
-    :param reward_kwargs: dictionary containing keyword arguments for the reward function
-    :param quiet: `True` to supress printed outputs, `False` to print outputs
-    :return: instance of the environment
-    """
-
-    env = RendezvousEnv(reward_kwargs=reward_kwargs, quiet=quiet)
-
-    return env
-
-
 def train_function(iterations):
     """
     Function that will be executed on each run of the sweep.
@@ -76,10 +64,8 @@ def train_function(iterations):
             "bonus_coef": wandb.config["bonus_coef"],
             "fuel_coef": wandb.config["fuel_coef"],
         }
-        train_env = make_env(reward_kwargs, quiet=True)
-        eval_env = make_env(reward_kwargs, quiet=False)
-        if reward_kwargs is None:
-            print("Note: reward_kwargs have not been defined. Using default values")
+        train_env = make_env(reward_kwargs, quiet=True, config=None, stochastic=True)
+        eval_env = copy_env(train_env)
 
         # model = make_model(MlpPolicy, RendezvousEnv(quiet=True, reward_kwargs=reward_kwargs), config=wandb.config)
         model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
