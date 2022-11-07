@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     # Get arguments:
     arguments = get_tune_args()
-    arguments.iterations = 489  # 1M timesteps  # 50
+    arguments.iterations = 196  # 489  # 1M timesteps  # 50
     project_name = arguments.project
     if project_name == "":
         project_name = "sensitivity"
