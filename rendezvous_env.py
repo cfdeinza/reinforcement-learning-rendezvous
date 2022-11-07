@@ -84,6 +84,7 @@ class RendezvousEnv(gym.Env):
         self.max_axial_distance = np.linalg.norm(self.nominal_rc0) + 10  # maximum distance allowed on each axis [m]
         self.max_axial_speed = 10                                        # maximum speed allowed on each axis [m]
         self.max_rotation_rate = np.pi                                   # maximum chaser rotation rate [rad/s]
+        self.max_attitude_error = np.radians(30)                         # maximum allowed pointing error (episode ends)
 
         # Target properties:
         self.koz_radius = 5 if koz_radius is None else koz_radius  # radius of the keep-out zone [m]
@@ -319,19 +320,23 @@ class RendezvousEnv(gym.Env):
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
-    def get_bubble_reward(self, action, collision_coef=0.5, bonus_coef=10, fuel_coef=0):
+    def get_bubble_reward(self, action, collision_coef=0.5, bonus_coef=10, fuel_coef=0, att_coef=0.25):
         """
         Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
         :param action: current action chosen by the policy
         :param collision_coef: coefficient that modifies the reward when the chaser is within the KOZ
         :param bonus_coef: coefficient that modifies the reward when it achieves a goal
         :param fuel_coef: coefficient that modifies the reward when it uses fuel
+        :param att_coef: coefficient that modifies the reward based on the attitude error of the chaser
         :return: Current reward
         """
 
         assert action.shape == (6,)
 
         rew = self.dt  # 0
+
+        # Attitude bonus:
+        rew += self.dt * att_coef * (1 - self.get_attitude_error() / self.max_attitude_error)
 
         # Fuel efficiency:
         rew -= self.dt * np.abs(action[0:3]).sum() / 3 * fuel_coef
@@ -407,10 +412,10 @@ class RendezvousEnv(gym.Env):
         dist = np.linalg.norm(self.rc)
 
         end_conditions = [
-            not self.observation_space.contains(obs),   # observation outside of observation space
-            self.t >= self.t_max,                       # episode time limit reached
-            dist > self.bubble_radius,                  # chaser outside of bubble
-            self.get_attitude_error() > np.pi / 6,          # chaser attitude error too large
+            not self.observation_space.contains(obs),               # observation outside of observation space
+            self.t >= self.t_max,                                   # episode time limit reached
+            dist > self.bubble_radius,                              # chaser outside of bubble
+            self.get_attitude_error() > self.max_attitude_error,    # chaser attitude error too large
         ]
 
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
@@ -501,10 +506,10 @@ class RendezvousEnv(gym.Env):
 
         goal_pos = self.get_goal_pos()                      # Goal position in the LVLH frame [m]
         goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
-        pos_error = self.get_pos_error(goal_pos)            # Position error [m]
-        vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error [m/s]
-        att_error = self.get_attitude_error()               # Attitude error [rad]
-        rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error [rad/s]
+        pos_error = self.get_pos_error(goal_pos)            # Position error (magnitude) [m]
+        vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error (magnitude) [m/s]
+        att_error = self.get_attitude_error()               # Attitude error (magnitude) [rad]
+        rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error (magnitude) [rad/s]
 
         return np.array([pos_error, vel_error, att_error, rot_error])
 
