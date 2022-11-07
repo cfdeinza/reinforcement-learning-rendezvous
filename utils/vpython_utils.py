@@ -66,7 +66,7 @@ def create_chaser(rc0: np.ndarray):
     """
     assert rc0.shape == (3,)
 
-    cl, ch, cw = (1, 1.4, 1)  # chaser dimensions
+    cl, ch, cw = (1, 1, 1)  # chaser dimensions
     chaser_pos = vector(rc0[0], rc0[1], rc0[2])
     chaser_body = box(
         pos=chaser_pos,
@@ -208,16 +208,19 @@ def numpy2vec(arr: np.ndarray):
         return vector(arr[0], arr[1], arr[2])
 
 
-def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray):
+def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
     """
     Linearly interpolate the data from a numpy array.\n
     :param data: array containing data to be interpolated.
     :param time: time corresponding to the data.
     :param new_time: new time to sample data from.
+    :param kind: type of interpolation to perform (default is "linear")
     :return: interpolated data.
     """
+    if kind is None:
+        kind = "linear"
 
-    f = interp1d(x=time, y=data, kind="linear")
+    f = interp1d(x=time, y=data, kind=kind)
 
     new_data = f(new_time)
 

@@ -99,8 +99,8 @@ def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> np.float:
     assert np.linalg.norm(v1) != 0
     assert np.linalg.norm(v2) != 0
 
-    # Apply the dot product formula: (rounded to 3 decimal places to avoid occasional Runtime Warnings)
-    angle = np.arccos(round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 3))
+    # Apply the dot product formula: (rounded to 5 decimal places to avoid occasional Runtime Warnings)
+    angle = np.arccos(round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 5))
 
     return angle
 
