@@ -113,15 +113,18 @@ def plot2d_error(args, data=None):
                          )
     plot_error_component(ax[0, 1], t, vel_error, data["max_vd_error"],
                          xlim=[0, t_max], ylim=[0, max(2, np.max(vel_error))],
-                         xlabel="Time [s]", ylabel="Velocity [m/s]", title="Velocity",
+                         xlabel="Time [s]", ylabel="Velocity [m/s]",
+                         title=f"Velocity (avg = {round(vel_error.mean(), 2)} m/s)",
                          )
     plot_error_component(ax[1, 0], t, att_error, np.degrees(data["max_qd_error"]),
                          xlim=[0, t_max], ylim=[0, np.degrees(data["max_attitude_error"])],
-                         xlabel="Time [s]", ylabel="Attitude [deg]", title="Attitude"
+                         xlabel="Time [s]", ylabel="Attitude [deg]",
+                         title=f"Attitude (avg = {round(att_error.mean(), 2)} deg)"
                          )
     plot_error_component(ax[1, 1], t, rot_error, np.degrees(data["max_wd_error"]),
                          xlim=[0, t_max], ylim=[0, max(10, np.max(rot_error))],
-                         xlabel="Time [s]", ylabel="Rotation rate [deg/s]", title="Rotation rate"
+                         xlabel="Time [s]", ylabel="Rotation rate [deg/s]",
+                         title=f"Rotation rate (avg = {round(rot_error.mean(), 2)} deg/s)"
                          )
     plt.tight_layout()
     plt.show()
