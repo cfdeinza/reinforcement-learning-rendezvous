@@ -9,6 +9,7 @@ import pickle5 as pickle
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
 from stable_baselines3 import PPO
+from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.utils import get_schedule_fn
@@ -76,7 +77,10 @@ def load_model(path, env):
                 "lr_schedule": get_schedule_fn(3e-4),
                 "clip_range": get_schedule_fn(0.2),
             }
-            model = PPO.load(path, env=env, custom_objects=custom_objects)
+            if "rnn" in path:  # HACK: find a safer way to identify if the model to be loaded is Recurrent.
+                model = RecurrentPPO.load(path, env=env, custom_objects=custom_objects)
+            else:
+                model = PPO.load(path, env=env, custom_objects=custom_objects)
             print('Successfully loaded model')
         except FileNotFoundError:
             print(f'No such file "{path}".\nExiting')
