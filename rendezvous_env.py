@@ -142,8 +142,8 @@ class RendezvousEnv(gym.Env):
 
         if isinstance(self.action_space, spaces.MultiDiscrete):
             self.process_action = lambda x: x - 1
-        elif isinstance(self.action_space, spaces.Box):
-            self.process_action = lambda x: x
+        # elif isinstance(self.action_space, spaces.Box):
+        #     self.process_action = lambda x: x
         else:
             print(f"Unexpected type of action space: {type(self.action_space)}\nCannot process action. Exiting.")
             exit()
@@ -161,7 +161,8 @@ class RendezvousEnv(gym.Env):
         assert action.shape == (6,)
         # delta_v, delta_w = self.process_action(action)
 
-        processed_action = self.process_action(action)
+        # processed_action = self.process_action(action)
+        processed_action = action - 1
 
         # delta_v = action[0:3] * self.max_delta_v
         delta_v = np.matmul(quat2mat(self.qc), processed_action[0:3] * self.max_delta_v)  # rotated to LVLH frame

@@ -121,7 +121,8 @@ def evaluate(model, env, args):
         wt[:, k] = env.wt
         # delta_v, delta_w = env.process_action(action)
         # a[:, k-1] = np.append(delta_v, delta_w)  # processed action
-        processed_action = env.process_action(action)
+        # processed_action = env.process_action(action)
+        processed_action = action - 1
         a[:, k-1] = processed_action
         rew[0, k] = reward
         errors[:, k] = env.get_errors()
@@ -162,8 +163,8 @@ def evaluate(model, env, args):
     # Remove unwanted attributes:
     unwanted_attributes = ['viewer']
     for key in unwanted_attributes:
-        data.pop(key)  # Will raise a KeyError if key does not exist
-        # data.pop(key, None)  # Will not raise an error if key does not exist
+        # data.pop(key)  # Will raise a KeyError if key does not exist
+        data.pop(key, None)  # Will not raise an error if key does not exist
 
     if args.save:
         # Name of the output file:
