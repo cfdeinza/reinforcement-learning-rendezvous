@@ -40,8 +40,9 @@ def make_model(policy, env, config=None):
         batch_size=128,         # Default: 64 for MLP, 128 for RNN
         n_epochs=40,            # Default: 10
         clip_range=0.25,        # Default: 2
+        gamma=0.99,             # Default: 0.99
         policy_kwargs={"activation_fn": Tanh},
-        seed=0,
+        seed=config["seed"],    # 0
         verbose=1,
     )
 
@@ -107,7 +108,7 @@ def configure_sweep(params: list):
         },
         "wt0": {
             "distribution": "categorical",
-            "values": [radians(i) for i in [0, 2, 3, 4, 6]],  # magnitude of w_z [rad/s]
+            "values": [radians(i) for i in [0, 1.25, 2.5]],  # [0, 2, 3, 4, 6] magnitude of w_z [rad/s]
         },
         "koz_radius": {
             "distribution": "categorical",  # "uniform",
@@ -130,6 +131,10 @@ def configure_sweep(params: list):
         "dt": {
             "distribution": "categorical",
             "values": [0.25, 0.5, 1, 2, 4],
+        },
+        "seed": {
+            "distribution": "categorical",
+            "values": [0, 1, 2, 3, 4],
         },
     }
 
