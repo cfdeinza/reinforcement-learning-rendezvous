@@ -213,10 +213,12 @@ class CustomWandbCallback(BaseCallback):
         ep_collision_percentages = np.zeros(shape=(self.n_evals,)) * np.nan  # Percentage of steps where chaser collided
         ep_times_of_first_collision = np.zeros(shape=(self.n_evals,)) * np.nan  # Time of first collision
         ep_min_pos_errors = np.zeros(shape=(self.n_evals,)) * np.nan  # Minimum chaser position error (w/o colliding)
+        ep_avg_att_errors = np.zeros(shape=(self.n_evals,)) * np.nan  # Average attitude error during the episode
 
         for i in range(self.n_evals):
             obs = self.env.reset()
             total_reward = 0
+            sum_of_att_errors = self.env.get_attitude_error()
             chaser_in_koz = self.env.check_collision()
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
@@ -246,6 +248,7 @@ class CustomWandbCallback(BaseCallback):
 
                 # Add current reward to the total:
                 total_reward += reward
+                sum_of_att_errors += self.env.get_attitude_error()
                 chaser_in_koz = self.env.check_collision()
                 if chaser_in_koz:
                     collisions += 1
@@ -267,6 +270,7 @@ class CustomWandbCallback(BaseCallback):
             ep_collision_percentages[i] = collisions / steps * 100
             ep_times_of_first_collision[i] = time_of_first_collision
             ep_min_pos_errors[i] = min_pos_error
+            ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
@@ -280,6 +284,7 @@ class CustomWandbCallback(BaseCallback):
             "ep_collision_percentage": ep_collision_percentages.mean(),  # % of timesteps where chaser was inside KOZ
             "ep_time_of_first_collision": ep_times_of_first_collision.mean(),  # time when chaser first entered the KOZ
             "ep_min_pos_error": ep_min_pos_errors.mean(),  # minimum position error of the chaser without entering KOZ
+            "ep_avg_att_error": ep_avg_att_errors.mean(),  # average attitude error of the chaser (regardless of KOZ)
         }
 
         return output
@@ -306,6 +311,7 @@ class CustomWandbCallback(BaseCallback):
                 "best_collision_percentage": results["ep_collision_percentage"],
                 "best_time_of_first_collision": results["ep_time_of_first_collision"],
                 "best_min_pos_error": results["ep_min_pos_error"],
+                "best_avg_att_error": results["ep_avg_att_error"],
             }
 
             # Save the current model:
