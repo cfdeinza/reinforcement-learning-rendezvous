@@ -11,9 +11,9 @@ import argparse
 import numpy as np
 from functools import partial
 from vpython import *
-from utils.general import load_data
+from utils.general import load_data, interp
 from utils.quaternions import quat_error, quat2rot
-from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz, create_frame, interp
+from utils.vpython_utils import create_scene, numpy2vec, create_chaser, create_target, create_koz, create_frame
 
 
 class RunState:

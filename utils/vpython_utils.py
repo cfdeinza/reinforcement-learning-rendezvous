@@ -6,7 +6,6 @@ Written by C. F. De Inza Niemeijer.
 
 from vpython import *
 import numpy as np
-from scipy.interpolate import interp1d
 
 
 def create_scene(title='Title', caption='Caption'):
@@ -206,22 +205,3 @@ def numpy2vec(arr: np.ndarray):
     else:
         assert arr.shape == (3,)
         return vector(arr[0], arr[1], arr[2])
-
-
-def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
-    """
-    Linearly interpolate the data from a numpy array.\n
-    :param data: array containing data to be interpolated.
-    :param time: time corresponding to the data.
-    :param new_time: new time to sample data from.
-    :param kind: type of interpolation to perform (default is "linear")
-    :return: interpolated data.
-    """
-    if kind is None:
-        kind = "linear"
-
-    f = interp1d(x=time, y=data, kind=kind)
-
-    new_data = f(new_time)
-
-    return new_data

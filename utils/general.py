@@ -8,6 +8,7 @@ import sys
 import pickle5 as pickle
 import numpy as np
 from scipy.spatial.transform import Rotation as scipyRot
+from scipy.interpolate import interp1d
 from stable_baselines3 import PPO
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
@@ -86,6 +87,25 @@ def load_model(path, env):
             print(f'No such file "{path}".\nExiting')
             exit()
     return model
+
+
+def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
+    """
+    Linearly interpolate the data from a numpy array.\n
+    :param data: array containing data to be interpolated.
+    :param time: time corresponding to the data.
+    :param new_time: new time to sample data from.
+    :param kind: type of interpolation to perform (default is "linear")
+    :return: interpolated data.
+    """
+    if kind is None:
+        kind = "linear"
+
+    f = interp1d(x=time, y=data, kind=kind)
+
+    new_data = f(new_time)
+
+    return new_data
 
 
 def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> np.float:

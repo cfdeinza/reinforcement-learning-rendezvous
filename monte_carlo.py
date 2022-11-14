@@ -7,11 +7,10 @@ import os
 import numpy as np
 from math import radians, degrees
 from arguments import get_monte_carlo_args
-from utils.general import load_model
+from utils.general import load_model, interp
 from utils.environment_utils import make_env
 from utils.monte_carlo_utils import plot_errors, print_results
 from rendezvous_eval import evaluate
-from utils.vpython_utils import interp
 
 
 def main(args):
