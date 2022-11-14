@@ -122,3 +122,31 @@ def get_tune_args():
     args = parser.parse_args()
 
     return args
+
+
+def get_monte_carlo_args():
+    """
+    Parses the argumennts when calling the monte_carlo script from the command line.\n
+    :return:
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        dest="model",
+        type=str,
+        default="",
+        help="Path to the model. Default is ''"
+    )
+    parser.add_argument(
+        "--save",
+        dest="save",
+        type=bool,
+        nargs="?",
+        default=False,  # default value
+        const=True,     # value when we call the argument
+        help="Use this flag to save the results."
+    )
+
+    args = parser.parse_args()
+
+    return args

@@ -85,6 +85,7 @@ def evaluate(model, env, args):
     qt[:, 0] = env.qt
     wt[:, 0] = env.wt
     errors[:, 0] = env.get_errors()
+    collisions = int(env.check_collision())
     t[0, 0] = env.t
 
     # torque = 3e-2
@@ -126,6 +127,7 @@ def evaluate(model, env, args):
         a[:, k-1] = processed_action
         rew[0, k] = reward
         errors[:, k] = env.get_errors()
+        collisions += int(env.check_collision())
         t[0, k] = env.t
         print(f'Step: {env.t}', end='\r')
         k += 1
@@ -154,7 +156,7 @@ def evaluate(model, env, args):
     # Add new pairs to dictionary:
     new_pairs = [
         ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc), ('qt', qt), ('wt', wt),
-        ('a', a), ('rew', rew), ('errors', errors), ('t', t),
+        ('a', a), ('rew', rew), ('errors', errors), ('collisions', collisions), ('t', t),
         ('process_action', None),  # pickle cannot handle lambda functions
     ]
     for key, val in new_pairs:
