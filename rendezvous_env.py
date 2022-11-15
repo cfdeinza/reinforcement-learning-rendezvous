@@ -55,6 +55,14 @@ class RendezvousEnv(gym.Env):
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
         self.nominal_wt0 = np.array([0., 0., 0.]) if wt0 is None else wt0  # [0., 0., np.radians(3)]
 
+        # Check the shape of the state variables:
+        assert self.nominal_rc0.shape == (3,), f"Incorrect shape for chaser position {self.nominal_rc0.shape}"
+        assert self.nominal_vc0.shape == (3,), f"Incorrect shape for chaser velocity {self.nominal_vc0.shape}"
+        assert self.nominal_qc0.shape == (4,), f"Incorrect shape for chaser attitude {self.nominal_qc0.shape}"
+        assert self.nominal_wc0.shape == (3,), f"Incorrect shape for chaser rot rate {self.nominal_wc0.shape}"
+        assert self.nominal_qt0.shape == (4,), f"Incorrect shape for target attitude {self.nominal_qt0.shape}"
+        assert self.nominal_wt0.shape == (3,), f"Incorrect shape for target rot rate {self.nominal_wt0.shape}"
+
         # Range of initial conditions: (initial conditions are sampled uniformly from this range)
         self.rc0_range = 1 if rc0_range is None else rc0_range                  # 1   [m]
         self.vc0_range = 0.1 if vc0_range is None else vc0_range                # 0.1 [m/s]
@@ -338,6 +346,7 @@ class RendezvousEnv(gym.Env):
 
         # Attitude bonus:
         rew += self.dt * att_coef * (1 - self.get_attitude_error() / self.max_attitude_error)
+        # rew -= self.dt * att_coef * (self.get_attitude_error() / self.max_attitude_error)**0.5
 
         # Fuel efficiency:
         rew -= self.dt * np.abs(action[0:3]).sum() / 3 * fuel_coef

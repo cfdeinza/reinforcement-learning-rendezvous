@@ -42,7 +42,7 @@ def make_model(policy, env, config):
         clip_range=0.25,        # Default: 0.2 for MLP and RNN
         gamma=0.99,             # Default: 0.99 for MLP and RNN
         policy_kwargs=policy_kwargs,
-        seed=0,
+        seed=config.get("seed", 0),
         verbose=1,
     )
 
@@ -66,7 +66,7 @@ def train_function(iterations):
             "fuel_coef": wandb.config["fuel_coef"],
             "att_coef": wandb.config["att_coef"],
         }
-        env_config = {"wt0": np.array([0, 0, np.radians(2)])}
+        env_config = {"wt0": np.array([0, 0, np.radians(1.5)])}
         train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=False)
         eval_env = copy_env(train_env)
 
@@ -119,7 +119,7 @@ def configure_sweep():
                 # "distribution": "uniform",
                 # "min": 0,
                 # "max": 10,
-                "values": [10],  # Default: 10
+                "values": [10],  # [0, 2, 4, 8], # Default: 10
             },
             "fuel_coef": {
                 # "distribution": "uniform",
@@ -128,8 +128,11 @@ def configure_sweep():
                 "values": [0],  # [0, 0.05, 0.1, 0.25, 0.5, 1],  # Default: 0
             },
             "att_coef": {
-                "values": [0, 0.05, 0.1, 0.25, 0.5],  # Default: 0.25
-            }
+                "values": [0, 1, 2, 4],  # [0, 0.05, 0.1, 0.25, 0.5],  # Default: 0.25
+            },
+            "seed": {
+                "values": [0, 1, 2],
+            },
         },
     }
 
@@ -140,7 +143,7 @@ if __name__ == "__main__":
 
     # Get arguments:
     arguments = get_tune_args()
-    arguments.iterations = 200  # 486  # 250
+    arguments.iterations = 100  # 293 for 600k steps  # 200 for 400k steps  # 486  # 250
     project_name = arguments.project
     if project_name == "":
         project_name = "rew_sweep"

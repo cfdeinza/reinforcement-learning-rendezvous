@@ -1,3 +1,4 @@
+import numpy as np
 from rendezvous_env import RendezvousEnv
 from copy import deepcopy
 
@@ -24,15 +25,21 @@ def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> Rendezv
             config[i] = 0
         print("Note: `stochastic` was set to False. the initial state of the environment will NOT be randomized.")
 
+    rc0 = config.get("rc0", None)
+    if rc0 is not None and not isinstance(rc0, np.ndarray):
+        rc0 = np.array([0., -rc0, 0.])  # Convert to array if necessary
+
+    wt0 = config.get("wt0", None)
+    if wt0 is not None and not isinstance(wt0, np.ndarray):
+        wt0 = np.array([0., 0., wt0])  # Convert to array if necessary
+
     env = RendezvousEnv(
-        # rc0=None if config.get("rc0") is None else np.array([0, -config.get("rc0"), 0]),
-        rc0=config.get("rc0"),
+        rc0=rc0,  # config.get("rc0"),
         vc0=config.get("vc0"),
         qc0=config.get("qc0"),
         wc0=config.get("wc0"),
         qt0=config.get("qt0"),
-        # wt0=None if config.get("wt0") is None else np.array([0, 0, config.get("wt0")]),
-        wt0=config.get("wt0"),
+        wt0=wt0,  # config.get("wt0"),
         rc0_range=config.get("rc0_range"),
         vc0_range=config.get("vc0_range"),
         qc0_range=config.get("qc0_range"),

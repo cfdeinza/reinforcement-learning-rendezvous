@@ -41,7 +41,7 @@ def make_model(policy, env, config):
         gamma=0.99,                             # Default: 0.99 for MLP and RNN
         policy_kwargs=policy_kwargs,
         # IMPORTANT: remember to include as arguments every hyperparameter that is part of the sweep.
-        seed=0,
+        seed=config.get("seed", 0),
         verbose=1,
     )
 
@@ -129,6 +129,9 @@ def configure_sweep():
                 # "min": 0.02,
                 # "max": 0.8,
                 "values": [0.02, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5, 1, 2],
+            },
+            "seed": {
+                "values": [0],
             },
         },
     }

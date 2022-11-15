@@ -5,7 +5,6 @@ The parameters of the environment will be slightly modified to see how they affe
 """
 
 import wandb
-import numpy as np
 from math import radians
 from stable_baselines3.ppo import PPO
 from stable_baselines3.ppo.policies import MlpPolicy
@@ -42,7 +41,7 @@ def make_model(policy, env, config=None):
         clip_range=0.25,        # Default: 2
         gamma=0.99,             # Default: 0.99
         policy_kwargs={"activation_fn": Tanh},
-        seed=config["seed"],    # 0
+        seed=config.get("seed", 0),    # Set to zero if it is not defined
         verbose=1,
     )
 
@@ -62,11 +61,6 @@ def train_function(iterations):
         # Make environments:
         reward_kwargs = None
         env_config = wandb.config
-        # Convert scalar values to arrays:
-        if env_config.get("rc0"):
-            env_config["rc0"] = np.array([0, -env_config.get("rc0"), 0])
-        if env_config.get("wt0"):
-            env_config["wt0"] = np.array([0, 0, env_config.get("wt0")])
         train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=False)
         eval_env = copy_env(train_env)
 
@@ -102,7 +96,7 @@ def configure_sweep(params: list):
     all_params = {
         "rc0": {
             "distribution": "categorical",  # "uniform",
-            "values": [10, 15, 20, 25, 30],  # magnitude of r_x [m]
+            "values": [10, 20, 30, 40, 50],  # magnitude of r_y [m]
             # "min": 10,
             # "max": 30,
         },
@@ -112,7 +106,7 @@ def configure_sweep(params: list):
         },
         "koz_radius": {
             "distribution": "categorical",  # "uniform",
-            "values": [2.5, 4, 5, 6, 7.5],
+            "values": [2, 5, 10],  # [2.5, 4, 5, 6, 7.5],
             # "min": 3,
             # "max": 7,
         },
@@ -134,7 +128,7 @@ def configure_sweep(params: list):
         },
         "seed": {
             "distribution": "categorical",
-            "values": [0, 1, 2, 3, 4],
+            "values": [0],  # [0, 1, 2, 3, 4],
         },
     }
 
