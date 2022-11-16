@@ -67,7 +67,8 @@ def train_function(iterations):
         env_config = {
             "wt0": np.array([0., 0., np.radians(1.5)]),
         }
-        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=False)
+        stochastic = False
+        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=stochastic)
         eval_env = copy_env(train_env)
 
         model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
@@ -80,6 +81,8 @@ def train_function(iterations):
                 env=eval_env,
                 wandb_run=run,
                 save_name="steps_tune_model",  # name of the file where the best model will be saved
+                n_evals=1 if stochastic is False else 10,
+                verbose=0,
             )
         )
 

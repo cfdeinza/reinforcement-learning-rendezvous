@@ -60,7 +60,9 @@ def train_function(iterations):
 
         # Make environments:
         reward_kwargs = None
-        train_env = make_env(reward_kwargs, quiet=True, config=None, stochastic=True)
+        env_config = {}
+        stochastic = True
+        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=stochastic)
         eval_env = copy_env(train_env)
 
         model = make_model("MlpLstmPolicy", train_env, config=wandb.config)
@@ -78,6 +80,8 @@ def train_function(iterations):
                 env=eval_env,
                 wandb_run=run,
                 save_name="alg_tune_model",  # name of the file where the best model will be saved
+                n_evals=1 if stochastic is False else 10,
+                verbose=0,
             )
         )
 
