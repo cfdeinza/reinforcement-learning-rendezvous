@@ -141,8 +141,15 @@ def main(args):
         print(f"Note. The model will NOT be saved.")
 
     # Train the model:
-    print('Training...')
-    model.learn(total_timesteps=steps, callback=callback)
+    if args.start > 0:  # Set the current number of timesteps (if resuming a previous run)
+        model.num_timesteps = args.start
+        print(f"Starting at num_timesteps = {model.num_timesteps}")  # Only relevant for logging
+    print(f"Training the model for {steps} steps...")
+    model.learn(
+        total_timesteps=steps,
+        callback=callback,
+        reset_num_timesteps=True if args.start == 0 else False,
+    )
 
     return
 
@@ -152,5 +159,6 @@ if __name__ == '__main__':
     # arguments.nosave = True
     # arguments.model = os.path.join("models", "rnn_model.zip")
     # arguments.wandb = True
+    # arguments.start = 0  # Define the starting training step
     # arguments.steps = 20_000_000
     main(arguments)

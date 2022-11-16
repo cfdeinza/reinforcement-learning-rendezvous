@@ -46,13 +46,13 @@ def get_main_args():
         default=default_steps,
         help=f'Select the number of training steps. Default is {default_steps}.'
     )
-    # parser.add_argument(
-    #     '--env',
-    #     dest='env',
-    #     type=str,
-    #     default='rdv',
-    #     help='Use \'rdv\' to use the Rendezvous3DOF environment, or \'att\' to use the Attitude environment.'
-    # )
+    parser.add_argument(
+        '--start',
+        dest='start',
+        type=int,
+        default=0,
+        help=f'Define the starting timestep (Does not affect training, only used for logging purposes). Default is 0.'
+    )
     parser.add_argument(
         '--nosave',
         dest='nosave',
@@ -80,15 +80,15 @@ def get_main_args():
         default=False,
         help='Use this flag to render the episodes.'
     )
-    parser.add_argument(
-        '--sde',
-        dest='sde',
-        type=bool,
-        nargs='?',
-        const=True,
-        default=False,
-        help='Use this flag to enable gSDE (Generalized State Dependent Exploration).'
-    )
+    # parser.add_argument(
+    #     '--sde',
+    #     dest='sde',
+    #     type=bool,
+    #     nargs='?',
+    #     const=True,
+    #     default=False,
+    #     help='Use this flag to enable gSDE (Generalized State Dependent Exploration).'
+    # )
 
     args = parser.parse_args()
 

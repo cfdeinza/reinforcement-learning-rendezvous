@@ -36,11 +36,14 @@ def load_model(args, env):
         print('No model provided for training. Making new model...')
         # model = CustomPPO(MlpPolicy, env, n_steps=n_steps, verbose=1)
         model = PPO(
-            policy=MlpPolicy,   # Network used for the Policy and Value function
-            env=env,            # environment where data is collected
-            n_steps=2048,       # num of steps per rollout  # each env does this amount of steps
-            n_epochs=40,        # number of gradient descent steps per iteration
-            gamma=0.99,         # discount factor
+            policy=MlpPolicy,       # Network used for the Policy and Value function
+            env=env,                # environment where data is collected
+            learning_rate=2e-3,     # Default: 3e-4
+            n_steps=2048,           # num of steps per rollout  # each env does this amount of steps
+            batch_size=128,         # Default: 64 for MLP, 128 for RNN
+            n_epochs=40,            # number of gradient descent steps per iteration
+            clip_range=0.25,        # Default: 0.2
+            gamma=0.99,             # discount factor
             policy_kwargs={"activation_fn": Tanh},
             verbose=1,
         )
@@ -103,8 +106,15 @@ def main(args):
         print(f'Note: The model will NOT be saved.')
 
     # Train the model:
-    print('Training...')
-    model.learn(total_timesteps=steps, callback=callback)
+    if args.start > 0:  # Set the current number of timesteps (if resuming a previous W&B run)
+        model.num_timesteps = args.start
+        print(f"Starting at num_timesteps = {model.num_timesteps}")  # Only relevant for logging
+    print(f"Training the model for {steps} steps...")
+    model.learn(
+        total_timesteps=steps,
+        callback=callback,
+        reset_num_timesteps=True if args.start == 0 else False,
+    )
 
     return
 
@@ -113,7 +123,8 @@ if __name__ == '__main__':
     arguments = get_main_args()
     # arguments.n_envs = 4
     # arguments.nosave = True
-    # arguments.model = os.path.join("models", "mlp_model.zip")
+    arguments.model = os.path.join("models", "mlp_model.zip")
     # arguments.wandb = True
+    # arguments.start = 0  # Define the starting training step
     # arguments.steps = 20_000_000
     main(arguments)
