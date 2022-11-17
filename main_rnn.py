@@ -13,6 +13,7 @@ from sb3_contrib import RecurrentPPO
 from torch.nn import Tanh
 # from rendezvous_env import RendezvousEnv
 from utils.environment_utils import make_env, copy_env
+from utils.general import print_model
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from arguments import get_main_args
 # from sb3_contrib.ppo_recurrent import MlpLstmPolicy
@@ -72,6 +73,8 @@ def load_model(args, env):
         except FileNotFoundError:
             print(f'No such file "{model_path}".\nExiting')
             exit()
+
+    print_model(model)
 
     return model
 

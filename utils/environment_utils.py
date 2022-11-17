@@ -54,7 +54,7 @@ def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> Rendezv
         quiet=quiet
     )
 
-    print(f"Made new environment:")
+    print(f"\nEnvironment:")
     for key, val in vars(env).items():
         if val is not None:
             print(f"{key}: {val}")

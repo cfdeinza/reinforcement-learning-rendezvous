@@ -108,6 +108,22 @@ def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
     return new_data
 
 
+def print_model(model):
+    """
+    Print the attributes of the model.\n
+    :param model: object
+    :return: None
+    """
+
+    print("\nModel:")
+    dict_form = vars(model)
+    for key, val in dict_form.items():
+        if str(key)[0] != "_":
+            print(f"{key}: {val}")
+
+    return
+
+
 def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> np.float:
     """
     Computes the angle between two 3D vectors, using the geometric definition of the dot product:

@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from torch.nn import Tanh
 # from rendezvous_env import RendezvousEnv
 from utils.environment_utils import make_env, copy_env
+from utils.general import print_model
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from arguments import get_main_args
 # from custom.custom_model import CustomPPO
@@ -55,6 +56,8 @@ def load_model(args, env):
         except FileNotFoundError:
             print(f'No such file "{model_path}".\nExiting')
             exit()
+
+    print_model(model)
 
     return model
 
@@ -123,7 +126,7 @@ if __name__ == '__main__':
     arguments = get_main_args()
     # arguments.n_envs = 4
     # arguments.nosave = True
-    arguments.model = os.path.join("models", "mlp_model.zip")
+    # arguments.model = os.path.join("models", "mlp_model.zip")
     # arguments.wandb = True
     # arguments.start = 0  # Define the starting training step
     # arguments.steps = 20_000_000
