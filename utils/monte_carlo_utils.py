@@ -49,6 +49,106 @@ def plot_errors(var: str, datas: list, constraints: np.ndarray, t_max: int):
     return
 
 
+def plot_errors_vs_var(var: str, datas: list, constraints: np.ndarray):
+    fig, ax = plt.subplots(2, 2, figsize=(12, 6))
+
+    # Gather the parameter values and the steady state errors from each run:
+    var_values = []     # Values of the parameter that is being varied
+    ss_pos_errors = []  # Steady state pos errors [m]
+    ss_vel_errors = []  # Steady state vel errors [m/s]
+    ss_att_errors = []  # Steady state att errors [deg]
+    ss_rot_errors = []  # Steady state rot errors [deg/s]
+
+    for run in datas:
+        value = check_rad2deg(name=var, values=run[var])
+        var_values.append(value)
+        pos_error = run["errors"][0]
+        max_rd_error = constraints[0, 0]
+        if np.any(pos_error < max_rd_error):
+            index_ss = np.argmax(pos_error < max_rd_error)  # First index where pos error < constraint
+            ss_pos_errors.append(run["errors"][0, index_ss:-1])
+            ss_vel_errors.append(run["errors"][1, index_ss:-1])
+            ss_att_errors.append(np.degrees(run["errors"][2, index_ss:-1]))
+            ss_rot_errors.append(np.degrees(run["errors"][3, index_ss:-1]))
+        else:
+            # If steady-state was not achieved during this run, set errors to -1
+            ss_pos_errors.append(np.array([-1]))
+            ss_vel_errors.append(np.array([-1]))
+            ss_att_errors.append(np.array([-1]))
+            ss_rot_errors.append(np.array([-1]))
+
+    # Plot the average steady state errors:
+    fmt = "rx"  # color and shape of the line/markers
+    ecolor = "k"
+    capsize = 3
+    # ax[0, 0].plot(var_values, [error.mean() for error in ss_pos_errors], fmt, label="Average SS error")
+    # ax[0, 1].plot(var_values, [error.mean() for error in ss_vel_errors], fmt, label="Average SS error")
+    # ax[1, 0].plot(var_values, [error.mean() for error in ss_att_errors], fmt, label="Average SS error")
+    # ax[1, 1].plot(var_values, [error.mean() for error in ss_rot_errors], fmt, label="Average SS error")
+    pos_means = np.array([error.mean() for error in ss_pos_errors])
+    vel_means = np.array([error.mean() for error in ss_vel_errors])
+    att_means = np.array([error.mean() for error in ss_att_errors])
+    rot_means = np.array([error.mean() for error in ss_rot_errors])
+    pos_mins = np.array([np.min(error) for error in ss_pos_errors])
+    vel_mins = np.array([np.min(error) for error in ss_vel_errors])
+    att_mins = np.array([np.min(error) for error in ss_att_errors])
+    rot_mins = np.array([np.min(error) for error in ss_rot_errors])
+    pos_maxs = np.array([np.max(error) for error in ss_pos_errors])
+    vel_maxs = np.array([np.max(error) for error in ss_vel_errors])
+    att_maxs = np.array([np.max(error) for error in ss_att_errors])
+    rot_maxs = np.array([np.max(error) for error in ss_rot_errors])
+    pos_bars = np.vstack((pos_means - pos_mins, pos_maxs - pos_means))
+    vel_bars = np.vstack((vel_means - vel_mins, vel_maxs - vel_means))
+    att_bars = np.vstack((att_means - att_mins, att_maxs - att_means))
+    rot_bars = np.vstack((rot_means - rot_mins, rot_maxs - rot_means))
+    ax[0, 0].errorbar(var_values, pos_means, yerr=pos_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
+                      label="Average SS error")
+    ax[0, 1].errorbar(var_values, vel_means, yerr=vel_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
+                      label="Average SS error")
+    ax[1, 0].errorbar(var_values, att_means, yerr=att_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
+                      label="Average SS error")
+    ax[1, 1].errorbar(var_values, rot_means, yerr=rot_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
+                      label="Average SS error")
+
+    # Specify the title for each subplot:
+    titles = np.array([
+        ["Position error [m]", "Velocity error [m/s]"],
+        ["Attitude error [deg]", "Rotation rate error [deg/s]"],
+    ])
+
+    # x-limit for the subplots:
+    x_lim_values = var_values.copy()
+    x_lim_values.append(0)
+    x_lim = [min(x_lim_values), max(x_lim_values)]
+
+    # List with the y-limit for each subplot:
+    ylims = np.array([
+        [
+            [min(np.min(pos_mins), 0), max(np.max(pos_maxs) + 0.1, 0)],
+            [min(np.min(vel_mins), 0), max(np.max(vel_maxs) + 0.01, 0)],
+        ],
+        [
+            [min(np.min(att_mins), 0), max(np.max(att_maxs) + 1, 0)],
+            [min(np.min(rot_mins), 0), max(np.max(rot_maxs) + 0.1, 0)],
+        ]])
+
+    # Plot the constraints for each state variable, and format the axes:
+    for i in range(2):
+        for j in range(2):
+            ax[i, j].plot(x_lim, [constraints[i, j]] * 2, "k--", label="Constraint")
+            format_ax(
+                ax[i, j],
+                xlim=x_lim,
+                xlabel=f"{get_symbol(var)} {get_units(var)}",
+                ylim=ylims[i, j],  # None,
+                title=titles[i, j])
+
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+    return
+
+
 def get_symbol(name: str):
     """
     Returns the name of the variable in symbol form. Used for some plot labels.\n

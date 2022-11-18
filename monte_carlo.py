@@ -9,36 +9,32 @@ from math import radians, degrees
 from arguments import get_monte_carlo_args
 from utils.general import load_model, interp
 from utils.environment_utils import make_env
-from utils.monte_carlo_utils import plot_errors, print_results
+from utils.monte_carlo_utils import print_results, plot_errors, plot_errors_vs_var
 from rendezvous_eval import evaluate
 
 
 def main(args):
 
-    # Make an instance of the environment:
-    reward_kwargs = None
-    config = None
-    dummy_env = make_env(reward_kwargs, quiet=True, config=config, stochastic=True)
-
     # Load an existing model:
-    saved_model = load_model(path=args.model, env=dummy_env)
+    saved_model = load_model(path=args.model, env=None)  # env=dummy_env
 
     # Define the variable to be varied:  # TODO: needs to be randomized
-    variable = {"name": "wt0", "values": [radians(i) for i in [0, 1, 2]]}
+    variable = {"name": "wt0", "values": [radians(i) for i in [0, 0.5, 1, 1.5, 2]]}
     # variable = {"name": "rc0", "values": [19, 20, 21]}
 
-    var = variable["name"]
-    values = variable["values"]
+    var_name = variable["name"]
+    var_values = variable["values"]
     datas = []
+    eval_env = None
 
-    for value in values:
+    for value in var_values:
         # Create an environment to evaluate the model:
         config = {}
-        if var == "rc0":
-            config[var] = np.array([0, -value, 0])
-        elif var == "wt0":
-            config[var] = np.array([0, 0, value])
-        eval_env = make_env(reward_kwargs, quiet=False, config=config, stochastic=False)
+        if var_name == "rc0":
+            config[var_name] = np.array([0, -value, 0])
+        elif var_name == "wt0":
+            config[var_name] = np.array([0, 0, value])
+        eval_env = make_env(reward_kwargs=None, quiet=False, config=config, stochastic=False)
 
         # Evaluate the model:
         data = evaluate(saved_model, eval_env, args)
@@ -47,7 +43,7 @@ def main(args):
         new_errors = interp(data["errors"], t, new_t)
         datas.append(
             {
-                var: value,
+                var_name: value,
                 "t": new_t,
                 "errors": new_errors,
                 "total_delta_v": data["total_delta_v"],
@@ -56,20 +52,18 @@ def main(args):
             })
 
     # Print results:
-    print_results(var=var, results=datas, max_rd_error=dummy_env.max_rd_error)
+    # dummy_env = make_env(reward_kwargs=None, quiet=True, config=None, stochastic=True)
+    print_results(var=var_name, results=datas, max_rd_error=eval_env.max_rd_error)
 
     # Plot the errors of each run:
-    plot_errors(
-        var=var,
-        datas=datas,
-        constraints=np.array([
-            [dummy_env.max_rd_error, dummy_env.max_vd_error],
-            [degrees(dummy_env.max_qd_error), degrees(dummy_env.max_wd_error)],
-        ]),
-        t_max=dummy_env.t_max
-    )
+    constraints = np.array([
+            [eval_env.max_rd_error, eval_env.max_vd_error],
+            [degrees(eval_env.max_qd_error), degrees(eval_env.max_wd_error)],
+        ])
+    plot_errors(var=var_name, datas=datas, constraints=constraints, t_max=eval_env.t_max)
 
-    # TODO: Plot errors as a function of var
+    # Plot the errors as a function of `var_name`:
+    plot_errors_vs_var(var=var_name, datas=datas, constraints=constraints)
 
 
 if __name__ == "__main__":
