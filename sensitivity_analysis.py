@@ -61,7 +61,8 @@ def train_function(iterations):
         # Make environments:
         reward_kwargs = None
         env_config = wandb.config
-        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=False)
+        stochastic = False
+        train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=stochastic)
         eval_env = copy_env(train_env)
 
         model = make_model(MlpPolicy, train_env, config=wandb.config)
@@ -78,7 +79,7 @@ def train_function(iterations):
             callback=CustomWandbCallback(
                 env=eval_env,
                 wandb_run=run,
-                n_evals=1,
+                n_evals=1 if stochastic is False else True,
                 save_name="sensitivity_model",
             )
         )

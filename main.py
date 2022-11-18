@@ -78,7 +78,9 @@ def main(args):
 
     # Make envs:
     reward_kwargs = None
-    train_env = make_env(reward_kwargs, quiet=False, config=None, stochastic=True)
+    env_config = {}
+    stochastic = True
+    train_env = make_env(reward_kwargs, quiet=False, config=env_config, stochastic=stochastic)
     eval_env = copy_env(train_env)
 
     # Load/create model:
@@ -91,7 +93,7 @@ def main(args):
                 env=eval_env,
                 wandb_run=None,
                 save_name="mlp_model",
-                n_evals=10,
+                n_evals=10 if stochastic is True else 1,
                 project="train",
                 run_id=None,  # use this to resume a paused/crashed run
                 verbose=0,
