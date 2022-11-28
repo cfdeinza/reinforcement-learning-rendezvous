@@ -48,7 +48,7 @@ class RendezvousEnv(gym.Env):
         self.wt = None      # rotation rate of the target [rad/s] expressed in target body frame
 
         # Nominal initial state:
-        self.nominal_rc0 = np.array([0., -20., 0.]) if rc0 is None else rc0
+        self.nominal_rc0 = np.array([0., -10., 0.]) if rc0 is None else rc0
         self.nominal_vc0 = np.array([0., 0., 0.]) if vc0 is None else vc0
         self.nominal_qc0 = np.array([1., 0., 0., 0.]) if qc0 is None else qc0
         self.nominal_wc0 = np.array([0., 0., 0.]) if wc0 is None else wc0

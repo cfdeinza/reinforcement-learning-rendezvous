@@ -1,6 +1,7 @@
 import numpy as np
 from rendezvous_env import RendezvousEnv
 from copy import deepcopy
+from stable_baselines3.common.monitor import Monitor
 
 
 def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> RendezvousEnv:
@@ -54,10 +55,7 @@ def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> Rendezv
         quiet=quiet
     )
 
-    print(f"\nEnvironment:")
-    for key, val in vars(env).items():
-        if val is not None:
-            print(f"{key}: {val}")
+    print_env(env)
 
     return env
 
@@ -70,3 +68,27 @@ def copy_env(env):
     """
 
     return deepcopy(env)
+
+
+def print_env(env):
+    """
+    Print the attributes of the given environment.\n
+    :param env: object
+    :return: None
+    """
+
+    print(f"\nEnvironment:")
+    for key, val in vars(env).items():
+        if val is not None:
+            print(f"{key}: {val}")
+
+    return None
+
+
+def make_vec_env():
+    """
+    In case I am using multiple environments.\n
+    :return:
+    """
+    env = RendezvousEnv()
+    return Monitor(env)
