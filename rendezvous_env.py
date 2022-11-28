@@ -525,9 +525,9 @@ class RendezvousEnv(gym.Env):
 
     def lvlh2chaser(self, vec: np.ndarray) -> np.ndarray:
         """
-        Convert a vector from the LVLH frame into the chaser body frame.\n
+        Convert a vector from the LVLH frame into the chaser body (CB) frame.\n
         :param vec: 3D vector expressed in the LVLH frame
-        :return: same vector expressed in the chaser body frame
+        :return: same vector expressed in the CB frame
         """
         assert self.qc is not None, "Cannot convert vector to chaser body frame. Chaser attitude is undefined."
         assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
@@ -543,15 +543,25 @@ class RendezvousEnv(gym.Env):
         assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
         return np.matmul(quat2mat(self.qt).T, vec)
 
-    # def tb2lvlh(self, vec):
-    #     """
-    #     Convert a vector from the Target Body (TB) frame into the LVLH frame.\n
-    #     :param vec: 3D vector expressed in the TB frame
-    #     :return: same vector expressed in the LVLH frame
-    #     """
-    #     assert self.qt is not None, "Cannot convert vector to TB frame. Target attitude is undefined."
-    #     assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
-    #     return np.matmul(quat2mat(self.qt), vec)
+    def chaser2lvlh(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the chaser body (CB) frame into the LVLH frame.\n
+        :param vec: 3D vector expressed in the CB frame
+        :return: same vector expressed in the LVLH frame
+        """
+        assert self.qc is not None, "Cannot convert vector from chaser to LVLH frame. Chaser attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qc), vec)
+
+    def target2lvlh(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the Target Body (TB) frame into the LVLH frame.\n
+        :param vec: 3D vector expressed in the TB frame
+        :return: same vector expressed in the LVLH frame
+        """
+        assert self.qt is not None, "Cannot convert vector from target to LVLH frame. Target attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qt), vec)
 
     def integrate_chaser_attitude(self, torque):
         """
