@@ -223,10 +223,10 @@ class CustomWandbCallback(BaseCallback):
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
                 time_of_first_collision = self.env.t  # records the time at which the first collision occurs
-                min_pos_error = -1  # records the minimum position error achieved by the chaser without entering the KOZ
+                min_pos_error = np.nan  # records the minimum pos error achieved by the chaser without entering the KOZ
             else:
                 collisions = 0
-                time_of_first_collision = -1  # Using -1 instead of None (so that W&B can record it properly)
+                time_of_first_collision = np.nan  # Previously used -1 (so that W&B can record it properly)
                 min_pos_error = self.env.get_pos_error(self.env.get_goal_pos())
             lstm_states = None
             ep_start = np.ones(shape=(1,), dtype=bool)
@@ -252,10 +252,10 @@ class CustomWandbCallback(BaseCallback):
                 chaser_in_koz = self.env.check_collision()
                 if chaser_in_koz:
                     collisions += 1
-                    if time_of_first_collision == -1:
+                    if np.isnan(time_of_first_collision):
                         time_of_first_collision = self.env.t
                 else:
-                    if time_of_first_collision == -1:
+                    if np.isnan(time_of_first_collision):
                         min_pos_error = min(min_pos_error, self.env.get_pos_error(self.env.get_goal_pos()))
 
             end_time = self.env.t
@@ -274,6 +274,17 @@ class CustomWandbCallback(BaseCallback):
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
+        # Compute the average of the min position errors and the collision times:
+        if np.app(np.isnan(ep_min_pos_errors)):
+            avg_min_pos_error = -1
+        else:
+            avg_min_pos_error = np.nanmean(ep_min_pos_errors)
+        if np.all(np.isnan(ep_times_of_first_collision)):
+            avg_collision_time = -1
+        else:
+            avg_collision_time = np.nanmean(ep_times_of_first_collision)
+
+        # Create ouput dictionary:
         output = {
             "ep_rew": ep_rews.mean(),           # Total reward achieved during the episode
             "ep_len": ep_end_times.mean(),      # Length of the episode (seconds)
@@ -282,9 +293,9 @@ class CustomWandbCallback(BaseCallback):
             "ep_delta_w": ep_delta_ws.mean(),   # Total delta omega used during the episode
             "ep_success": ep_successes.mean(),  # Whether the trajectory was successful (achieved capture w/o collision)
             "ep_collision_percentage": ep_collision_percentages.mean(),  # % of timesteps where chaser was inside KOZ
-            "ep_time_of_first_collision": ep_times_of_first_collision.mean(),  # time when chaser first entered the KOZ
-            "ep_min_pos_error": ep_min_pos_errors.mean(),  # minimum position error of the chaser without entering KOZ
-            "ep_avg_att_error": ep_avg_att_errors.mean(),  # average attitude error of the chaser (regardless of KOZ)
+            "ep_time_of_first_collision": avg_collision_time,   # time when chaser first entered the KOZ
+            "ep_min_pos_error": avg_min_pos_error,              # minimum pos error of the chaser without entering KOZ
+            "ep_avg_att_error": ep_avg_att_errors.mean(),       # average att error of the chaser (regardless of KOZ)
         }
 
         return output
