@@ -76,6 +76,7 @@ def load_model(path, env):
             # model = PPO.load(path, env=env)
             custom_objects = {
                 "lr_schedule": get_schedule_fn(3e-4),
+                "learning_rate": get_schedule_fn(3e-4),
                 "clip_range": get_schedule_fn(0.2),
             }
             if "rnn" in path:  # HACK: find a safer way to identify if the model to be loaded is Recurrent.
@@ -87,6 +88,26 @@ def load_model(path, env):
             print(f'No such file "{path}".\nExiting')
             exit()
     return model
+
+
+def schedule_fn(initial_value: float):
+    """
+    Returns a function that computes the current value of a model parameter, based on the progress remaining.
+    Progress remaining is a value that decreases from 1 to 0 as the training progresses.
+    It is used for model parameters such as learning_rate and clip_range.\n
+    :param initial_value: Initial value of the parameter.
+    :return: function that computes the current value of the parameter
+    """
+
+    def constant(progress_remaining: float) -> float:
+        current_value = (progress_remaining * 0) + initial_value  # Constant
+        return current_value
+
+    # def linear(progress_remaining: float) -> float:
+    #     current_value = progress_remaining * initial_value  # Linear decrease
+    #     return current_value
+
+    return constant
 
 
 def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
@@ -119,7 +140,10 @@ def print_model(model):
     dict_form = vars(model)
     for key, val in dict_form.items():
         if str(key)[0] != "_":
-            print(f"{key}: {val}")
+            if key == "learning_rate" or key == "clip_range":
+                print(f"{key}: [{val(1)} - {val(0)}]")
+            else:
+                print(f"{key}: {val}")
 
     return
 

@@ -4,19 +4,15 @@ Main script used for training a PPO model with a recurrent neural network.
 Written by C. F. De Inza Niemeijer.
 """
 
-# from stable_baselines3.common.evaluation import evaluate_policy
-# from stable_baselines3.common.callbacks import EvalCallback
 import os
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 from sb3_contrib import RecurrentPPO
 from torch.nn import Tanh
-# from rendezvous_env import RendezvousEnv
 from utils.environment_utils import make_env, copy_env
-from utils.general import print_model
+from utils.general import print_model, schedule_fn
 from custom.custom_callbacks import CustomWandbCallback, CustomCallback
 from arguments import get_main_args
-# from sb3_contrib.ppo_recurrent import MlpLstmPolicy
 
 
 def load_model(args, env):
@@ -33,6 +29,7 @@ def load_model(args, env):
     # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
+    # env = DummyVecEnv([make_vec_env] * 4)
 
     if model_path == '':
         print('No model provided for training. Making new model...')
@@ -68,7 +65,13 @@ def load_model(args, env):
     else:
         print(f'Loading saved model "{model_path}"...')
         try:
-            model = RecurrentPPO.load(model_path, env=env)
+            custom_objects = None
+            # custom_objects = {
+            #     "lr_schedule": schedule_fn(3e-4),
+            #     "learning_rate": schedule_fn(3e-4),
+            #     "clip_range": schedule_fn(0.2),
+            # }
+            model = RecurrentPPO.load(model_path, env=env, custom_objects=custom_objects)
             print('Successfully loaded model')
         except FileNotFoundError:
             print(f'No such file "{model_path}".\nExiting')
@@ -77,24 +80,6 @@ def load_model(args, env):
     print_model(model)
 
     return model
-
-
-def lr_schedule(initial_value: float):
-    """
-    Learning rate scheduler. Default learning rate for PPO is 3e-4.\n
-    :param initial_value: Initial learning rate.
-    :return: Callback function that computes current learning rate
-    """
-
-    def func(progress_remaining: float) -> float:
-        """
-        Computes current learning rate based on progress remaining.\n
-        :param progress_remaining: value that will decrease from 1 to 0.
-        :return: current learning rate
-        """
-        return progress_remaining * initial_value
-
-    return func
 
 
 def main(args):
