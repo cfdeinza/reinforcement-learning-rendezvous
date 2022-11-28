@@ -20,7 +20,8 @@ def main(args):
 
     # Define the variable to be varied:  # TODO: needs to be randomized
     variable = {"name": "wt0", "values": [radians(i) for i in [0, 0.5, 1, 1.5, 2]]}
-    # variable = {"name": "rc0", "values": [19, 20, 21]}
+    # variable = {"name": "rc0", "values": [9, 10, 11]}  # [19, 20, 21]
+    # variable = {"name": "vc0", "values": []}
 
     var_name = variable["name"]
     var_values = variable["values"]
@@ -53,7 +54,7 @@ def main(args):
 
     # Print results:
     # dummy_env = make_env(reward_kwargs=None, quiet=True, config=None, stochastic=True)
-    print_results(var=var_name, results=datas, max_rd_error=eval_env.max_rd_error)
+    print_results(var=var_name, results=datas, max_rd_error=eval_env.max_rd_error, max_vd_error=eval_env.max_vd_error)
 
     # Plot the errors of each run:
     constraints = np.array([
@@ -70,5 +71,6 @@ if __name__ == "__main__":
 
     arguments = get_monte_carlo_args()
     # arguments.save = False
-    arguments.model = os.path.join("models", "mlp_model_att_01.zip")
+    # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
+    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent4.zip"
     main(arguments)

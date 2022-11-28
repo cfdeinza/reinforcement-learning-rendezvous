@@ -63,9 +63,12 @@ def plot_errors_vs_var(var: str, datas: list, constraints: np.ndarray):
         value = check_rad2deg(name=var, values=run[var])
         var_values.append(value)
         pos_error = run["errors"][0]
+        vel_error = run["errors"][1]
         max_rd_error = constraints[0, 0]
-        if np.any(pos_error < max_rd_error):
-            index_ss = np.argmax(pos_error < max_rd_error)  # First index where pos error < constraint
+        max_vd_error = constraints[0, 1]
+        ss_achieved = np.logical_and(pos_error < max_rd_error, vel_error < max_vd_error)
+        if np.any(ss_achieved):
+            index_ss = np.argmax(ss_achieved)  # First index where pos error & vel error < constraint
             ss_pos_errors.append(run["errors"][0, index_ss:-1])
             ss_vel_errors.append(run["errors"][1, index_ss:-1])
             ss_att_errors.append(np.degrees(run["errors"][2, index_ss:-1]))
@@ -122,14 +125,15 @@ def plot_errors_vs_var(var: str, datas: list, constraints: np.ndarray):
     x_lim = [min(x_lim_values), max(x_lim_values)]
 
     # List with the y-limit for each subplot:
+    ylim_coef = 4
     ylims = np.array([
         [
-            [min(np.min(pos_mins), 0), max(np.max(pos_maxs) + 0.1, 0)],
-            [min(np.min(vel_mins), 0), max(np.max(vel_maxs) + 0.01, 0)],
+            [min(np.min(pos_mins), 0), max(np.max(pos_maxs) + 0.1, constraints[0, 0] * ylim_coef)],
+            [min(np.min(vel_mins), 0), max(np.max(vel_maxs) + 0.01, constraints[0, 1] * ylim_coef)],
         ],
         [
-            [min(np.min(att_mins), 0), max(np.max(att_maxs) + 1, 0)],
-            [min(np.min(rot_mins), 0), max(np.max(rot_maxs) + 0.1, 0)],
+            [min(np.min(att_mins), 0), max(np.max(att_maxs) + 1, constraints[1, 0] * ylim_coef)],
+            [min(np.min(rot_mins), 0), max(np.max(rot_maxs) + 0.1, constraints[1, 1] * ylim_coef)],
         ]])
 
     # Plot the constraints for each state variable, and format the axes:
@@ -227,7 +231,7 @@ def format_ax(ax, xlim=None, ylim=None, xlabel=None, ylabel=None, title=None):
     return
 
 
-def print_results(var: str, results: list, max_rd_error: float):
+def print_results(var: str, results: list, max_rd_error: float, max_vd_error: float):
     """
     Prints the results of the Monte Carlo simulation in table format.
     Note: the rise time is defined as the first time during which the position error is within the allowed constraint.
@@ -252,8 +256,10 @@ def print_results(var: str, results: list, max_rd_error: float):
         out.append(check_rad2deg(name=var, values=run[var]))    # Value of the random variable
         out.append(run["t"][-1])                                # Episode length
         pos_error = run["errors"][0]
-        if np.any(pos_error < max_rd_error):
-            index_ss = np.argmax(pos_error < max_rd_error)                  # First index where pos error < constraint
+        vel_error = run["errors"][1]
+        ss_achieved = np.logical_and(pos_error < max_rd_error, vel_error < max_vd_error)
+        if np.any(ss_achieved):
+            index_ss = np.argmax(ss_achieved)                               # First index where pos error < constraint
             out.append(run["t"][index_ss])                                  # Rise time (s)
             out.append(run["errors"][0, index_ss:-1].mean())                # Average steady-state pos error (m)
             out.append(run["errors"][1, index_ss:-1].mean())                # Average steady-state vel error (m/s)
