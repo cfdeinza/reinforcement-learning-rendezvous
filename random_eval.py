@@ -66,9 +66,12 @@ def evaluate(model, env):
     with wandb.init() as _:
         print(f"Eval: {wandb.config.get('eval')}")
         # Create empty arrays to store results:
-        expected_timesteps = int(env.t_max / env.dt) + 1  # size of the empty arrays
-        errors = np.full((4, expected_timesteps), np.nan)  # array where errors will be saved
-        t = np.full((1, expected_timesteps), np.nan)
+        expected_timesteps = int(env.t_max / env.dt) + 1        # size of the empty arrays
+        errors = np.full((4, expected_timesteps), np.nan)       # array where errors will be saved
+        t = np.full((1, expected_timesteps), np.nan)            # array where times will be saved
+        in_koz = np.full((1, expected_timesteps), np.nan)       # array to indicate when the chaser is in the KOZ
+        num_collisions = 0                                      # counts the number of collisions
+        total_reward = 0
 
         # Reset environment:
         obs = env.reset()
@@ -77,8 +80,9 @@ def evaluate(model, env):
         done = False
         errors[:, 0] = env.get_errors()
         t[0, 0] = env.t
-        collisions = int(env.check_collision())
-        total_reward = 0
+        in_koz[0, 0] = int(env.check_collision())
+        num_collisions += int(env.check_collision())
+        min_dist_from_koz = env.dist_from_koz()
 
         # Record the initial state:
         rc0 = env.rc
@@ -108,7 +112,12 @@ def evaluate(model, env):
             # Update data:
             errors[:, k] = env.get_errors()
             t[0, k] = env.t
-            collisions += int(env.check_collision())
+            collision = env.check_collision()
+            in_koz[0, k] = int(collision)
+            num_collisions += int(collision)
+            dist_from_koz = env.dist_from_koz()
+            if dist_from_koz < min_dist_from_koz:
+                min_dist_from_koz = dist_from_koz
             total_reward += reward
             k += 1
 
@@ -116,6 +125,7 @@ def evaluate(model, env):
         if env.t < env.t_max:
             t = np.array([t[~np.isnan(t)]])
             errors = errors[:, 0:t.size]
+            in_koz = in_koz[:, 0:t.size]
 
         # Compute terminal errors:
         pos_error = errors[0]
@@ -128,9 +138,10 @@ def evaluate(model, env):
             terminal_pos_error = errors[0, i_terminal:-1].mean()
             terminal_vel_error = errors[1, i_terminal:-1].mean()
             terminal_att_error = np.degrees(errors[2, i_terminal:-1].mean())
-            terminal_rot_error = np.degrees(errors[0, i_terminal:-1].mean())
+            terminal_rot_error = np.degrees(errors[3, i_terminal:-1].mean())
         else:
             # If terminal pos & vel conditions were not achieved during this run, set errors to nan
+            # TODO: calculate terminal error some other way, so we have a value at least.
             terminal_pos_error = None
             terminal_vel_error = None
             terminal_att_error = None
@@ -163,9 +174,12 @@ def evaluate(model, env):
             wt0y_lvlh=np.degrees(wt0_lvlh[1]),      # y-component of the initial chaser rot rate [deg/s] (in LVLH)
             wt0z_lvlh=np.degrees(wt0_lvlh[2]),      # z-component of the initial chaser rot rate [deg/s] (in LVLH)
             ep_len=t[0, -1],                        # length of the episode [s]
-            collisions=collisions,                  # number of collisions during episode
+            num_collisions=num_collisions,          # number of collisions during episode
+            collided=int(num_collisions > 0),       # 1 if the chaser entered the KOZ, 0 otherwise
             total_reward=total_reward,              # total reward achieved during episode
-            success=env.success,                    # number of successes during episode
+            num_successes=env.success,              # number of successes during episode
+            succeeded=int(env.success > 0),         # 1 if the chaser achieved at least 1 success, 0 otherwise
+            min_dist_from_koz=min_dist_from_koz,    # the min distance of the chaser to the KOZ (negative means inside)
             pos_error=terminal_pos_error,           # average terminal position error [m]
             vel_error=terminal_vel_error,           # average terminal velocity error [m/s]
             att_error=terminal_att_error,           # average terminal attitude error [deg]
@@ -180,7 +194,5 @@ def evaluate(model, env):
 if __name__ == "__main__":
 
     arguments = get_monte_carlo_args()
-    # arguments.save = False
-    # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent2.zip"
+    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
     main(arguments)
