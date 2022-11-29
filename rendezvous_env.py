@@ -563,6 +563,35 @@ class RendezvousEnv(gym.Env):
         assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
         return np.matmul(quat2mat(self.qt), vec)
 
+    def dist_from_koz(self) -> float:
+        """
+        Compute the minimum distance between the chaser and the surface of the KOZ. If the chaser is outside the koz,
+        the distance is positive. If the chaser is inside the KOZ, the distance is negative.\n
+        :return: distance (in meters) to the closest point on the surface of the KOZ
+        """
+        pos_mag = np.linalg.norm(self.rc)       # Magnitude of the chaser position [m]
+        r_koz = self.koz_radius                 # radius of the KOZ [m]
+        theta_corr = self.corridor_half_angle   # Half-angle of the entry corridor [rad]
+        theta_chaser = angle_between_vectors(self.rc, self.target2lvlh(self.corridor_axis))  # angle btw rc & corr axis
+        if pos_mag < r_koz:
+            if theta_chaser >= theta_corr:
+                # Collided:
+                d_rad = r_koz - pos_mag  # positive
+                d_tan = pos_mag * np.sin(min(theta_chaser - theta_corr, np.pi / 2))  # positive
+                d_koz = -1 * min(d_rad, d_tan)  # negative
+                assert d_koz <= 0, f"Error computing distance from KOZ. Dist = {d_koz} (expected negative value)"
+            else:
+                # Within corridor
+                d_koz = pos_mag * np.sin(theta_corr - theta_chaser)  # positive
+        else:
+            if theta_chaser >= theta_corr:
+                d_koz = pos_mag - r_koz  # positive
+            else:
+                d_rad = pos_mag - r_koz * np.cos(theta_corr - theta_chaser)  # positive
+                d_tan = r_koz * np.sin(theta_corr - theta_chaser)
+                d_koz = np.sqrt(d_rad ** 2 + d_tan ** 2)
+        return d_koz
+
     def integrate_chaser_attitude(self, torque):
         """
         Use a fourth-order Runge-Kutta integrator to update the attitude and rotation rate of the chaser.\n
