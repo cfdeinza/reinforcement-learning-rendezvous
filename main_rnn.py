@@ -100,7 +100,7 @@ def main(args):
     reward_kwargs = None
     env_config = {}
     stochastic = True
-    train_env = make_env(reward_kwargs, quiet=False, config=env_config, stochastic=stochastic)
+    train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=stochastic)
     eval_env = copy_env(train_env)
 
     # Load/create model:
@@ -113,7 +113,7 @@ def main(args):
                 env=eval_env,
                 wandb_run=None,
                 save_name="rnn_model",
-                n_evals=10 if stochastic is True else 1,
+                n_evals=50 if stochastic is True else 1,
                 project="train",
                 run_id=None,
                 verbose=0,
@@ -122,7 +122,7 @@ def main(args):
             callback = CustomCallback(
                 env=eval_env,
                 save_name="rnn_model",
-                n_evals=10,
+                n_evals=50,
                 verbose=0,
             )
         print(f"The best model will be saved in {callback.save_path}")

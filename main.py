@@ -93,7 +93,7 @@ def main(args):
                 env=eval_env,
                 wandb_run=None,
                 save_name="mlp_model",
-                n_evals=10 if stochastic is True else 1,
+                n_evals=50 if stochastic is True else 1,
                 project="train",
                 run_id=None,  # use this to resume a paused/crashed run
                 verbose=0,
@@ -102,7 +102,7 @@ def main(args):
             callback = CustomCallback(
                 env=eval_env,
                 save_name="mlp_model",
-                n_evals=10,
+                n_evals=50,
                 verbose=0,
             )   # Custom callback to save the best model
         print(f'The best model will be saved in {callback.save_path}')
