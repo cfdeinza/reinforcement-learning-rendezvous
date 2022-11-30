@@ -140,7 +140,7 @@ def print_model(model):
     dict_form = vars(model)
     for key, val in dict_form.items():
         if str(key)[0] != "_":
-            if key == "learning_rate" or key == "clip_range":
+            if (key == "learning_rate" or key == "clip_range") and callable(val):
                 print(f"{key}: [{val(1)} - {val(0)}]")
             else:
                 print(f"{key}: {val}")

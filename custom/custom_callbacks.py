@@ -275,7 +275,7 @@ class CustomWandbCallback(BaseCallback):
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
         # Compute the average of the min position errors and the collision times:
-        if np.app(np.isnan(ep_min_pos_errors)):
+        if np.all(np.isnan(ep_min_pos_errors)):
             avg_min_pos_error = -1
         else:
             avg_min_pos_error = np.nanmean(ep_min_pos_errors)
