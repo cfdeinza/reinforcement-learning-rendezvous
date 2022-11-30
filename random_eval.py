@@ -45,7 +45,7 @@ def configure_sweep(n_evals):
     sweep_config = {
         "name": "eval_sweep",   # name of the sweep (not the project)
         "metric": {             # metric to optimize, has to be logged with `wandb.log()`
-            "name": "success",
+            "name": "successes",
             "goal": "maximize",
         },
         "method": "grid",       # search method ("grid", "random", or "bayes")
@@ -177,6 +177,7 @@ def evaluate(model, env):
             num_collisions=num_collisions,          # number of collisions during episode
             collided=int(num_collisions > 0),       # 1 if the chaser entered the KOZ, 0 otherwise
             total_reward=total_reward,              # total reward achieved during episode
+            total_delta_v=env.total_delta_v,        # total Delta V used during the trajectory
             num_successes=env.success,              # number of successes during episode
             succeeded=int(env.success > 0),         # 1 if the chaser achieved at least 1 success, 0 otherwise
             min_dist_from_koz=min_dist_from_koz,    # the min distance of the chaser to the KOZ (negative means inside)
