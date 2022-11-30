@@ -329,7 +329,7 @@ class RendezvousEnv(gym.Env):
         """
         return np.hstack((self.rc, self.vc, self.qc, self.wc, self.qt))
 
-    def get_bubble_reward(self, action, collision_coef=0.5, bonus_coef=10, fuel_coef=0, att_coef=0.25):
+    def get_bubble_reward(self, action, collision_coef=0.5, bonus_coef=8, fuel_coef=0, att_coef=0):
         """
         Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
         :param action: current action chosen by the policy
@@ -367,8 +367,10 @@ class RendezvousEnv(gym.Env):
             # Bonus for achieving terminal conditions:
             bonus = self.dt * bonus_coef
             if pos_error < self.max_rd_error:  # give terminal rewards only if the terminal position has been achieved
-                rew += bonus * (1 + (vel_error < self.max_vd_error))  # pos & vel
-                rew += bonus * ((att_error < self.max_qd_error) + (rot_error < self.max_wd_error))  # att & rot rate
+                # rew += bonus * (1 + (vel_error < self.max_vd_error))  # pos & vel
+                # rew += bonus * ((att_error < self.max_qd_error) + (rot_error < self.max_wd_error))  # att & rot rate
+                rew += bonus * (1 - pos_error / self.max_rd_error)
+                rew += bonus * (1 - att_error / self.max_qd_error)
 
         return rew
 
