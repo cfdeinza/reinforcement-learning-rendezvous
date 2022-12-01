@@ -18,7 +18,7 @@ def main(args):
     # Load an existing model:
     saved_model = load_model(path=args.model, env=None)  # env=dummy_env
 
-    # Define the variable to be varied:  # TODO: needs to be randomized
+    # Define the variable to be varied:
     variable = {"name": "wt0", "values": [radians(i) for i in [0, 0.5, 1, 1.5, 2]]}
     # variable = {"name": "rc0", "values": [9, 10, 11]}  # [19, 20, 21]
     # variable = {"name": "vc0", "values": []}
@@ -72,5 +72,5 @@ if __name__ == "__main__":
     arguments = get_monte_carlo_args()
     # arguments.save = False
     # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent4.zip"
+    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
     main(arguments)

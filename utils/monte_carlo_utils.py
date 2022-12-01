@@ -105,13 +105,13 @@ def plot_errors_vs_var(var: str, datas: list, constraints: np.ndarray):
     att_bars = np.vstack((att_means - att_mins, att_maxs - att_means))
     rot_bars = np.vstack((rot_means - rot_mins, rot_maxs - rot_means))
     ax[0, 0].errorbar(var_values, pos_means, yerr=pos_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
-                      label="Average SS error")
+                      label="Terminal error")
     ax[0, 1].errorbar(var_values, vel_means, yerr=vel_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
-                      label="Average SS error")
+                      label="Terminal error")
     ax[1, 0].errorbar(var_values, att_means, yerr=att_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
-                      label="Average SS error")
+                      label="Terminal error")
     ax[1, 1].errorbar(var_values, rot_means, yerr=rot_bars, fmt=fmt, ecolor=ecolor, capsize=capsize,
-                      label="Average SS error")
+                      label="Terminal error")
 
     # Specify the title for each subplot:
     titles = np.array([
