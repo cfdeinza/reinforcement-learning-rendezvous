@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
-from plot_trajectory import get_args
+from other.plot_trajectory import get_args
 from utils.animations import load_data, plot_2dcomponents
 import os
-
-
 
 
 if __name__ == '__main__':

@@ -8,18 +8,22 @@ The learning algorithm chosen to train the controller is the Proximal Policy Opt
 ## Contents:
 
 ### Relevant files:
-- `main.py`: the main script that is executed to train the controller.
+- `main.py`: a script to train the controller with a multi-layer perceptron (MLP).
+- `main_rnn.py`: a script to train the controller with a recursive neural network (RNN).
+- `plot_response.py`: a script to plot the response of the controller in terms of position, velocity, attitude and rotation rate error.
 - `rendezvous_env.py`: a custom gym environment to simulate a 6-DOF rendezvous.
-- `rendezvous_eval.py`: a script to evaluate the performance of the rendezvous controller.
-- `rendezvous_plot_vpython.py`: a script to plot a 3D animation of a rendezvous trajectory.
+- `rendezvous_eval.py`: a script to evaluate the performance of the rendezvous controller over a single trajectory.
 - `rendezvous_plot_2d.py`: a script to plot 2D graphs of the position, velocity, and attitude of the chaser.
-
+- `rendezvous_plot_vpython.py`: a script to plot a 3D animation of a rendezvous trajectory.
+- `sensitivity_analysis.py`: a script to run a sensitivity analysis on the learning algorithm.
+- `tune_*.py`: scripts to tune the algorithm, the neural network, or the reward function.
 ### Directories:
 - `custom/`: custom features used on Stable-Baselines3 (callback functions, policies, environments, etc).
-- `data/`: pickle files containing trajectory data.
-- `ideas/`: relevant information to be implemented in the future.
-- `logs/`: logs from previous training and evaluation runs.
+- `data/`: old pickle files containing trajectory data.
+- `ideas/`: relevant information that may be implemented in the future.
+- `logs/`: old logs from previous training and evaluation runs.
 - `models/`: trained RL models.
 - `other/`: miscellaneous files that may be needed for future work.
 - `plots/`: plots and animations of the trajectories.
 - `utils/`: utility functions.
+- `verification/`: scripts to verify that functions are working correctly.

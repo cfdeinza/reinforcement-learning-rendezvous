@@ -32,8 +32,8 @@ def plot_errors(var: str, datas: list, constraints: np.ndarray, t_max: int):
 
     # List with the y-limit for each subplot:
     ylims = np.array([
-        [[0, 20], [0, 2]],
-        [[0, 35], [0, 10]],
+        [[0, 10], [0, 2]],
+        [[0, 35], [0, 7]],
     ])
 
     # Plot the constraints for each state variable, and format the axes:

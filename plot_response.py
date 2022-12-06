@@ -9,7 +9,7 @@ from math import radians, degrees
 from arguments import get_monte_carlo_args
 from utils.general import load_model, interp
 from utils.environment_utils import make_env
-from utils.monte_carlo_utils import print_results, plot_errors, plot_errors_vs_var
+from utils.plot_utils import print_results, plot_errors, plot_errors_vs_var
 from rendezvous_eval import evaluate
 
 
@@ -72,5 +72,6 @@ if __name__ == "__main__":
     arguments = get_monte_carlo_args()
     # arguments.save = False
     # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
+    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent6.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_long_01.zip"
     main(arguments)
