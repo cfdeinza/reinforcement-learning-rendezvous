@@ -10,6 +10,7 @@ The learning algorithm chosen to train the controller is the Proximal Policy Opt
 ### Relevant files:
 - `main.py`: a script to train the controller with a multi-layer perceptron (MLP).
 - `main_rnn.py`: a script to train the controller with a recursive neural network (RNN).
+- `monte_carlo.py`: a script that performs a Monte Carlo simulation to evaluate a trained controller.
 - `plot_response.py`: a script to plot the response of the controller in terms of position, velocity, attitude and rotation rate error.
 - `rendezvous_env.py`: a custom gym environment to simulate a 6-DOF rendezvous.
 - `rendezvous_eval.py`: a script to evaluate the performance of the rendezvous controller over a single trajectory.

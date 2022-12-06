@@ -195,5 +195,5 @@ def evaluate(model, env):
 if __name__ == "__main__":
 
     arguments = get_monte_carlo_args()
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
     main(arguments)
