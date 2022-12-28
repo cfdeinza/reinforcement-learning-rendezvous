@@ -232,7 +232,8 @@ class CustomWandbCallback(BaseCallback):
                 collisions = 0
                 time_of_first_collision = np.nan  # Previously used -1 (so that W&B can record it properly)
                 successes = int(self.env.check_success())
-                min_pos_error = self.env.get_pos_error(self.env.get_goal_pos())
+                rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
+                min_pos_error = self.env.get_pos_error(rd_lvlh)
             lstm_states = None
             ep_start = np.ones(shape=(1,), dtype=bool)
             done = False
@@ -262,7 +263,8 @@ class CustomWandbCallback(BaseCallback):
                 else:
                     if np.isnan(time_of_first_collision):
                         successes += int(self.env.check_success())
-                        min_pos_error = min(min_pos_error, self.env.get_pos_error(self.env.get_goal_pos()))
+                        rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
+                        min_pos_error = min(min_pos_error, self.env.get_pos_error(rd_lvlh))
 
             end_time = self.env.t
             steps = end_time / self.env.dt

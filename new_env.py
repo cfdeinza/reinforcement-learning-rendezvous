@@ -2,8 +2,8 @@ import gym
 import numpy as np
 from scipy.integrate import solve_ivp
 from utils.dynamics import state_derivative
-from utils.quaternions import quat2mat
-from utils.general import normalize_value, angle_between_vectors
+from utils.quaternions import quat2mat, rot2quat, quat_product
+from utils.general import normalize_value, angle_between_vectors, random_unit_vector
 from gym import spaces
 
 
@@ -23,14 +23,14 @@ class NewEnv(gym.Env):
 
         # Chaser properties:  Parameter                   Unit        Reference frame
         self.mc = None      # Mass of the chaser        [kg]        [-]
-        self.dc = None      # Length of chaser side     [m]         [-]
+        self.lc = None      # Length of chaser side     [m]         [-]
         self.ic = None      # Chaser mom of inertia     [kg.m^2]    [expressed in C frame]
         self.ic_inv = None  # Inverse of I_C
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
 
         # Target properties:
         self.mt = None      # Mass of the target        [kg]        [-]
-        self.dt = None      # Length of target side     [m]         [-]
+        self.lt = None      # Length of target side     [m]         [-]
         self.it = None      # Target mom of inertia     [kg.m^2]    [expressed in T frame]
         self.it_inv = None  # Inverse of I_T
         self.corridor_axis = np.array([0, -1, 0])  # entry corridor expressed in the target body frame (constant)
@@ -78,7 +78,7 @@ class NewEnv(gym.Env):
         self.max_qd_error = np.radians(5)  # allowed error for the capture attitude [rad]
         self.max_wd_error = np.radians(1)  # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None  # whether or not the chaser has collided during the current episode
-        self.success = None
+        # self.success = None
 
         # Chaser state limits:
         self.max_axial_distance = np.linalg.norm(self.nominal_rc0) + 10  # maximum distance allowed on each axis [m]
@@ -91,6 +91,8 @@ class NewEnv(gym.Env):
         self.bonus_coef = config.get("bonus_coef", 8)  # Coefficient to reward success
         self.att_coef = config.get("att_coef", 2)  # Coefficient to reward attitude
         self.prev_potential = None
+        self.total_delta_v = None
+        self.total_delta_w = None
 
         # Other:
         self.viewer = None
@@ -124,8 +126,8 @@ class NewEnv(gym.Env):
 
         # Process the action:
         processed_action = action - 1
-        force = processed_action[0:3]
-        torque = processed_action[3:]
+        force = processed_action[0:3] * self.thrust
+        torque = processed_action[3:] * self.torque
 
         # Execute the action:
         self.integrate_state(force, torque, time=self.bt)
@@ -135,9 +137,11 @@ class NewEnv(gym.Env):
 
         # Update params:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
+        self.total_delta_v += np.sum(np.abs(force)) / self.mc * self.bt
+        self.total_delta_w += np.sum(np.abs(np.matmul(torque, self.ic_inv))) * self.bt
         if not self.collided:
             self.collided = self.check_collision()
-            self.success += int(self.check_success())
+            # self.success += int(self.check_success())
 
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
@@ -158,24 +162,38 @@ class NewEnv(gym.Env):
         return obs, rew, done, info
 
     def reset(self):
-        self.rc = np.array([0, -10, 0])
-        self.vc = np.array([0, 0, 0.1])
-        self.qc = np.array([1, 0, 0, 0])
-        self.wc = np.array([0, 0, 0])
-        self.qt = np.array([1, 0, 0, 0])
-        self.wt = np.array([0, 0, np.radians(1)])
+
+        # Generate random deviations for the state of the system:
+        rc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.rc0_range)
+        vc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.vc0_range)
+        qc_deviation = rot2quat(axis=random_unit_vector(), theta=np.random.uniform(0, self.qc0_range))
+        wc0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.wc0_range)  # Expressed in LVLH
+        qt_deviation = rot2quat(axis=random_unit_vector(), theta=np.random.uniform(0, self.qt0_range))
+        wt0_deviation = random_unit_vector() * np.random.uniform(low=0, high=self.wt0_range)  # Expressed in LVLH
+
+        # Apply the random deviations to the nominal initial conditions:
+        self.rc = self.nominal_rc0 + rc0_deviation
+        self.vc = self.nominal_vc0 + vc0_deviation
+        self.qc = quat_product(self.nominal_qc0, qc_deviation)  # apply sequential rotation (first nominal, then dev)
+        self.wc = self.lvlh2chaser(self.nominal_wc0 + wc0_deviation)  # convert wc0 from LVLH to chaser body frame
+        self.qt = quat_product(self.nominal_qt0, qt_deviation)  # apply sequential rotation (first nominal, then dev)
+        self.wt = self.lvlh2target(self.nominal_wt0 + wt0_deviation)  # convert wt0 from LVLH to target body frame
+
+        # Mass parameters:
         self.mc = 100
-        self.dc = 1
-        self.ic = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) * 1/12 * self.mc * (2 * self.dc**2)
+        self.lc = 1
+        self.ic = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) * 1/12 * self.mc * (2 * self.lc**2)
         self.ic_inv = np.linalg.inv(self.ic)
         self.mt = 100
-        self.dt = 1
-        self.it = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) * 1/12 * self.mt * (2 * self.dt**2)
+        self.lt = 1
+        self.it = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) * 1/12 * self.mt * (2 * self.lt**2)
         self.it_inv = np.linalg.inv(self.it)
 
         self.t = 0
+        self.total_delta_v = 0
+        self.total_delta_w = 0
         self.collided = self.check_collision()
-        self.success = int(self.check_success())
+        # self.success = 0
         self.prev_potential = self.get_potential()
 
         obs = self.get_observation()
@@ -361,6 +379,26 @@ class NewEnv(gym.Env):
                 success = False
 
         return success
+
+    def lvlh2chaser(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the LVLH frame into the chaser body (CB) frame.\n
+        :param vec: 3D vector expressed in the LVLH frame
+        :return: same vector expressed in the CB frame
+        """
+        assert self.qc is not None, "Cannot convert vector to chaser body frame. Chaser attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qc).T, vec)
+
+    def lvlh2target(self, vec: np.ndarray) -> np.ndarray:
+        """
+        Convert a vector from the LVLH frame into the Target Body (TB) frame.\n
+        :param vec: 3D vector expressed in the LVLH frame
+        :return: same vector expressed in the TB frame
+        """
+        assert self.qt is not None, "Cannot convert vector to target body frame. Target attitude is undefined."
+        assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
+        return np.matmul(quat2mat(self.qt).T, vec)
 
     def chaser2lvlh(self, vec: np.ndarray) -> np.ndarray:
         """
