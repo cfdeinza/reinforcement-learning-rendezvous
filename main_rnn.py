@@ -47,11 +47,11 @@ def load_model(args, env):
         model = RecurrentPPO(
             policy="MlpLstmPolicy",     # Network used for the policy and value function
             env=env,                    # environment where data is collected
-            n_steps=128,                # default is 128 (for RNN)
+            n_steps=4096,                # default is 128 (for RNN)
             batch_size=128,             # Default is 128 (for RNN)
             learning_rate=3e-4,         # Default is 3e-4
             clip_range=0.2,             # Default is 0.2
-            n_epochs=10,                # Default is 10 (number of gradient descent steps per iteration)
+            n_epochs=35,                # Default is 10 (number of gradient descent steps per iteration)
             gamma=0.99,                 # discount factor
             policy_kwargs=policy_kwargs,
             verbose=1,
@@ -138,7 +138,7 @@ def main(args):
     model.learn(
         total_timesteps=steps,
         callback=callback,
-        reset_num_timesteps=True if args.start == 0 else False,
+        reset_num_timesteps=False,  # True if args.start == 0 else False,
     )
 
     return
@@ -150,5 +150,5 @@ if __name__ == '__main__':
     # arguments.model = os.path.join("models", "rnn_model.zip")
     # arguments.wandb = True
     # arguments.start = 0  # Define the starting training step
-    # arguments.steps = 20_000_000
+    # arguments.steps = 2_000_000
     main(arguments)
