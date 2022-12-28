@@ -1,5 +1,6 @@
 import numpy as np
 from rendezvous_env import RendezvousEnv
+from new_env import NewEnv
 from copy import deepcopy
 from stable_baselines3.common.monitor import Monitor
 
@@ -84,6 +85,17 @@ def print_env(env):
             print(f"{key}: {val}")
 
     return None
+
+
+def make_new_env():
+
+    config = dict()
+
+    env = NewEnv(config)
+
+    print_env(env)
+
+    return env
 
 
 def make_vec_env():
