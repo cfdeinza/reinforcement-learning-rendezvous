@@ -198,7 +198,7 @@ class CustomWandbCallback(BaseCallback):
     def evaluate_policy(self):
         """
         Run one episode with the current model.
-        :return: total reward, episode_duration
+        :return: dictionary with outputs
         """
 
         model = self.model
@@ -214,6 +214,9 @@ class CustomWandbCallback(BaseCallback):
         ep_times_of_first_collision = np.zeros(shape=(self.n_evals,)) * np.nan  # Time of first collision
         ep_min_pos_errors = np.zeros(shape=(self.n_evals,)) * np.nan  # Minimum chaser position error (w/o colliding)
         ep_avg_att_errors = np.zeros(shape=(self.n_evals,)) * np.nan  # Average attitude error during the episode
+
+        episodes_with_collisions = 0  # Number of episodes that had collisions in them
+        episodes_with_successes = 0  # Number of episodes that had successes in them
 
         for i in range(self.n_evals):
             obs = self.env.reset()
@@ -271,6 +274,8 @@ class CustomWandbCallback(BaseCallback):
             ep_times_of_first_collision[i] = time_of_first_collision
             ep_min_pos_errors[i] = min_pos_error
             ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
+            episodes_with_collisions += int(collisions > 0)
+            episodes_with_successes += int(self.env.success > 0)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
@@ -296,6 +301,8 @@ class CustomWandbCallback(BaseCallback):
             "ep_time_of_first_collision": avg_collision_time,   # time when chaser first entered the KOZ
             "ep_min_pos_error": avg_min_pos_error,              # minimum pos error of the chaser without entering KOZ
             "ep_avg_att_error": ep_avg_att_errors.mean(),       # average att error of the chaser (regardless of KOZ)
+            "%_collided_episodes": episodes_with_collisions/self.n_evals*100,  # % of episodes that had > 0 collisions
+            "%_successfull_episodes": episodes_with_successes/self.n_evals*100,  # % of episodes that had > 0 successes
         }
 
         return output
