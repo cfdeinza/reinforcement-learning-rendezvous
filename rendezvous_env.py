@@ -531,12 +531,15 @@ class RendezvousEnv(gym.Env):
         :return: numpy array containing the errors
         """
 
-        goal_pos = self.get_goal_pos()                      # Goal position in the LVLH frame [m]
-        goal_vel = np.cross(self.wt, goal_pos)              # Goal velocity in the LVLH frame [m/s]
-        pos_error = self.get_pos_error(goal_pos)            # Position error (magnitude) [m]
-        vel_error = np.linalg.norm(self.vc - goal_vel)      # Velocity error (magnitude) [m/s]
-        att_error = self.get_attitude_error()               # Attitude error (magnitude) [rad]
-        rot_error = np.linalg.norm(self.wc - self.wt)       # Rotation rate error (magnitude) [rad/s]
+        wc_lvlh = self.chaser2lvlh(self.wc)             # Chaser rot rate in the LVLH frame [rad/s]
+        wt_lvlh = self.target2lvlh(self.wt)             # Target rot rate in the LVLH frame [rad/s]
+        rd_lvlh = self.target2lvlh(self.rd)             # Goal position in the LVLH frame [m]
+        vd_lvlh = np.cross(wt_lvlh, rd_lvlh)            # Goal velocity in the LVLH frame [m/s]
+
+        pos_error = self.get_pos_error(rd_lvlh)         # Position error (magnitude) [m]
+        vel_error = np.linalg.norm(self.vc - vd_lvlh)   # Velocity error (magnitude) [m/s]
+        att_error = self.get_attitude_error()           # Attitude error (magnitude) [rad]
+        rot_error = np.linalg.norm(wc_lvlh - wt_lvlh)   # Rot rate err. (mag) [rad/s]
 
         return np.array([pos_error, vel_error, att_error, rot_error])
 
