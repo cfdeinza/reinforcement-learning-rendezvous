@@ -31,6 +31,7 @@ class RendezvousEnv(gym.Env):
                  corridor_half_angle: float=None,   # half-angle of the conic entry corridor [rad] (float)
                  h: float=None,                     # altitude of the orbit [m]
                  dt: float=None,                    # size of time step [s]
+                 t_max: float=None,                 # maximum length of the episode [s]
                  quiet: bool=False,                 # whether or not to print episode results
                  ):
         """
@@ -55,14 +56,6 @@ class RendezvousEnv(gym.Env):
         self.nominal_qt0 = np.array([1., 0., 0., 0.]) if qt0 is None else qt0
         self.nominal_wt0 = np.array([0., 0., 0.]) if wt0 is None else wt0  # [0., 0., np.radians(3)]
 
-        # Check the shape of the state variables:
-        assert self.nominal_rc0.shape == (3,), f"Incorrect shape for chaser position {self.nominal_rc0.shape}"
-        assert self.nominal_vc0.shape == (3,), f"Incorrect shape for chaser velocity {self.nominal_vc0.shape}"
-        assert self.nominal_qc0.shape == (4,), f"Incorrect shape for chaser attitude {self.nominal_qc0.shape}"
-        assert self.nominal_wc0.shape == (3,), f"Incorrect shape for chaser rot rate {self.nominal_wc0.shape}"
-        assert self.nominal_qt0.shape == (4,), f"Incorrect shape for target attitude {self.nominal_qt0.shape}"
-        assert self.nominal_wt0.shape == (3,), f"Incorrect shape for target rot rate {self.nominal_wt0.shape}"
-
         # Range of initial conditions: (initial conditions are sampled uniformly from this range)
         self.rc0_range = 1 if rc0_range is None else rc0_range                  # 1   [m]
         self.vc0_range = 0.1 if vc0_range is None else vc0_range                # 0.1 [m/s]
@@ -72,9 +65,9 @@ class RendezvousEnv(gym.Env):
         self.wt0_range = np.radians(3) if wt0_range is None else wt0_range      # 3   [deg/s]
 
         # Time:
-        self.t = None                       # current time of episode [s]
-        self.dt = 1 if dt is None else dt   # interval between timesteps [s]
-        self.t_max = 60                     # maximum length of episode [s]
+        self.t = None                                   # current time of episode [s]
+        self.dt = 1 if dt is None else dt               # interval between timesteps [s]
+        self.t_max = 120 if t_max is None else t_max    # maximum length of episode [s]
 
         # Chaser properties:
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
@@ -116,7 +109,7 @@ class RendezvousEnv(gym.Env):
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
-        self.bubble_decrease_rate = 1 * self.dt  # Rate at which the size of the bubble decreases (m/s)
+        self.bubble_decrease_rate = 0.5 * self.dt  # Rate at which the size of the bubble decreases (m/s)
         self.total_delta_v = None           # Keeps track of all the delta_V used during the episode
         self.total_delta_w = None           # Keeps track of the total delta_omega used during the episode
         self.prev_potential = None          # Potential of the previous state
@@ -155,6 +148,18 @@ class RendezvousEnv(gym.Env):
         else:
             print(f"Unexpected type of action space: {type(self.action_space)}\nCannot process action. Exiting.")
             exit()
+
+        # Sanity checks:
+        # Check the shape of the state variables:
+        assert self.nominal_rc0.shape == (3,), f"Incorrect shape for chaser position {self.nominal_rc0.shape}"
+        assert self.nominal_vc0.shape == (3,), f"Incorrect shape for chaser velocity {self.nominal_vc0.shape}"
+        assert self.nominal_qc0.shape == (4,), f"Incorrect shape for chaser attitude {self.nominal_qc0.shape}"
+        assert self.nominal_wc0.shape == (3,), f"Incorrect shape for chaser rot rate {self.nominal_wc0.shape}"
+        assert self.nominal_qt0.shape == (4,), f"Incorrect shape for target attitude {self.nominal_qt0.shape}"
+        assert self.nominal_wt0.shape == (3,), f"Incorrect shape for target rot rate {self.nominal_wt0.shape}"
+        # Check that the desired terminal position is within the corridor:
+        assert np.linalg.norm(self.rd) < self.koz_radius, "Error: terminal position lies outside corridor."
+        assert np.linalg.norm(self.rd) - self.max_rd_error > 0, "Error: position constraint allows collisions"
 
         return
 
@@ -360,17 +365,27 @@ class RendezvousEnv(gym.Env):
 
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
-            rew += self.dt * bonus_coef  # give a bonus for entering the corridor without touching KOZ
 
-            pos_error, vel_error, att_error, rot_error = self.get_errors()
+            # pos_bonus = self.dt * bonus_coef
+            # att_bonus = self.dt * bonus_coef / 4
+
+            pos_error, vel_error, att_error, rot_error = self.get_errors()  # compute errors
+
+            # Bonus for entering the corridor without touching KOZ:
+            rew += self.dt * bonus_coef  # constant bonus
+            # rew += pos_bonus / 2 * (1 - pos_error / self.koz_radius)            # linear bonus based on distance
+            # rew += att_bonus / 2 * (1 - att_error / self.max_attitude_error)    # linear bonus based on attitude
 
             # Bonus for achieving terminal conditions:
-            bonus = self.dt * bonus_coef
             if pos_error < self.max_rd_error:  # give terminal rewards only if the terminal position has been achieved
+                bonus = self.dt * bonus_coef
+                rew += bonus * (2 - pos_error / self.max_rd_error)
+                if att_error < self.max_qd_error:
+                    rew += bonus * (2 - att_error / self.max_qd_error)
                 # rew += bonus * (1 + (vel_error < self.max_vd_error))  # pos & vel
                 # rew += bonus * ((att_error < self.max_qd_error) + (rot_error < self.max_wd_error))  # att & rot rate
-                rew += bonus * (1 - pos_error / self.max_rd_error)
-                rew += bonus * (1 - att_error / self.max_qd_error)
+                # rew += pos_bonus * (1 - pos_error / self.max_rd_error)
+                # rew += att_bonus * (1 - att_error / self.max_qd_error)
 
         return rew
 
@@ -593,6 +608,19 @@ class RendezvousEnv(gym.Env):
                 d_tan = r_koz * np.sin(theta_corr - theta_chaser)
                 d_koz = np.sqrt(d_rad ** 2 + d_tan ** 2)
         return d_koz
+
+    def check_vec_in_corridor(self, vec_lvlh: np.ndarray):
+        """
+        Check if a given vector is inside the entry corridor.\n
+        :param vec_lvlh: 3D vector expressed in the LVLH reference frame.
+        :return: True if the vector lies inside the entry corridor, otherwise False.
+        """
+        in_corridor = False
+        dist = np.linalg.norm(vec_lvlh)
+        angle_from_corridor = angle_between_vectors(vec_lvlh, self.target2lvlh(self.corridor_axis))
+        if dist < self.koz_radius and angle_from_corridor < self.corridor_half_angle:
+            in_corridor = True
+        return in_corridor
 
     def integrate_chaser_attitude(self, torque):
         """

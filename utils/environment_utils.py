@@ -47,11 +47,12 @@ def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> Rendezv
         wc0_range=config.get("wc0_range"),
         qt0_range=config.get("qt0_range"),
         wt0_range=config.get("wt0_range"),
+        reward_kwargs=reward_kwargs,
         koz_radius=config.get("koz_radius"),
         corridor_half_angle=config.get("corridor_half_angle"),
         h=config.get("h"),
         dt=config.get("dt"),
-        reward_kwargs=reward_kwargs,
+        t_max=config.get("t_max"),
         quiet=quiet
     )
 
