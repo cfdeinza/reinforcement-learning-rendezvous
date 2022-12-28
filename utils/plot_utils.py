@@ -3,6 +3,40 @@ import matplotlib.pyplot as plt
 from tabulate import tabulate
 
 
+def plot_errors_vs_t(datas: list, constraints: np.ndarray, t_max: float):
+    fig, ax = plt.subplots(2, 2, figsize=(12, 6))
+
+    # Plot the errors for each run:
+    for i, run in enumerate(datas):
+        ax[0, 0].plot(run["t"], run["errors"][0], label=f"run {i}")
+        ax[0, 1].plot(run["t"], run["errors"][1], label=f"run {i}")
+        ax[1, 0].plot(run["t"], np.degrees(run["errors"][2]), label=f"run {i}")
+        ax[1, 1].plot(run["t"], np.degrees(run["errors"][3]), label=f"run {i}")
+
+    # Specify the title for each subplot:
+    titles = np.array([
+        ["Position error [m]", "Velocity error [m/s]"],
+        ["Attitude error [deg]", "Rotation rate error [deg/s]"],
+    ])
+
+    # List with the y-limit for each subplot:
+    ylims = np.array([
+        [[0, 10], [0, 2]],
+        [[0, 35], [0, 7]],
+    ])
+
+    # Plot the constraints for each state variable, and format the axes:
+    for i in range(2):
+        for j in range(2):
+            ax[i, j].plot([0, t_max], [constraints[i, j]] * 2, "k--", label="Constraint")
+            format_ax(ax[i, j], xlim=[0, t_max], xlabel="Time [s]", ylim=ylims[i, j], title=titles[i, j])
+
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+    return
+
+
 def plot_errors(var: str, datas: list, constraints: np.ndarray, t_max: int):
     """
     Plot a figure showing the position, velocity, attitude, and rotation rate errors of each Monte Carlo run.\n
@@ -248,7 +282,7 @@ def print_results(var: str, results: list, max_rd_error: float, max_vd_error: fl
                "SS rot error [deg/s]",
                "Delta V (m/s)",
                "Collisions",
-               "Success"]
+               "Successes"]
     all_rows = []
     for i, run in enumerate(results):
         out = list()
@@ -273,7 +307,7 @@ def print_results(var: str, results: list, max_rd_error: float, max_vd_error: fl
             out.append(None)                # Average steady-state rot error (deg/s)
         out.append(run["total_delta_v"])    # Total delta V used throughout the episode (m/s)
         out.append(run["collisions"])       # Number of collisions during episode
-        out.append(run["success"])          # Amount of time steps where terminal conditions were achieved
+        out.append(run["successes"])        # Amount of time steps where terminal conditions were achieved
         all_rows.append(out)
     print(tabulate(all_rows, headers=headers))
     return

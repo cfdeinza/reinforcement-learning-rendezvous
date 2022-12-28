@@ -49,7 +49,7 @@ def main(args):
                 "errors": new_errors,
                 "total_delta_v": data["total_delta_v"],
                 "collisions": data["collisions"],
-                "success": data["success"],
+                "successes": data["successes"],
             })
 
     # Print results:
@@ -72,6 +72,6 @@ if __name__ == "__main__":
     arguments = get_monte_carlo_args()
     # arguments.save = False
     # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent6.zip"
-    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_long_01.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent6.zip"
+    arguments.model = r"C:\Users\charl\Downloads\rnn_model_long_02-9.zip"
     main(arguments)

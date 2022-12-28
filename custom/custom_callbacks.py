@@ -226,10 +226,12 @@ class CustomWandbCallback(BaseCallback):
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
                 time_of_first_collision = self.env.t  # records the time at which the first collision occurs
+                successes = 0
                 min_pos_error = np.nan  # records the minimum pos error achieved by the chaser without entering the KOZ
             else:
                 collisions = 0
                 time_of_first_collision = np.nan  # Previously used -1 (so that W&B can record it properly)
+                successes = int(self.env.check_success())
                 min_pos_error = self.env.get_pos_error(self.env.get_goal_pos())
             lstm_states = None
             ep_start = np.ones(shape=(1,), dtype=bool)
@@ -259,6 +261,7 @@ class CustomWandbCallback(BaseCallback):
                         time_of_first_collision = self.env.t
                 else:
                     if np.isnan(time_of_first_collision):
+                        successes += int(self.env.check_success())
                         min_pos_error = min(min_pos_error, self.env.get_pos_error(self.env.get_goal_pos()))
 
             end_time = self.env.t
@@ -269,13 +272,13 @@ class CustomWandbCallback(BaseCallback):
             ep_dists[i] = np.linalg.norm(self.env.rc)
             ep_delta_vs[i] = self.env.total_delta_v
             ep_delta_ws[i] = self.env.total_delta_w
-            ep_successes[i] = self.env.success
+            ep_successes[i] = successes
             ep_collision_percentages[i] = collisions / steps * 100
             ep_times_of_first_collision[i] = time_of_first_collision
             ep_min_pos_errors[i] = min_pos_error
             ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
             episodes_with_collisions += int(collisions > 0)
-            episodes_with_successes += int(self.env.success > 0)
+            episodes_with_successes += int(successes > 0)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 

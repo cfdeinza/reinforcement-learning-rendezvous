@@ -105,7 +105,7 @@ class RendezvousEnv(gym.Env):
         self.max_qd_error = np.radians(5)   # allowed error for the capture attitude [rad]
         self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None                # whether or not the chaser has collided during the current episode
-        self.success = None                 # shows if the chaser has achieved the terminal conditions w/o colliding
+        # self.success = None                 # shows if the chaser has achieved the terminal conditions w/o colliding
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
@@ -196,7 +196,7 @@ class RendezvousEnv(gym.Env):
         # Check for collision and success:
         if not self.collided:
             self.collided = self.check_collision()
-            self.success += self.check_success()
+            # self.success += self.check_success()
 
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
@@ -272,7 +272,7 @@ class RendezvousEnv(gym.Env):
 
         # Reset time and other parameters:
         self.collided = self.check_collision()
-        self.success = self.check_success()
+        # self.success = self.check_success()
         self.bubble_radius = self.max_axial_distance  # OR: np.linalg.norm(self.rc) + self.koz_radius
         self.total_delta_v = 0
         self.total_delta_w = 0

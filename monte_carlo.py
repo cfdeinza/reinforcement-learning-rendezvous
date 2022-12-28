@@ -71,6 +71,7 @@ def evaluate(model, env):
         t = np.full((1, expected_timesteps), np.nan)            # array where times will be saved
         in_koz = np.full((1, expected_timesteps), np.nan)       # array to indicate when the chaser is in the KOZ
         num_collisions = 0                                      # counts the number of collisions
+        num_successes = 0
         total_reward = 0
 
         # Reset environment:
@@ -82,6 +83,8 @@ def evaluate(model, env):
         t[0, 0] = env.t
         in_koz[0, 0] = int(env.check_collision())
         num_collisions += int(env.check_collision())
+        if not env.collided:
+            num_successes += int(env.check_success())
         min_dist_from_koz = env.dist_from_koz()
 
         # Record the initial state:
@@ -115,6 +118,8 @@ def evaluate(model, env):
             collision = env.check_collision()
             in_koz[0, k] = int(collision)
             num_collisions += int(collision)
+            if not env.collided:
+                num_successes += int(env.check_success())
             dist_from_koz = env.dist_from_koz()
             if dist_from_koz < min_dist_from_koz:
                 min_dist_from_koz = dist_from_koz
@@ -178,8 +183,8 @@ def evaluate(model, env):
             collided=int(num_collisions > 0),       # 1 if the chaser entered the KOZ, 0 otherwise
             total_reward=total_reward,              # total reward achieved during episode
             total_delta_v=env.total_delta_v,        # total Delta V used during the trajectory
-            num_successes=env.success,              # number of successes during episode
-            succeeded=int(env.success > 0),         # 1 if the chaser achieved at least 1 success, 0 otherwise
+            num_successes=num_successes,            # number of successes during episode
+            succeeded=int(num_successes > 0),       # 1 if the chaser achieved at least 1 success, 0 otherwise
             min_dist_from_koz=min_dist_from_koz,    # the min distance of the chaser to the KOZ (negative means inside)
             pos_error=terminal_pos_error,           # average terminal position error [m]
             vel_error=terminal_vel_error,           # average terminal velocity error [m/s]
