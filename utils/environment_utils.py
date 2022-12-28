@@ -87,9 +87,7 @@ def print_env(env):
     return None
 
 
-def make_new_env():
-
-    config = dict()
+def make_new_env(config: dict):
 
     env = NewEnv(config)
 

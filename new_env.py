@@ -41,19 +41,19 @@ class NewEnv(gym.Env):
         self.thrust = 10    # Thrust along each axis    [N]
         self.torque = 0.2   # Torque along each axis    [N.m]
         self.bt = 0.2       # Thruster burn time        [s]
-        self.dt = 1         # Duration of each time step [s]
-        self.coast_time = round(self.dt - self.bt, 3)
 
         # Orbit properties:
-        self.mu = 3.986004418e14    # Gravitational parameter of Earth [m^3/s^2]
-        self.Re = 6371e3            # Radius of the Earth [m]
-        self.h = 800e3              # Altitude of the orbit [m]
-        self.ro = self.Re + self.h  # Radius of the orbit [m]
-        self.n = np.sqrt(self.mu / self.ro ** 3)  # Mean motion of the orbit [rad/s]
+        self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
+        self.Re = 6371e3                            # Radius of the Earth [m]
+        self.h = 800e3                              # Altitude of the orbit [m]
+        self.ro = self.Re + self.h                  # Radius of the orbit [m]
+        self.n = np.sqrt(self.mu / self.ro ** 3)    # Mean motion of the orbit [rad/s]
 
         # Time:
-        self.t = None
-        self.t_max = config.get("t_max", 120)
+        self.t = None                                   # Time of current step [s]
+        self.t_max = config.get("t_max", 120)           # Maximum length of each episode [s]
+        self.dt = config.get("dt", 1)                   # Duration of each time step [s]
+        self.coast_time = round(self.dt - self.bt, 3)   # Time between end of action and start of next action [s]
 
         # Nominal initial conditions:
         self.nominal_rc0 = config.get("rc0", np.array([0., -10., 0.]))
