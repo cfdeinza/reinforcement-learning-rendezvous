@@ -3,7 +3,8 @@ from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
 from utils.quaternions import quat2mat, rot2quat, quat_product  # quat2rot
-from utils.general import clohessy_wiltshire, dydt, normalize_value, angle_between_vectors, random_unit_vector
+from utils.general import normalize_value, angle_between_vectors, random_unit_vector
+from utils.dynamics import clohessy_wiltshire_solution, derivative_of_att_and_rot_rate
 
 
 class RendezvousEnv(gym.Env):
@@ -183,7 +184,7 @@ class RendezvousEnv(gym.Env):
 
         # Update the position and velocity of the chaser:
         vc_after_impulse = self.vc + delta_v
-        self.rc, self.vc = clohessy_wiltshire(self.rc, vc_after_impulse, self.n, self.dt)
+        self.rc, self.vc = clohessy_wiltshire_solution(self.rc, vc_after_impulse, self.n, self.dt)
 
         # Update the attitude and rotation rate of the chaser:
         self.wc = self.wc + delta_w
@@ -635,7 +636,7 @@ class RendezvousEnv(gym.Env):
         y0 = np.append(self.qc, self.wc)
 
         sol = solve_ivp(
-            fun=dydt,
+            fun=derivative_of_att_and_rot_rate,
             t_span=(0, self.dt),
             y0=y0,
             method='RK45',
@@ -664,7 +665,7 @@ class RendezvousEnv(gym.Env):
         y0 = np.append(self.qt, self.wt)
 
         sol = solve_ivp(
-            fun=dydt,
+            fun=derivative_of_att_and_rot_rate,
             t_span=(0, self.dt),
             y0=y0,
             method='RK45',

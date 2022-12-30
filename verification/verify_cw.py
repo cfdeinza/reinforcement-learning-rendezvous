@@ -3,7 +3,7 @@ Verify my implementation of the CW model.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.general import clohessy_wiltshire
+from utils.dynamics import clohessy_wiltshire_solution
 from rendezvous_env import RendezvousEnv
 
 
@@ -24,7 +24,7 @@ def run_simulation(env, orbits=1):
     vcs = [vc]
 
     while t < t_max:
-        rc, vc = clohessy_wiltshire(rc, vc, n, dt)
+        rc, vc = clohessy_wiltshire_solution(rc, vc, n, dt)
         t += dt
         ts.append(t)
         rcs.append(rc)

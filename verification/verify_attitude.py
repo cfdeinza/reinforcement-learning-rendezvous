@@ -4,7 +4,7 @@ In order to do this, I created a simle class `RigidBody`
 """
 import numpy as np
 from scipy.integrate import solve_ivp
-from utils.general import dydt
+from utils.dynamics import derivative_of_att_and_rot_rate
 
 
 class RigidBody:
@@ -43,7 +43,7 @@ class RigidBody:
         y0 = np.append(self.q, self.w)
 
         sol = solve_ivp(
-            fun=dydt,
+            fun=derivative_of_att_and_rot_rate,
             t_span=(0, dt),
             y0=y0,
             method='RK45',
