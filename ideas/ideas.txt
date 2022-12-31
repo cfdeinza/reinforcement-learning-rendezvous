@@ -4,8 +4,21 @@ This file contains ideas that have not yet been implemented in the code.
 
 # Try:
 - Train the model with dt = 1 (much quicker than 0.1), then evaluate with dt = 0.1 (remember to scale the control inputs)
+  - Training the model like this is indeed much faster, but scaling the control inputs may not be a good idea.
 - gamma = 1
+  - No significant difference
 - Try the potential reward with dt = 1.
+  - Still no good resuls with the potential function
+
+- Set a max reward, e.g.:
+    max_rew = 10_000
+    if last 5 steps were successful:
+        rew = max_rew - current_ep_rew  # --> total episode reward = 10_000 (can also subtract for fuel use at the end)
+        done = True
+- Use your bubble reward as the potential, e.g:
+    phi = bubble_reward()
+    rew = phi - previous_phi
+    previous_phi = phi
 
 
 

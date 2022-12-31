@@ -3,6 +3,7 @@ from rendezvous_env import RendezvousEnv
 from new_env import NewEnv
 from copy import deepcopy
 from stable_baselines3.common.monitor import Monitor
+from utils.quaternions import quat2rot
 
 
 def make_env(reward_kwargs, quiet=True, config=None, stochastic=True) -> RendezvousEnv:
@@ -94,6 +95,20 @@ def make_new_env(config: dict):
     print_env(env)
 
     return env
+
+
+def print_state(env):
+    print(f"Environment state at t = {env.t} s:")
+    print(f"rc: {env.rc}, mag: {round(np.linalg.norm(env.rc), 3)} m")
+    print(f"vc: {env.vc}, mag: {round(np.linalg.norm(env.vc), 3)} m/s")
+    print(f"wc: {np.degrees(env.wc)}, mag: {round(np.linalg.norm(np.degrees(env.wc)), 3)} deg/s")
+    print(f"wc: {env.chaser2lvlh(np.degrees(env.wc))} (expressed in LVLH)")
+    print(f"wt: {np.degrees(env.wt)}, mag: {round(np.linalg.norm(np.degrees(env.wt)), 3)} deg/s")
+    print(f"wt: {env.target2lvlh(np.degrees(env.wt))} (expressed in LVLH)")
+    axis, angle = quat2rot(env.qt)
+    print(f"qt: {env.qt}, e = {axis}, theta = {np.degrees(angle)} deg")
+    # print(f": {}, mag: {round(np.linalg.norm(), 3)} ")
+    return
 
 
 def make_vec_env():

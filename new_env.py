@@ -11,28 +11,33 @@ class NewEnv(gym.Env):
     """
     This environment is basically the same as RendezvousEnv, but with more accurate dynamics.\n
     """
+    # TODO: Introduce navigation noise
+    # TODO: Introduce actuator errors
+    # TODO: Make agent wait for a good target orientation
+    # TODO: Try max_reward
+    # TODO: Try bubble_reward() as potential
 
     def __init__(self, config: dict):
         # State             Parameter                   Unit        Reference frame
         self.rc = None      # Position of the chaser    [m]         [expressed in LVLH frame]
         self.vc = None      # Velocity of the chaser    [m/s]       [expressed in LVLH frame]
-        self.qc = None      # Attitude of the chaser    [-]         [relative to LVLH frame]
+        self.qc = None      # Attitude of the chaser    [-]         [orientation of C relative to LVLH]
         self.wc = None      # Rot rate of the chaser    [rad/s]     [expressed in C frame]
-        self.qt = None      # Attitude of the chaser    [-]         [relative to LVLH frame]
+        self.qt = None      # Attitude of the chaser    [-]         [orientation of T relative to LVLH]
         self.wt = None      # Rot rate of the target    [rad/s]     [expressed in T frame]
 
         # Chaser properties:  Parameter                   Unit        Reference frame
         self.mc = None      # Mass of the chaser        [kg]        [-]
         self.lc = None      # Length of chaser side     [m]         [-]
         self.ic = None      # Chaser mom of inertia     [kg.m^2]    [expressed in C frame]
-        self.ic_inv = None  # Inverse of I_C
+        self.ic_inv = None  # Inverse of I_C                        [expressed in C frame]
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
 
         # Target properties:
         self.mt = None      # Mass of the target        [kg]        [-]
         self.lt = None      # Length of target side     [m]         [-]
         self.it = None      # Target mom of inertia     [kg.m^2]    [expressed in T frame]
-        self.it_inv = None  # Inverse of I_T
+        self.it_inv = None  # Inverse of I_T                        [expressed in T frame]
         self.corridor_axis = np.array([0, -1, 0])  # entry corridor expressed in the target body frame (constant)
         self.corridor_half_angle = config.get("corridor_half_angle", np.radians(30))  # [rad]
         self.koz_radius = config.get("koz_radius", 5)  # Radius of the KOZ [m]
