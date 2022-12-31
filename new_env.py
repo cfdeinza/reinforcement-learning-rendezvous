@@ -3,7 +3,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from utils.dynamics import state_derivative
 from utils.quaternions import quat2mat, rot2quat, quat_product
-from utils.general import normalize_value, angle_between_vectors, random_unit_vector
+from utils.general import normalize_value, angle_between_vectors, random_unit_vector, rotate_vector_about_axis
 from gym import spaces
 
 
@@ -13,7 +13,6 @@ class NewEnv(gym.Env):
     """
     # TODO: Introduce navigation noise
     # TODO: Introduce actuator errors
-    # TODO: Make agent wait for a good target orientation
     # TODO: Try max_reward
     # TODO: Try bubble_reward() as potential
 
@@ -183,6 +182,9 @@ class NewEnv(gym.Env):
         self.wc = self.lvlh2chaser(self.nominal_wc0 + wc0_deviation)  # convert wc0 from LVLH to chaser body frame
         self.qt = quat_product(self.nominal_qt0, qt_deviation)  # apply sequential rotation (first nominal, then dev)
         self.wt = self.lvlh2target(self.nominal_wt0 + wt0_deviation)  # convert wt0 from LVLH to target body frame
+
+        # Wait for the target to rotate to a convenient attitude:
+        self.wait_for_target()
 
         # Mass parameters:
         self.mc = 100
@@ -424,6 +426,40 @@ class NewEnv(gym.Env):
         assert self.qt is not None, "Cannot convert vector from target to LVLH frame. Target attitude is undefined."
         assert vec.shape == (3,), f"Vector must have a (3,) shape, but has {vec.shape}"
         return np.matmul(quat2mat(self.qt), vec)
+
+    def wait_for_target(self):
+        """
+        Rotate the target to a more favorable attitude along its expected path.\n
+        :return: None
+        """
+
+        # Define the desired entry point:
+        re_lvlh = self.target2lvlh(self.rd / np.linalg.norm(self.rd) * self.koz_radius)
+
+        # Compute the circle that the entry point traces throughout one rotation:
+        wt_lvlh = self.target2lvlh(self.wt)
+        angles = np.linspace(0, 2 * np.pi - 0.17, 72)
+        vecs = []
+        for angle in angles:
+            vecs.append(rotate_vector_about_axis(re_lvlh, wt_lvlh, angle))
+        all_re_points = np.vstack(vecs)  # (LVLH)
+
+        # Find the point that is closest to the chaser:
+        index_min = np.argmin(np.linalg.norm(all_re_points - self.rc, axis=1))
+        angle_min = angles[index_min]
+        re_min = all_re_points[index_min]  # (LVLH)
+
+        # Estimate how long it would take the chaser to reach that point:
+        a = self.thrust / self.mc * self.bt / self.dt
+        coef = 1  # Coefficient to add more time if necessary
+        min_time_to_entry = coef * np.sqrt(2 * np.linalg.norm(self.rc - re_min) / a)
+
+        # Compute the angular displacement of the entry point during that time:
+        angle_back = np.linalg.norm(wt_lvlh) * min_time_to_entry
+
+        # Rotate the target to the new orientation:
+        self.qt = quat_product(self.qt, rot2quat(axis=self.wt, theta=angle_min-angle_back))
+        return
 
     def integrate_state(self, force, torque, time):
 

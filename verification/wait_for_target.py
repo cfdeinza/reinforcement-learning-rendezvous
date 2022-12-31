@@ -23,6 +23,7 @@ from math import degrees
 
 # Create a new environment:
 config = dict(
+    # rc0_range=0,
     # qt0=np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)]),
     # qt0_range=0,
     # wt0=np.radians(np.array([0, 2, 0.1])),  # Expressed in LVLH here only (env.wt is expressed in T)
