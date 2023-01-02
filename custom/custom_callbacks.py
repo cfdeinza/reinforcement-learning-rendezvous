@@ -217,6 +217,7 @@ class CustomWandbCallback(BaseCallback):
 
         episodes_with_collisions = 0  # Number of episodes that had collisions in them
         episodes_with_successes = 0  # Number of episodes that had successes in them
+        complete_trajectories = 0  # Number of episodes with the required amount of consecutive successes
 
         for i in range(self.n_evals):
             obs = self.env.reset()
@@ -226,12 +227,12 @@ class CustomWandbCallback(BaseCallback):
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
                 time_of_first_collision = self.env.t  # records the time at which the first collision occurs
-                successes = 0
+                # successes = 0
                 min_pos_error = np.nan  # records the minimum pos error achieved by the chaser without entering the KOZ
             else:
                 collisions = 0
                 time_of_first_collision = np.nan  # Previously used -1 (so that W&B can record it properly)
-                successes = int(self.env.check_success())
+                # successes = int(self.env.check_success())
                 rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
                 min_pos_error = self.env.get_pos_error(rd_lvlh)
             lstm_states = None
@@ -262,12 +263,13 @@ class CustomWandbCallback(BaseCallback):
                         time_of_first_collision = self.env.t
                 else:
                     if np.isnan(time_of_first_collision):
-                        successes += int(self.env.check_success())
+                        # successes += int(self.env.check_success())
                         rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
                         min_pos_error = min(min_pos_error, self.env.get_pos_error(rd_lvlh))
 
             end_time = self.env.t
             steps = end_time / self.env.dt
+            successes = self.env.success
             print(f'Evaluation complete. Total reward = {round(total_reward, 2)} at {end_time}')
             ep_rews[i] = total_reward
             ep_end_times[i] = end_time
@@ -281,6 +283,7 @@ class CustomWandbCallback(BaseCallback):
             ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
             episodes_with_collisions += int(collisions > 0)
             episodes_with_successes += int(successes > 0)
+            complete_trajectories += int(self.env.successful_trajectory)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
@@ -308,6 +311,7 @@ class CustomWandbCallback(BaseCallback):
             "ep_avg_att_error": ep_avg_att_errors.mean(),       # average att error of the chaser (regardless of KOZ)
             "%_collided_episodes": episodes_with_collisions/self.n_evals*100,  # % of episodes that had > 0 collisions
             "%_successfull_episodes": episodes_with_successes/self.n_evals*100,  # % of episodes that had > 0 successes
+            "%_complete_trajectories": complete_trajectories/self.n_evals*100
         }
 
         return output

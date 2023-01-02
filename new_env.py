@@ -82,7 +82,10 @@ class NewEnv(gym.Env):
         self.max_qd_error = np.radians(5)  # allowed error for the capture attitude [rad]
         self.max_wd_error = np.radians(1)  # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None  # whether or not the chaser has collided during the current episode
-        # self.success = None
+        self.success = None
+        self.consecutive_success = None
+        self.required_success = 1  # How much (consecutive) success time is required to end the episode [s]
+        self.successful_trajectory = None
 
         # Chaser state limits:
         self.max_axial_distance = np.linalg.norm(self.nominal_rc0) + 10  # maximum distance allowed on each axis [m]
@@ -93,10 +96,16 @@ class NewEnv(gym.Env):
         # Reward:
         self.collision_coef = config.get("collision_coef", 0.5)  # Coefficient to penalize collisions
         self.bonus_coef = config.get("bonus_coef", 8)  # Coefficient to reward success
-        self.att_coef = config.get("att_coef", 2)  # Coefficient to reward attitude
+        self.fuel_coef = config.get("fuel_coef", 0)  # Coefficient to penalize fuel use
+        self.att_coef = config.get("att_coef", 0)  # 2Coefficient to reward attitude
         self.prev_potential = None
         self.total_delta_v = None
         self.total_delta_w = None
+        self.bubble_radius = None  # Radius of the virtual bubble that determines the allowed space (m)
+        self.initial_bubble_radius = self.max_axial_distance
+        self.bubble_decrease_rate = 0.5 * self.dt  # Rate at which the size of the bubble decreases (m/s)
+        self.total_rew = None
+        self.max_rew = 5_000
 
         # Other:
         self.viewer = None
@@ -139,22 +148,36 @@ class NewEnv(gym.Env):
         if self.coast_time > 0:
             self.integrate_state(force=np.array([0, 0, 0]), torque=np.array([0, 0, 0]), time=self.coast_time)
 
+        # Check collision:
+        if not self.collided:
+            self.collided = self.check_collision()
+            # self.success += int(self.check_success())
+            if self.check_success():
+                self.success += 1
+                self.consecutive_success += round(self.dt, 3)
+            else:
+                self.consecutive_success = 0  # Reset the consecutive success count when no success occurs
+
         # Update params:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
         self.total_delta_v += np.sum(np.abs(force)) / self.mc * self.bt
         self.total_delta_w += np.sum(np.abs(np.matmul(torque, self.ic_inv))) * self.bt
-        if not self.collided:
-            self.collided = self.check_collision()
-            # self.success += int(self.check_success())
+        if self.bubble_radius > self.koz_radius:
+            self.bubble_radius -= self.bubble_decrease_rate
 
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
 
-        # Calculate reward:
-        rew = self.get_reward()
-
         # Check if episode is done:
         done = self.get_done_condition(obs)
+
+        # Calculate reward:
+        # rew = self.get_reward()
+        if done and self.successful_trajectory:
+            rew = self.max_rew - self.total_rew  # - self.fuel_coef * self.total_delta_v
+        else:
+            rew = self.get_bubble_reward(processed_action)
+            self.total_rew += rew
 
         # Info: auxiliary information
         info = {
@@ -183,9 +206,6 @@ class NewEnv(gym.Env):
         self.qt = quat_product(self.nominal_qt0, qt_deviation)  # apply sequential rotation (first nominal, then dev)
         self.wt = self.lvlh2target(self.nominal_wt0 + wt0_deviation)  # convert wt0 from LVLH to target body frame
 
-        # Wait for the target to rotate to a convenient attitude:
-        self.wait_for_target()
-
         # Mass parameters:
         self.mc = 100
         self.lc = 1
@@ -196,12 +216,23 @@ class NewEnv(gym.Env):
         self.it = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) * 1/12 * self.mt * (2 * self.lt**2)
         self.it_inv = np.linalg.inv(self.it)
 
+        # Wait for the target to rotate to a convenient attitude:
+        self.wait_for_target()
+
         self.t = 0
         self.total_delta_v = 0
         self.total_delta_w = 0
+        self.bubble_radius = self.initial_bubble_radius  # OR: np.linalg.norm(self.rc) + self.koz_radius
+        self.total_rew = 0
         self.collided = self.check_collision()
-        # self.success = 0
-        self.prev_potential = self.get_potential()
+        self.successful_trajectory = False
+        if self.check_success():
+            self.success = 1
+            self.consecutive_success = round(self.dt, 3)
+        else:
+            self.success = 0
+            self.consecutive_success = 0
+        # self.prev_potential = self.get_potential()
 
         obs = self.get_observation()
         return obs
@@ -245,40 +276,79 @@ class NewEnv(gym.Env):
         ))
         return obs.astype(self.observation_space.dtype)
 
-    def get_reward(self):
-
-        phi = self.get_potential()
-        rew = phi - self.prev_potential
-        self.prev_potential = phi
-
-        return rew
-
-    def get_potential(self):
+    def get_bubble_reward(self, action):
         """
-        Get the potential of the current state.\n
-        :return:
+        Simpler reward function that only considers fuel efficiency, collision penalties, and success bonuses.\n
+        :param action: current action chosen by the policy
+        :return: Current reward
         """
 
-        dist = np.linalg.norm(self.rc)
+        assert action.shape == (6,)
 
+        rew = self.dt  # 0
+
+        # Attitude bonus:
+        rew += self.dt * self.att_coef * (1 - self.get_attitude_error() / self.max_attitude_error)
+        # rew -= self.dt * att_coef * (self.get_attitude_error() / self.max_attitude_error)**0.5
+
+        # Fuel efficiency:
+        rew -= self.dt * np.abs(action[0:3]).sum() / 3 * self.fuel_coef
+
+        # Collision penalty:
         if self.check_collision():
-            # Collided:
-            phi = (1 - self.koz_radius / self.max_axial_distance) ** 2 - (self.koz_radius - dist)
-        else:
-            phi = (1 - max(dist, np.linalg.norm(self.rd)) / self.max_axial_distance) ** 2
+            rew -= self.dt * self.collision_coef
 
         # Success bonus:
         if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
 
-            goal_pos = self.target2lvlh(self.rd)
-            pos_error = self.get_pos_error(goal_pos)
-            if pos_error < self.max_rd_error:
-                phi += 2 - pos_error / self.max_rd_error
-                att_error = self.get_attitude_error()
-                if att_error < self.max_qd_error:
-                    phi += 2 - att_error / self.max_qd_error
+            pos_error, vel_error, att_error, rot_error = self.get_errors()  # compute errors
 
-        return phi
+            # Bonus for entering the corridor without touching KOZ:
+            rew += self.dt * self.bonus_coef  # constant bonus
+
+            # Bonus for achieving terminal conditions:
+            if pos_error < self.max_rd_error:  # give terminal rewards only if the terminal position has been achieved
+                bonus = self.dt * self.bonus_coef
+                rew += bonus * (2 - pos_error / self.max_rd_error)
+                if att_error < self.max_qd_error:
+                    rew += bonus * (2 - att_error / self.max_qd_error)
+
+        return rew
+
+    # def get_reward(self):
+    #
+    #     phi = self.get_potential()
+    #     rew = phi - self.prev_potential
+    #     self.prev_potential = phi
+    #
+    #     return rew
+    #
+    # def get_potential(self):
+    #     """
+    #     Get the potential of the current state.\n
+    #     :return:
+    #     """
+    #
+    #     dist = np.linalg.norm(self.rc)
+    #
+    #     if self.check_collision():
+    #         # Collided:
+    #         phi = (1 - self.koz_radius / self.max_axial_distance) ** 2 - (self.koz_radius - dist)
+    #     else:
+    #         phi = (1 - max(dist, np.linalg.norm(self.rd)) / self.max_axial_distance) ** 2
+    #
+    #     # Success bonus:
+    #     if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
+    #
+    #         goal_pos = self.target2lvlh(self.rd)
+    #         pos_error = self.get_pos_error(goal_pos)
+    #         if pos_error < self.max_rd_error:
+    #             phi += 2 - pos_error / self.max_rd_error
+    #             att_error = self.get_attitude_error()
+    #             if att_error < self.max_qd_error:
+    #                 phi += 2 - att_error / self.max_qd_error
+    #
+    #     return phi
 
     def get_done_condition(self, obs) -> bool:
         """
@@ -294,14 +364,18 @@ class NewEnv(gym.Env):
         end_conditions = [
             not self.observation_space.contains(obs),               # observation outside of observation space
             self.t >= self.t_max,                                   # episode time limit reached
+            dist > self.bubble_radius,                              # chaser outside of bubble
             self.get_attitude_error() > self.max_attitude_error,    # chaser attitude error too large
+            self.consecutive_success >= self.required_success,      # chaser has achieved enough success
         ]
 
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
         if any(end_conditions):
             done = True
+            if end_conditions[-1] is True:
+                self.successful_trajectory = True
             if not self.quiet:
-                end_reasons = ['obs', 'time', 'attitude']  # reasons corresponding to end_conditions
+                end_reasons = ['obs', 'time', 'bubble', 'attitude', 'success']  # reasons corresp to end_conditions
                 print("Episode end" +
                       " | r = " + str(round(dist, 2)).rjust(5) +                    # chaser position at episode end
                       " | t = " + str(self.t).rjust(4) +                            # time of episode end
