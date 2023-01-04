@@ -42,9 +42,9 @@ class NewEnv(gym.Env):
         self.koz_radius = config.get("koz_radius", 5)  # Radius of the KOZ [m]
 
         # Control properties:
-        self.thrust = 10    # Thrust along each axis    [N]
-        self.torque = 0.2   # Torque along each axis    [N.m]
-        self.bt = 0.2       # Thruster burn time        [s]
+        self.thrust = config.get("thrust", 10)      # Thrust along each axis    [N]
+        self.torque = config.get("torque", 0.2)     # Torque along each axis    [N.m]
+        self.bt = config.get("bt", 0.2)             # Thruster burn time        [s]
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -119,7 +119,12 @@ class NewEnv(gym.Env):
         )
 
         # Action space:
-        self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
+        # self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
+        self.action_space = spaces.Box(
+            low=-1,
+            high=1,
+            shape=(6,)
+        )
 
         # Sanity checks:
         # Check the shape of the state variables:
@@ -138,7 +143,8 @@ class NewEnv(gym.Env):
     def step(self, action: np.ndarray):
 
         # Process the action:
-        processed_action = action - 1
+        # processed_action = action - 1
+        processed_action = action
         force = processed_action[0:3] * self.thrust
         torque = processed_action[3:] * self.torque
 
@@ -217,7 +223,8 @@ class NewEnv(gym.Env):
         self.it_inv = np.linalg.inv(self.it)
 
         # Wait for the target to rotate to a convenient attitude:
-        self.wait_for_target()
+        if np.linalg.norm(self.wt) > 0.002:
+            self.wait_for_target()
 
         self.t = 0
         self.total_delta_v = 0

@@ -34,7 +34,7 @@ def run_simulation(env):
         t[k] = env.t
         x[k], y[k], z[k] = env.rc
         u[k], v[k], w[k] = env.vc
-        action = np.ones(shape=(6,))
+        action = np.zeros(shape=(6,))
         env.step(action)
         sol_x[k], sol_y[k], sol_z[k] = new_pos
         sol_u[k], sol_v[k], sol_w[k] = new_vel

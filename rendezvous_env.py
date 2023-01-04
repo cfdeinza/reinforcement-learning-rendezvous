@@ -3,7 +3,7 @@ from gym import spaces
 import numpy as np
 from scipy.integrate import solve_ivp
 from utils.quaternions import quat2mat, rot2quat, quat_product  # quat2rot
-from utils.general import normalize_value, angle_between_vectors, random_unit_vector
+from utils.general import normalize_value, angle_between_vectors, random_unit_vector, rotate_vector_about_axis
 from utils.dynamics import clohessy_wiltshire_solution, derivative_of_att_and_rot_rate
 
 
@@ -72,14 +72,17 @@ class RendezvousEnv(gym.Env):
 
         # Chaser properties:
         self.capture_axis = np.array([0, 1, 0])  # capture axis expressed in the chaser body frame (constant)
+        self.m = 100    # mass [kg]
         self.inertia = np.array([  # moment of ineria [kg.m^2]
             [1, 0, 0],
             [0, 1, 0],
             [0, 0, 1],
-        ])
+        ]) * 1/12 * self.m * (2 * 1**2)
         self.inv_inertia = np.linalg.inv(self.inertia)
-        self.max_delta_v = 0.1*self.dt        # Maximum delta V for each axis [m/s]
-        self.max_delta_w = 0.005*self.dt      # Maximum delta omega for each axis [rad/s]
+        # self.max_delta_v = 0.1*self.dt        # Maximum delta V for each axis [m/s]
+        # self.max_delta_w = 0.005*self.dt      # Maximum delta omega for each axis [rad/s]
+        self.max_delta_v = 10 / self.m * 0.2  # 0.02 m/s
+        self.max_delta_w = 0.2 / self.inertia[0, 0] * 0.2  # 0.0024 rad/s
         # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
@@ -107,14 +110,20 @@ class RendezvousEnv(gym.Env):
         self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None                # whether or not the chaser has collided during the current episode
         self.success = None                 # shows if the chaser has achieved the terminal conditions w/o colliding
+        self.consecutive_success = None
+        self.required_success = 1  # How much (consecutive) success time is required to end the episode [s]
+        self.successful_trajectory = None
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
+        self.bubble_radius0 = self.max_axial_distance  # Initial radius of the bubble
         self.bubble_decrease_rate = 0.5 * self.dt  # Rate at which the size of the bubble decreases (m/s)
         self.total_delta_v = None           # Keeps track of all the delta_V used during the episode
         self.total_delta_w = None           # Keeps track of the total delta_omega used during the episode
         self.prev_potential = None          # Potential of the previous state
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
+        self.total_rew = None
+        self.max_rew = 5_000
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -135,20 +144,12 @@ class RendezvousEnv(gym.Env):
         )
 
         # Action space:
-        self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
-        # self.action_space = spaces.Box(
-        #     low=-1,
-        #     high=1,
-        #     shape=(6,)
-        # )
-
-        if isinstance(self.action_space, spaces.MultiDiscrete):
-            self.process_action = lambda x: x - 1
-        # elif isinstance(self.action_space, spaces.Box):
-        #     self.process_action = lambda x: x
-        else:
-            print(f"Unexpected type of action space: {type(self.action_space)}\nCannot process action. Exiting.")
-            exit()
+        # self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
+        self.action_space = spaces.Box(
+            low=-1,
+            high=1,
+            shape=(6,)
+        )
 
         # Sanity checks:
         # Check the shape of the state variables:
@@ -176,10 +177,12 @@ class RendezvousEnv(gym.Env):
         # delta_v, delta_w = self.process_action(action)
 
         # processed_action = self.process_action(action)
-        processed_action = action - 1
+        # processed_action = action - 1
+        processed_action = action
 
         # delta_v = action[0:3] * self.max_delta_v
-        delta_v = np.matmul(quat2mat(self.qc), processed_action[0:3] * self.max_delta_v)  # rotated to LVLH frame
+        # delta_v = np.matmul(quat2mat(self.qc), processed_action[0:3] * self.max_delta_v)  # rotated to LVLH frame
+        delta_v = self.chaser2lvlh(processed_action[0:3] * self.max_delta_v)
         delta_w = processed_action[3:] * self.max_delta_w  # already expressed in the body frame (no rotation needed)
 
         # Update the position and velocity of the chaser:
@@ -197,7 +200,12 @@ class RendezvousEnv(gym.Env):
         # Check for collision and success:
         if not self.collided:
             self.collided = self.check_collision()
-            self.success += self.check_success()
+            # self.success += self.check_success()
+            if self.check_success():
+                self.success += 1
+                self.consecutive_success += round(self.dt, 3)
+            else:
+                self.consecutive_success = 0  # Reset the consecutive success count when no success occurs
 
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
@@ -213,16 +221,15 @@ class RendezvousEnv(gym.Env):
         # Create observation: (normalize all values except quaternions)
         obs = self.get_observation()
 
-        # Calculate reward:
-        rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
-        # rew = self.get_potential_reward(processed_action, **self.reward_kwargs)
-
         # Check if episode is done:
         done = self.get_done_condition(obs)
 
-        # Penalize total fuel usage only once the episode ends:
-        # if done:
-        #     rew -= self.total_delta_v
+        # Calculate reward:
+        if done and self.successful_trajectory:
+            rew = self.max_rew - self.total_rew  # - self.fuel_coef * self.total_delta_v
+        else:
+            rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
+            self.total_rew += rew
 
         # Info: auxiliary information
         info = {
@@ -271,12 +278,23 @@ class RendezvousEnv(gym.Env):
         self.qt = quat_product(self.nominal_qt0, qt_deviation)    # apply sequential rotation (first nominal, then dev)
         self.wt = self.lvlh2target(self.nominal_wt0 + wt0_deviation)  # convert wt0 from LVLH to target body frame
 
+        # Wait for the target to rotate to a convenient attitude:
+        if np.linalg.norm(self.wt) > 0.002:
+            self.wait_for_target()
+
         # Reset time and other parameters:
         self.collided = self.check_collision()
-        self.success = self.check_success()
+        self.successful_trajectory = False
+        if self.check_success():
+            self.success = 1
+            self.consecutive_success = round(self.dt, 3)
+        else:
+            self.success = 0
+            self.consecutive_success = 0
         self.bubble_radius = self.max_axial_distance  # OR: np.linalg.norm(self.rc) + self.koz_radius
         self.total_delta_v = 0
         self.total_delta_w = 0
+        self.total_rew = 0
         self.t = 0
 
         if len(self.reward_kwargs) == 0:
@@ -444,14 +462,16 @@ class RendezvousEnv(gym.Env):
             self.t >= self.t_max,                                   # episode time limit reached
             dist > self.bubble_radius,                              # chaser outside of bubble
             self.get_attitude_error() > self.max_attitude_error,    # chaser attitude error too large
+            self.consecutive_success >= self.required_success,      # chaser has achieved enough success
         ]
 
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
         if any(end_conditions):
             done = True
+            if end_conditions[-1] is True:
+                self.successful_trajectory = True
             if not self.quiet:
-                end_reasons = ['obs', 'time', 'bubble', 'attitude']  # reasons corresponding to end_conditions
-                # print(f'Episode end. dist = {round(dist, 2)} at t = {self.t} {"(Collided)" if self.collided else ""}')
+                end_reasons = ['obs', 'time', 'bubble', 'attitude', 'success']  # reasons corresp. to end_conditions
                 print("Episode end" +
                       " | r = " + str(round(dist, 2)).rjust(5) +                    # chaser position at episode end
                       " | t = " + str(self.t).rjust(4) +                            # time of episode end
@@ -625,6 +645,40 @@ class RendezvousEnv(gym.Env):
         if dist < self.koz_radius and angle_from_corridor < self.corridor_half_angle:
             in_corridor = True
         return in_corridor
+
+    def wait_for_target(self):
+        """
+        Rotate the target to a more favorable attitude along its expected path.\n
+        :return: None
+        """
+
+        # Define the desired entry point:
+        re_lvlh = self.target2lvlh(self.rd / np.linalg.norm(self.rd) * self.koz_radius)
+
+        # Compute the circle that the entry point traces throughout one rotation:
+        wt_lvlh = self.target2lvlh(self.wt)
+        angles = np.linspace(0, 2 * np.pi - 0.17, 72)
+        vecs = []
+        for angle in angles:
+            vecs.append(rotate_vector_about_axis(re_lvlh, wt_lvlh, angle))
+        all_re_points = np.vstack(vecs)  # (LVLH)
+
+        # Find the point that is closest to the chaser:
+        index_min = np.argmin(np.linalg.norm(all_re_points - self.rc, axis=1))
+        angle_min = angles[index_min]
+        re_min = all_re_points[index_min]  # (LVLH)
+
+        # Estimate how long it would take the chaser to reach that point:
+        a = self.max_delta_v/self.dt
+        coef = 1.5  # Coefficient to add more time if necessary
+        min_time_to_entry = coef * np.sqrt(2 * np.linalg.norm(self.rc - re_min) / a)
+
+        # Compute the angular displacement of the entry point during that time:
+        angle_back = np.linalg.norm(wt_lvlh) * min_time_to_entry
+
+        # Rotate the target to the new orientation:
+        self.qt = quat_product(self.qt, rot2quat(axis=self.wt, theta=angle_min-angle_back))
+        return
 
     def integrate_chaser_attitude(self, torque):
         """

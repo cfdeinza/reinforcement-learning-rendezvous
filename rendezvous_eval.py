@@ -124,7 +124,7 @@ def evaluate(model, env, args):
         # delta_v, delta_w = env.process_action(action)
         # a[:, k-1] = np.append(delta_v, delta_w)  # processed action
         # processed_action = env.process_action(action)
-        processed_action = action - 1
+        processed_action = action  # - 1
         a[:, k-1] = processed_action
         rew[0, k] = reward
         errors[:, k] = env.get_errors()

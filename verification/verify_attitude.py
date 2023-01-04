@@ -86,11 +86,11 @@ def run_simulation(env):
         sol_qc[k, :] = body.q
         sol_wc[k, :] = body.w
         if env.t < env.t_max/2:
-            action = np.array([0, 0, 0, 0, 0, 0]) + 1
+            action = np.array([0, 0, 0, 0, 0, 0])
         else:
-            action = np.array([0, 0, 0, 0, 0, 1]) + 1
+            action = np.array([0, 0, 0, 0, 0, 1])
         env.step(action)
-        body_torque = (action[3:] - 1) * env.torque  # Torque applied on the body [N.m]
+        body_torque = (action[3:]) * env.torque  # Torque applied on the body [N.m]
         body.integrate(env.dt, body_torque)
         k += 1
 
