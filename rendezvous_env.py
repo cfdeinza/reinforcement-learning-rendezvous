@@ -81,8 +81,8 @@ class RendezvousEnv(gym.Env):
         self.inv_inertia = np.linalg.inv(self.inertia)
         # self.max_delta_v = 0.1*self.dt        # Maximum delta V for each axis [m/s]
         # self.max_delta_w = 0.005*self.dt      # Maximum delta omega for each axis [rad/s]
-        self.max_delta_v = 10 / self.m * 0.2  # 0.02 m/s
-        self.max_delta_w = 0.2 / self.inertia[0, 0] * 0.2  # 0.0024 rad/s
+        self.max_delta_v = 10 / self.m * 0.5                # 0.05 m/s per step (0.02 with tb=0.2)
+        self.max_delta_w = 0.2 / self.inertia[0, 0] * 0.5   # 0.006 rad/s per step (0.0024 with tb=0.2)
         # self.max_torque = 5                 # Maximum torque for each axis [N.m]
 
         # Chaser state limits:
@@ -178,7 +178,7 @@ class RendezvousEnv(gym.Env):
 
         # processed_action = self.process_action(action)
         # processed_action = action - 1
-        processed_action = action
+        processed_action = action.copy()
 
         # delta_v = action[0:3] * self.max_delta_v
         # delta_v = np.matmul(quat2mat(self.qc), processed_action[0:3] * self.max_delta_v)  # rotated to LVLH frame

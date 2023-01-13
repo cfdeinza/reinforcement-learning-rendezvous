@@ -40,7 +40,7 @@ def load_model(args, env):
             policy=MlpPolicy,       # Network used for the Policy and Value function
             env=env,                # environment where data is collected
             learning_rate=2e-3,     # Default: 3e-4
-            n_steps=2048,           # num of steps per rollout  # each env does this amount of steps
+            n_steps=4096,           # Default: 2048 (num of steps per rollout) (each env does this amount of steps)
             batch_size=128,         # Default: 64 for MLP, 128 for RNN
             n_epochs=40,            # number of gradient descent steps per iteration
             clip_range=0.25,        # Default: 0.2
@@ -118,7 +118,7 @@ def main(args):
     model.learn(
         total_timesteps=steps,
         callback=callback,
-        reset_num_timesteps=True if args.start == 0 else False,
+        reset_num_timesteps=False,  # True if args.start == 0 else False,
     )
 
     return
@@ -131,5 +131,5 @@ if __name__ == '__main__':
     # arguments.model = os.path.join("models", "mlp_model.zip")
     # arguments.wandb = True
     # arguments.start = 0  # Define the starting training step
-    # arguments.steps = 20_000_000
+    # arguments.steps = 8_000_000
     main(arguments)
