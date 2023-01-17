@@ -90,12 +90,13 @@ def load_model(path, env):
     return model
 
 
-def schedule_fn(initial_value: float):
+def schedule_fn(initial_value: float, const=True):
     """
     Returns a function that computes the current value of a model parameter, based on the progress remaining.
     Progress remaining is a value that decreases from 1 to 0 as the training progresses.
     It is used for model parameters such as learning_rate and clip_range.\n
     :param initial_value: Initial value of the parameter.
+    :param const: whether or not the value should remain constant (otherwise decrease linearly)
     :return: function that computes the current value of the parameter
     """
 
@@ -103,11 +104,16 @@ def schedule_fn(initial_value: float):
         current_value = (progress_remaining * 0) + initial_value  # Constant
         return current_value
 
-    # def linear(progress_remaining: float) -> float:
-    #     current_value = progress_remaining * initial_value  # Linear decrease
-    #     return current_value
+    def linear(progress_remaining: float) -> float:
+        current_value = max(progress_remaining * initial_value, initial_value/10_000)  # Linear decrease
+        return current_value
 
-    return constant
+    if const is True:
+        func = constant
+    else:
+        func = linear
+
+    return func
 
 
 def interp(data: np.ndarray, time: np.ndarray, new_time: np.ndarray, kind=None):
