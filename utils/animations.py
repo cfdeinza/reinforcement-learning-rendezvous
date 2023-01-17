@@ -190,7 +190,7 @@ def create_cube(x_points, y_points, z_points, name=None, face_color=None) -> (go
         opacity=1,
         flatshading=True,
         name=name,
-        showlegend=False
+        showlegend=False if name is None else True
     )
     x_edges, y_edges, z_edges = create_cube_edge_points(x_points, y_points, z_points)
     lines = go.Scatter3d(
@@ -221,16 +221,22 @@ def create_cube_edge_points(x_points, y_points, z_points):
     return x_edges, y_edges, z_edges
 
 
-def create_sat_points(pos_x, pos_y, pos_z, vec: np.ndarray=None):
+def create_sat_points(pos_x, pos_y, pos_z, width=None, height=None, depth=None, vec: np.ndarray=None):
     """
     Creates a set of points in the shape of a satellite centered on a given location.\n
     :param pos_x: x-coordinate of the center of the satellite
     :param pos_y: y-coordinate of the center of the satellite
     :param pos_z: z-coordinate of the center of the satellite
+    :param width: width of the main body
+    :param height: height of the main body
+    :param depth: depth of the main body
     :param vec: vector in the direction the satellite must be facing (points in -y direction by default)
     :return: 3 arrays (x, y, and z coordinates of the points)
     """
-    w, h, d = 1.5, 1.5, 1
+    # w, h, d = 1.5, 1.5, 1
+    w = 1.5 if width is None else width
+    h = 1.5 if height is None else height
+    d = 1 if depth is None else height
     pw, ph, pd = 2*2.5*w, 0.8*h, 0.1*d
     jw, jh, jd = 0.1*2*w, 0.2*h, 0.2*d
     x = np.array([w, -w, -w, w,                     # body (-y)
@@ -295,6 +301,7 @@ def create_sat(x_points, y_points, z_points, name=None):
         opacity=1,
         flatshading=True,
         name=name,
+        showlegend=False if name is None else True,
     )
     x_edges, y_edges, z_edges = create_sat_edge_points(x_points, y_points, z_points)
     lines = go.Scatter3d(

@@ -67,20 +67,22 @@ def plot2d_response(args, data=None):
     ax[1, 0].grid()
 
     # Chaser rotation rate:
-    plot_2dcomponents(ax[1, 1], t, wc[0], wc[1], wc[2], labels=[r'$\omega_x$', r'$\omega_y$', r'$\omega_z$'],
-                      xlabel='Time (s)', ylabel='Rotation rate (rad/s)', title='Rotation rate')
+    plot_2dcomponents(ax[1, 1], t, np.degrees(wc[0]), np.degrees(wc[1]), np.degrees(wc[2]),
+                      labels=[r'$\omega_x$', r'$\omega_y$', r'$\omega_z$'],
+                      xlabel='Time (s)', ylabel='Rotation rate (deg/s)', title='Rotation rate')
     wc_norm = np.linalg.norm(wc, axis=0)
-    ax[1, 1].plot(t, wc_norm, 'k--', label='Overall'), ax[1, 1].legend()  # Overall rotation rate
+    ax[1, 1].plot(t, np.degrees(wc_norm), 'k--', label='Overall'), ax[1, 1].legend()  # Overall rotation rate
     ax[1, 1].set_xlim([t[0], t_max])
 
     # Delta Omega:
     action_u, action_v, action_w = actions[3], actions[4], actions[5]
     sum_of_attitude_actions = np.abs(action_u) + np.abs(action_v) + np.abs(action_w)
-    plot_2dcomponents(ax[1, 2], t, action_u, action_v, action_w, labels=['x', 'y', 'z'],
-                      xlabel='Time (s)', ylabel='$\Delta \omega $ (rad/s)',
+    plot_2dcomponents(ax[1, 2], t, np.degrees(action_u), np.degrees(action_v), np.degrees(action_w),
+                      labels=['x', 'y', 'z'],
+                      xlabel='Time (s)', ylabel='$\Delta \omega $ (deg/s)',
                       title='Actions. Total ' + r'$\Delta \omega = $' +
-                            str(round(np.nansum(sum_of_attitude_actions), 2)))
-    ax[1, 2].plot(t, sum_of_attitude_actions, 'k--', label='Overall'), ax[1, 2].legend()  # Overall Delta Omega
+                            str(np.degrees(np.nansum(sum_of_attitude_actions)).round(2)))
+    ax[1, 2].plot(t, np.degrees(sum_of_attitude_actions), 'k--', label='Overall'), ax[1, 2].legend()  # Overall Delta w
     ax[1, 2].set_xlim([t[0], t_max])
 
     plt.tight_layout()
