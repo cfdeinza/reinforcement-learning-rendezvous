@@ -110,9 +110,9 @@ class RendezvousEnv(gym.Env):
         self.max_wd_error = np.radians(1)   # allowed error for the relative capture rotation rate [rad/s]
         self.collided = None                # whether or not the chaser has collided during the current episode
         self.success = None                 # shows if the chaser has achieved the terminal conditions w/o colliding
-        self.consecutive_success = None
-        self.required_success = 1  # How much (consecutive) success time is required to end the episode [s]
-        self.successful_trajectory = None
+        # self.consecutive_success = None
+        # self.required_success = 1  # How much (consecutive) success time is required to end the episode [s]
+        # self.successful_trajectory = None
 
         # Properties of the reward function:
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
@@ -122,8 +122,8 @@ class RendezvousEnv(gym.Env):
         self.total_delta_w = None           # Keeps track of the total delta_omega used during the episode
         self.prev_potential = None          # Potential of the previous state
         self.reward_kwargs = {} if reward_kwargs is None else reward_kwargs  # keyword arguments for the reward function
-        self.total_rew = None
-        self.max_rew = 5_000
+        # self.total_rew = None
+        # self.max_rew = 5_000
 
         # Orbit properties:
         self.mu = 3.986004418e14                    # Gravitational parameter of Earth [m^3/s^2]
@@ -203,9 +203,9 @@ class RendezvousEnv(gym.Env):
             # self.success += self.check_success()
             if self.check_success():
                 self.success += 1
-                self.consecutive_success += round(self.dt, 3)
-            else:
-                self.consecutive_success = 0  # Reset the consecutive success count when no success occurs
+            #     self.consecutive_success += round(self.dt, 3)
+            # else:
+            #     self.consecutive_success = 0  # Reset the consecutive success count when no success occurs
 
         # Update the time step:
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
@@ -225,11 +225,12 @@ class RendezvousEnv(gym.Env):
         done = self.get_done_condition(obs)
 
         # Calculate reward:
-        if done and self.successful_trajectory:
-            rew = self.max_rew - self.total_rew  # - self.fuel_coef * self.total_delta_v
-        else:
-            rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
-            self.total_rew += rew
+        rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
+        # if done and self.successful_trajectory:
+        #     rew = self.max_rew - self.total_rew  # - self.fuel_coef * self.total_delta_v
+        # else:
+        #     rew = self.get_bubble_reward(processed_action, **self.reward_kwargs)
+        #     self.total_rew += rew
 
         # Info: auxiliary information
         info = {
@@ -284,23 +285,24 @@ class RendezvousEnv(gym.Env):
 
         # Reset time and other parameters:
         self.collided = self.check_collision()
-        self.successful_trajectory = False
-        if self.check_success():
-            self.success = 1
-            self.consecutive_success = round(self.dt, 3)
-        else:
-            self.success = 0
-            self.consecutive_success = 0
-        self.bubble_radius = self.max_axial_distance  # OR: np.linalg.norm(self.rc) + self.koz_radius
+        self.success = int(self.check_success())
+        # self.successful_trajectory = False
+        # if self.check_success():
+        #     self.success = 1
+        #     self.consecutive_success = round(self.dt, 3)
+        # else:
+        #     self.success = 0
+        #     self.consecutive_success = 0
+        self.bubble_radius = self.bubble_radius0  # OR: np.linalg.norm(self.rc) + self.koz_radius
         self.total_delta_v = 0
         self.total_delta_w = 0
-        self.total_rew = 0
+        # self.total_rew = 0
         self.t = 0
 
-        if len(self.reward_kwargs) == 0:
-            self.prev_potential = self.potential()
-        else:
-            self.prev_potential = self.potential(self.reward_kwargs["collision_coef"])
+        # if len(self.reward_kwargs) == 0:
+        #     self.prev_potential = self.potential()
+        # else:
+        #     self.prev_potential = self.potential(self.reward_kwargs["collision_coef"])
 
         obs = self.get_observation()
 
@@ -408,43 +410,43 @@ class RendezvousEnv(gym.Env):
 
         return rew
 
-    def get_potential_reward(self, action, collision_coef=1, bonus_coef=1, fuel_coef=0):
-        """
-        Potential-based reward.\n
-        :param action: action taken by the agent
-        :param collision_coef: scales down the potential when the chaser collides with the KOZ
-        :param bonus_coef: bonus given when successfully entering the corridor
-        :param fuel_coef: scales down the potential based on fuel used
-        :return: reward
-        """
+    # def get_potential_reward(self, action, collision_coef=1, bonus_coef=1, fuel_coef=0):
+    #     """
+    #     Potential-based reward.\n
+    #     :param action: action taken by the agent
+    #     :param collision_coef: scales down the potential when the chaser collides with the KOZ
+    #     :param bonus_coef: bonus given when successfully entering the corridor
+    #     :param fuel_coef: scales down the potential based on fuel used
+    #     :return: reward
+    #     """
+    #
+    #     phi = self.potential(collision_coef)
+    #     rew = phi - self.prev_potential
+    #     self.prev_potential = phi
+    #
+    #     # Success bonus:
+    #     if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
+    #         rew += 1 * bonus_coef  # give a bonus for succesfully entering the corridor without touching the KOZ
+    #
+    #     # Fuel penalty:
+    #     rew *= 1 - fuel_coef * np.abs(action[0:3]).sum() / 3
+    #
+    #     return rew
 
-        phi = self.potential(collision_coef)
-        rew = phi - self.prev_potential
-        self.prev_potential = phi
-
-        # Success bonus:
-        if np.linalg.norm(self.rc) < self.koz_radius and not self.collided:
-            rew += 1 * bonus_coef  # give a bonus for succesfully entering the corridor without touching the KOZ
-
-        # Fuel penalty:
-        rew *= 1 - fuel_coef * np.abs(action[0:3]).sum() / 3
-
-        return rew
-
-    def potential(self, collision_coef=1):
-        """
-        Potential function based on distance.
-        :param collision_coef: scales down the potential when chaser is within KOZ
-        :return:
-        """
-
-        # phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
-        phi = (1 - np.linalg.norm(self.rc) / self.max_axial_distance) ** 2
-
-        if self.check_collision():
-            phi *= (1 - collision_coef)
-
-        return phi
+    # def potential(self, collision_coef=1):
+    #     """
+    #     Potential function based on distance.
+    #     :param collision_coef: scales down the potential when chaser is within KOZ
+    #     :return:
+    #     """
+    #
+    #     # phi = 2 * (1 - np.linalg.norm(self.rc) / (np.linalg.norm(self.nominal_rc0)))
+    #     phi = (1 - np.linalg.norm(self.rc) / self.max_axial_distance) ** 2
+    #
+    #     if self.check_collision():
+    #         phi *= (1 - collision_coef)
+    #
+    #     return phi
 
     def get_done_condition(self, obs) -> bool:
         """
@@ -462,16 +464,16 @@ class RendezvousEnv(gym.Env):
             self.t >= self.t_max,                                   # episode time limit reached
             dist > self.bubble_radius,                              # chaser outside of bubble
             self.get_attitude_error() > self.max_attitude_error,    # chaser attitude error too large
-            self.consecutive_success >= self.required_success,      # chaser has achieved enough success
+            # self.consecutive_success >= self.required_success,      # chaser has achieved enough success
         ]
 
         # (not self.observation_space.contains(obs)) or (self.t >= self.t_max) or (dist > self.bubble_radius)
         if any(end_conditions):
             done = True
-            if end_conditions[-1] is True:
-                self.successful_trajectory = True
+            # if end_conditions[-1] is True:
+            #     self.successful_trajectory = True
             if not self.quiet:
-                end_reasons = ['obs', 'time', 'bubble', 'attitude', 'success']  # reasons corresp. to end_conditions
+                end_reasons = ['obs', 'time', 'bubble', 'attitude']  # , 'success']  # reasons corr. to end_conditions
                 print("Episode end" +
                       " | r = " + str(round(dist, 2)).rjust(5) +                    # chaser position at episode end
                       " | t = " + str(self.t).rjust(4) +                            # time of episode end

@@ -217,7 +217,7 @@ class CustomWandbCallback(BaseCallback):
 
         episodes_with_collisions = 0  # Number of episodes that had collisions in them
         episodes_with_successes = 0  # Number of episodes that had successes in them
-        complete_trajectories = 0  # Number of episodes with the required amount of consecutive successes
+        # complete_trajectories = 0  # Number of episodes with the required amount of consecutive successes
 
         for i in range(self.n_evals):
             obs = self.env.reset()
@@ -283,7 +283,7 @@ class CustomWandbCallback(BaseCallback):
             ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
             episodes_with_collisions += int(collisions > 0)
             episodes_with_successes += int(successes > 0)
-            complete_trajectories += int(self.env.successful_trajectory)
+            # complete_trajectories += int(self.env.successful_trajectory)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
@@ -311,7 +311,7 @@ class CustomWandbCallback(BaseCallback):
             "ep_avg_att_error": ep_avg_att_errors.mean(),       # average att error of the chaser (regardless of KOZ)
             "%_collided_episodes": episodes_with_collisions/self.n_evals*100,  # % of episodes that had > 0 collisions
             "%_successfull_episodes": episodes_with_successes/self.n_evals*100,  # % of episodes that had > 0 successes
-            "%_complete_trajectories": complete_trajectories/self.n_evals*100
+            # "%_complete_trajectories": complete_trajectories/self.n_evals*100
         }
 
         return output
