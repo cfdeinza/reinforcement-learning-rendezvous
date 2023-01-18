@@ -118,6 +118,7 @@ class RendezvousEnv(gym.Env):
         self.bubble_radius = None           # Radius of the virtual bubble that determines the allowed space (m)
         self.bubble_radius0 = self.max_axial_distance  # Initial radius of the bubble
         self.bubble_decrease_rate = 0.5 * self.dt  # Rate at which the size of the bubble decreases (m/s)
+        self.bubble_min = np.linalg.norm(self.rd) + 2 * self.max_rd_error
         self.total_delta_v = None           # Keeps track of all the delta_V used during the episode
         self.total_delta_w = None           # Keeps track of the total delta_omega used during the episode
         self.prev_potential = None          # Potential of the previous state
@@ -211,8 +212,11 @@ class RendezvousEnv(gym.Env):
         self.t = round(self.t + self.dt, 3)  # rounding to prevent issues when dt is a decimal
 
         # Update bubble:
-        if self.bubble_radius > self.koz_radius:
-            self.bubble_radius -= self.bubble_decrease_rate
+        self.bubble_radius -= self.bubble_decrease_rate
+        if self.bubble_radius < self.bubble_min:
+            self.bubble_radius = self.bubble_min
+        # if self.bubble_radius > self.koz_radius:
+        #     self.bubble_radius -= self.bubble_decrease_rate
 
         # Update the deltas:
         self.total_delta_v += np.abs(processed_action[0:3]).sum() * self.max_delta_v
