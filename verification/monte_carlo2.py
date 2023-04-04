@@ -71,6 +71,11 @@ def main(args):
         for key in results.keys():
             results[key].append(out[key])
 
+    succeeded_eps = np.array(results["succeeded"]).sum()
+    collided_eps = np.array(results["collided"]).sum()
+    print(f"Success %: {succeeded_eps/len(df0)*100}")
+    print(f"Collision%: {collided_eps/len(df0)*100}")
+
     # Save results in csv file:
     if args.save:
         df_results = pd.DataFrame(results)
@@ -164,7 +169,6 @@ def evaluate(model, env, initial_state):
         terminal_rot_error = np.degrees(errors[3, i_terminal:-1].mean())
     else:
         # If terminal pos & vel conditions were not achieved during this run, set errors to nan
-        # TODO: calculate terminal error some other way, so we have a value at least.
         terminal_pos_error = None
         terminal_vel_error = None
         terminal_att_error = None
@@ -193,7 +197,10 @@ if __name__ == "__main__":
 
     arguments = get_monte_carlo_args()
     # arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
-    arguments.model = r"C:\Users\charl\Downloads\rnn_model_box_04_08.zip"
-    arguments.input_file = os.path.join("initial.csv")
-    arguments.save = True
+    # arguments.model = r"C:\Users\charl\Downloads\mlp_model_final_03.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_final_06.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_box_04_08.zip"
+    # arguments.input_file = os.path.join("initial1000.csv")
+    # arguments.input_file = os.path.join("initial50.csv")
+    # arguments.save = False
     main(arguments)

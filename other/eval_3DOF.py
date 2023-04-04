@@ -4,7 +4,7 @@ Evaluate a model over a single episode.
 Written by C. F. De Inza Niemeijer.
 """
 
-from custom.custom_rdv_env import Rendezvous3DOF
+from custom.custom_3d_env import Rendezvous3DOF
 from main import load_model  # , load_env
 from arguments import get_main_args
 

@@ -146,7 +146,6 @@ def evaluate(model, env):
             terminal_rot_error = np.degrees(errors[3, i_terminal:-1].mean())
         else:
             # If terminal pos & vel conditions were not achieved during this run, set errors to nan
-            # TODO: calculate terminal error some other way, so we have a value at least.
             terminal_pos_error = None
             terminal_vel_error = None
             terminal_att_error = None

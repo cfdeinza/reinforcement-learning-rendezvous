@@ -111,6 +111,7 @@ def derivative_of_att_and_rot_rate(_t, y, inertia, inv_inertia, torque):
     #     torque = np.array([0, 0, 0])
 
     q_dot = quat_derivative(q, w)
+    # w_dot = np.array([0, 0, 0])  # If torque = 0 and target mass is uniformly distributed
     w_dot = angular_acceleration(inertia, inv_inertia, w, torque)
 
     dy = np.append(q_dot, w_dot)
@@ -134,11 +135,18 @@ def quat_derivative(q: np.ndarray, w: np.ndarray):
 
     w1, w2, w3 = w
     skew = np.array([
-        [0, -w1, -w2, -w3],
-        [w1, 0, w3, -w2],
-        [w2, -w3, 0, w1],
-        [w3, w2, -w1, 0]
-    ])
+        [0,  -w1, -w2, -w3],
+        [w1,   0,  w3, -w2],
+        [w2, -w3,   0,  w1],
+        [w3,  w2, -w1,   0]
+    ])  # This works when omega is expressed in the body frame ( = q x 1/2 w_B)
+    # skew = np.array([
+    #     [0, -w1, -w2, -w3],
+    #     [w1, 0, -w3, w2],
+    #     [w2, w3, 0, -w1],
+    #     [w3, -w2, w1, 0]
+    # ])  # This works when omega is expressed in LVLH. ( = 1/2 w_LVLH x q)
+    # # Transpose rotates in the opposite direction
 
     q_dot = 0.5 * np.matmul(skew, q)
 

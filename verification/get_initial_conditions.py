@@ -19,7 +19,7 @@ def main(args):
     env_config = dict()
     env = make_env(reward_kwargs=None, quiet=False, config=env_config, stochastic=True)
 
-    n_samples = 5
+    n_samples = 1000
 
     data = []
     for i in range(n_samples):
@@ -46,6 +46,6 @@ def main(args):
 
 if __name__ == "__main__":
     arguments = get_main_args()
-    arguments.output_file = "initial.csv"
+    arguments.output_file = "initial_v2.csv"
     arguments.save = True
     main(arguments)

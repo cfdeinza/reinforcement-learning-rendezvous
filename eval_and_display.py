@@ -13,6 +13,7 @@ from utils.general import load_model
 from rendezvous_eval import evaluate
 from rendezvous_plot_2d import plot2d_response, plot2d_error
 from rendezvous_plot_vpython import make_animation
+from time import perf_counter
 
 
 def get_args():
@@ -41,11 +42,21 @@ def main(args):
 
     # Make an instance of the environment:
     reward_kwargs = None
-    config = None
-    # config = {"wt0": np.array([0, 0, np.radians(5)])}
-    eval_env = make_env(reward_kwargs, quiet=False, config=config, stochastic=True)
-    if reward_kwargs is None:
-        print("Note: reward_kwargs have not been defined. Using default values.")
+    # config = None
+    config = dict(
+        dt=1,
+        t_max=60,
+        koz_radius=5,
+        # rc0_range=0,
+        rc0=np.array([0, -10, 0]),
+        qc0=np.array([np.cos(np.radians(0)/2), 0, 0, 0]),
+        # qt0=np.array([np.cos(np.pi/4)-0.09, 0, 0, np.sin(np.pi/4)-0.09]),
+        # qt0_range=0,
+        wt0=np.radians(np.array([0, 0, 0])),
+        # wt0_range=0,
+    )
+    stochastic = False
+    eval_env = make_env(reward_kwargs, quiet=False, config=config, stochastic=stochastic)
 
     # Load an existing model:
     saved_model = load_model(path=args.model, env=eval_env)
@@ -56,13 +67,17 @@ def main(args):
     make_animation(args, data=data)
 
     # # Iterate over multiple models:
-    # data = {}
-    # for i in range(1, 7):
-    #     args.model = os.path.join("models_fuel_coef_sweep_02", "model0" + str(i) + ".zip")
-    #     saved_model = load_model(path=args.model, env=eval_env)
-    #     data[i] = evaluate(saved_model, eval_env, args)
-    # for i in range(1, 7):
-    #     plot2d_response(args, data=data[i])
+    # datas = []
+    # for i in range(1, 6):
+    #     # path = os.path.join("models_fuel_coef_sweep_02", "model0" + str(i) + ".zip")
+    #     path = os.path.join("models_att_coef_sweep_01", "rew_tune_model_0" + str(i) + ".zip")
+    #     saved_model = load_model(path=path, env=eval_env)
+    #     # datas[i] = evaluate(saved_model, eval_env, args)
+    #     d = evaluate(saved_model, env=eval_env, args=args)
+    #     datas.append(d.copy())
+    # for data in datas:
+    #     plot2d_response(args=None, data=data)
+    #     plot2d_error(args=None, data=data)
     #     # make_animation(args, data=data)
 
 
@@ -75,5 +90,10 @@ if __name__ == "__main__":
     arguments.path = ""     # prevent make_animation from crashing
     arguments.save = False  # make sure we don't save a gif of the animation
     # arguments.model = os.path.join("models_fuel_coef_sweep_02", "model01.zip")
-    arguments.model = os.path.join("models", "mlp_model_att_01.zip")
+    # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
+    # arguments.model = os.path.join("models_att_coef_sweep_01", "rew_tune_model_01.zip")
+    # arguments.model = os.path.join("models", "rnn_model_2_02.zip")
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_box_04_08.zip"
+    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_final2_01.zip"
     main(arguments)

@@ -135,15 +135,9 @@ class CustomWandbCallback(BaseCallback):
 
         # Log results to W&B:
         result["total_timesteps"] = self.num_timesteps
-        # data = {
-        #     "ep_rew": rew,                      # total reward achieved during the eval episode
-        #     "ep_len": t_end,                    # duration of the eval episode
-        #     "total_steps": self.num_timesteps,  # total training steps executed
-        # }
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        # self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
         self.check_and_save(result)
 
         pass
@@ -177,16 +171,10 @@ class CustomWandbCallback(BaseCallback):
         wandb.log(result)
 
         # Save the model if the reward is better than last time:
-        # self.check_and_save(result["ep_rew"], result["ep_success"], result["ep_delta_v"])
         self.check_and_save(result)
         # self.model.save(os.path.join(wandb.run.dir, "last_model"))  # Save an extra copy of the model on W&B
 
         # Log the metrics of the run with the highest reward:
-        # wandb.log({
-        #     "max_rew": wandb.run.summary["max_rew"],            # best reward achieved during the run
-        #     "max_success": wandb.run.summary["max_success"],    # success of best reward
-        #     "max_delta_v": wandb.run.summary["max_delta_v"],    # delta V of best reward
-        # })
         wandb.log(self.best_results)
 
         # Finish W&B run (only if it was started by the Callback):
@@ -227,12 +215,10 @@ class CustomWandbCallback(BaseCallback):
             if chaser_in_koz:
                 collisions = 1  # keeps track of the amount of collisions that occur during the episode
                 time_of_first_collision = self.env.t  # records the time at which the first collision occurs
-                # successes = 0
                 min_pos_error = np.nan  # records the minimum pos error achieved by the chaser without entering the KOZ
             else:
                 collisions = 0
                 time_of_first_collision = np.nan  # Previously used -1 (so that W&B can record it properly)
-                # successes = int(self.env.check_success())
                 rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
                 min_pos_error = self.env.get_pos_error(rd_lvlh)
             lstm_states = None
@@ -263,7 +249,6 @@ class CustomWandbCallback(BaseCallback):
                         time_of_first_collision = self.env.t
                 else:
                     if np.isnan(time_of_first_collision):
-                        # successes += int(self.env.check_success())
                         rd_lvlh = self.env.target2lvlh(self.env.rd)  # Goal position (expressed in LVLH)
                         min_pos_error = min(min_pos_error, self.env.get_pos_error(rd_lvlh))
 
@@ -283,7 +268,6 @@ class CustomWandbCallback(BaseCallback):
             ep_avg_att_errors[i] = sum_of_att_errors / (steps + 1)
             episodes_with_collisions += int(collisions > 0)
             episodes_with_successes += int(successes > 0)
-            # complete_trajectories += int(self.env.successful_trajectory)
 
         print(f"Average reward over {self.n_evals} episode(s): {ep_rews.mean()}")
 
@@ -311,7 +295,6 @@ class CustomWandbCallback(BaseCallback):
             "ep_avg_att_error": ep_avg_att_errors.mean(),       # average att error of the chaser (regardless of KOZ)
             "%_collided_episodes": episodes_with_collisions/self.n_evals*100,  # % of episodes that had > 0 collisions
             "%_successfull_episodes": episodes_with_successes/self.n_evals*100,  # % of episodes that had > 0 successes
-            # "%_complete_trajectories": complete_trajectories/self.n_evals*100
         }
 
         return output
@@ -346,7 +329,6 @@ class CustomWandbCallback(BaseCallback):
             self.model.save(self.save_path)  # Save a local copy
             # Save an extra copy of the model on W&B:
             self.model.save(os.path.join(wandb.run.dir, os.path.split(self.save_path)[1]))
-            # wandb.save(self.save_path + ".zip")  # save a copy on W&B (FAILS: PERMISSION REQUIRED)
 
         pass
 
@@ -363,7 +345,6 @@ class CustomCallback(BaseCallback):
             self,
             env,
             prev_best_rew=None,
-            # reward_kwargs=None,  # dict with keyword arguments for the reward function
             save_name=None,
             n_evals=1,
             verbose=0,
@@ -510,26 +491,3 @@ class CustomCallback(BaseCallback):
             self.model.save(self.save_path)  # save a local copy
 
         pass
-
-
-# # Old callback:
-# def my_eval_callback(locals_, globals_) -> None:
-#     """
-#     Callback passed to the evaluate_policy function in order to save the evaluated trajectories (actions and states).
-#     If multiple trajectories are evaluated, only the first one is saved.
-#     I use the 'done' variable to check when a trajectory is finished. Then I save the whole instance of the env as a
-#     dictionary using the pickle module.
-#     Note that 'self.trajectory' and 'self.actions' must be stored in 'info', otherwise they get deleted by the reset()
-#     function before we can save them.
-#     """
-#     obj = locals_['env'].envs[0].env
-#     n = locals_['episode_counts'][0]  # The current evaluation episode
-#     if (n == 0) & locals_['done']:
-#         data = vars(obj)
-#         data['trajectory'] = locals_['info']['trajectory']
-#         data['actions'] = locals_['info']['actions']
-#         name = f'logs/eval_trajectory_{n}.pickle'
-#         with open(name, 'wb') as handle:
-#             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-#             print(f'Saved trajectory data: {name}')
-#     return

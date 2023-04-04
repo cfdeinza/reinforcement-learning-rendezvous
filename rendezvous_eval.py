@@ -6,6 +6,7 @@ Written by C. F. De Inza Niemeijer.
 
 from rendezvous_env import RendezvousEnv
 from utils.general import load_model  # , load_env
+from utils.environment_utils import print_state
 import argparse
 import numpy as np
 import pickle
@@ -44,12 +45,13 @@ def evaluate(model, env, args):
     env.reset()
 
     print(f"Initial state:")  # {np.hstack((env.rc, env.vc, env.qc, env.wc, env.qt))}")
-    print(f"rc: {env.rc} m, magnitude: {round(np.linalg.norm(env.rc), 3)} m")
-    print(f"vc: {env.vc} m/s, magnitude: {round(np.linalg.norm(env.vc), 3)} m/s")
-    print(f"qc: {env.qc}")
-    print(f"wc: {np.degrees(env.wc)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wc)), 3)} deg/s")
-    print(f"qt: {env.qt}")
-    print(f"wt: {np.degrees(env.wt)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wt)), 3)} deg/s")
+    print_state(env)
+    # print(f"rc: {env.rc.round(3)} m, magnitude: {round(np.linalg.norm(env.rc), 3)} m")
+    # print(f"vc: {env.vc.round(3)} m/s, magnitude: {round(np.linalg.norm(env.vc), 3)} m/s")
+    # print(f"qc: {env.qc.round(3)}, magnitude: {np.degrees(2*np.arccos(env.qc[0])).round(2)} deg")
+    # print(f"wc: {np.degrees(env.wc).round(3)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wc)), 3)} deg/s")
+    # print(f"qt: {env.qt.round(3)}, magnitude: {np.degrees(2*np.arccos(env.qt[0])).round(2)} deg")
+    # print(f"wt: {np.degrees(env.wt).round(3)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wt)), 3)} deg/s")
     # print(f'Starting rotation rate: {env.state[4:]}')
 
     obs = env.get_observation()
@@ -87,15 +89,19 @@ def evaluate(model, env, args):
     errors[:, 0] = env.get_errors()
     collisions = int(env.check_collision())
     successes = int(env.check_success())
+    d_koz = env.dist_from_koz()
     t[0, 0] = env.t
 
     # torque = 3e-2
     # force = 0.25
     k = 1
+    # while env.t < env.t_max:
     while not done:
 
         # Select action:
         # action = get_action(model, obs)
+        # action = np.zeros((6,))
+        # action = np.array([0, 0, 0, 0, 0.5, 0])
         action, lstm_states = model.predict(
             observation=obs,            # input to the policy network
             state=lstm_states,          # last hidden state (used for recurrent policies)
@@ -129,6 +135,7 @@ def evaluate(model, env, args):
         rew[0, k] = reward
         errors[:, k] = env.get_errors()
         collisions += int(env.check_collision())
+        d_koz = min(d_koz, env.dist_from_koz())  # Minimum distance btw chaser and KOZ
         if not env.collided:
             successes += int(env.check_success())
         t[0, k] = env.t
@@ -137,6 +144,14 @@ def evaluate(model, env, args):
 
     # trajectory = info['trajectory']
     # actions = info['actions']
+    print(f"Final state at {env.t} s:")  # {np.hstack((env.rc, env.vc, env.qc, env.wc, env.qt))}")
+    print_state(env)
+    # print(f"rc: {env.rc.round(3)} m, magnitude: {round(np.linalg.norm(env.rc), 3)} m")
+    # print(f"vc: {env.vc.round(3)} m/s, magnitude: {round(np.linalg.norm(env.vc), 3)} m/s")
+    # print(f"qc: {env.qc.round(3)}, magnitude: {np.degrees(2*np.arccos(env.qc[0])).round(2)} deg")
+    # print(f"wc: {np.degrees(env.wc).round(3)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wc)), 3)} deg/s")
+    # print(f"qt: {env.qt.round(3)}, magnitude: {np.degrees(2*np.arccos(env.qt[0])).round(2)} deg")
+    # print(f"wt: {np.degrees(env.wt).round(3)} deg/s, magnitude: {round(np.linalg.norm(np.degrees(env.wt)), 3)} deg/s")
 
     # Remove nans if the episode was terminated before t_max:
     if env.t < env.t_max:
@@ -159,7 +174,7 @@ def evaluate(model, env, args):
     # Add new pairs to dictionary:
     new_pairs = [
         ('rc', rc), ('vc', vc), ('qc', qc), ('wc', wc), ('qt', qt), ('wt', wt),
-        ('a', a), ('rew', rew), ('errors', errors), ('t', t),
+        ('a', a), ('rew', rew), ('errors', errors), ('t', t), ('d_koz', d_koz),
         ('collisions', collisions), ('successes', successes),
         ('process_action', None),  # pickle cannot handle lambda functions
     ]

@@ -14,7 +14,7 @@ and it gives the chaser enough time to reach the corridor before it starts turni
 """
 
 import numpy as np
-from utils.environment_utils import make_new_env, print_state
+from utils.environment_utils import make_env, print_state
 from utils.general import rotate_vector_about_axis, angle_between_vectors
 from utils.quaternions import rot2quat, quat_product
 import matplotlib.pyplot as plt
@@ -23,15 +23,15 @@ from math import degrees
 
 # Create a new environment:
 config = dict(
-    # rc0_range=0,
-    # qt0=np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)]),
-    # qt0_range=0,
-    # wt0=np.radians(np.array([0, 2, 0.1])),  # Expressed in LVLH here only (env.wt is expressed in T)
-    # wt0_range=0,
+    rc0_range=0,
+    qt0=np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)]),
+    qt0_range=0,
+    wt0=np.radians(np.array([0, 2, 0.1])),  # Expressed in LVLH here only (env.wt is expressed in T)
+    wt0_range=0,
     dt=0.5,
-    qt0_range=np.radians(180),
+    # qt0_range=np.radians(180),
 )
-env = make_new_env(config)
+env = make_env(reward_kwargs=None, config=config)
 
 # Reset the environment and print the initial state:
 env.reset()
@@ -46,6 +46,7 @@ re = env.rd / np.linalg.norm(env.rd) * koz_radius   # Entry point (edge of the K
 wt_lvlh = env.target2lvlh(wt)                       # Target rotation rate [rad/s] (LVLH)
 re_lvlh = env.target2lvlh(re)                       # Entry point [m] (LVLH)
 print(f"Initial entry point: {re_lvlh} (LVLH)")
+qt0 = env.qt.copy()  # used for verification later
 
 # Compute the circle that the entry point traces throughout one rotation:
 angles = np.linspace(0, 2*np.pi - 0.17, 72)
@@ -66,7 +67,8 @@ print(f"min entry point: {re_min} m (LVLH)")
 # print(f"min angle: {round(degrees(angle_min), 3)} deg")
 
 # Compute how long it takes the chaser to reach that point:
-a = env.thrust / env.mc * env.bt / env.dt
+# a = env.thrust / env.mc * env.bt / env.dt
+a = env.max_delta_v / env.dt
 print(f"Axial acceleration from thruster: {round(a, 3)} m/s^2")
 coef = 1  # Coefficient to add more time if necessary
 min_time_to_entry = coef * np.sqrt(2*np.linalg.norm(rc - re_min)/a)
@@ -77,13 +79,17 @@ angle_back = wt_mag * min_time_to_entry
 print(f"Angle traced by entry point in that time: {round(degrees(angle_back), 3)} deg")
 
 # Rotate the target to the new orientation:
-qt_min = rot2quat(axis=wt, theta=angle_min)  # Rotation from qt0 to qt_min
-qt_new = rot2quat(axis=wt, theta=-angle_back)  # Rotation from from qt_min to qt_new
+# qt_min = rot2quat(axis=wt, theta=angle_min)  # Rotation from qt0 to qt_min
+# qt_new = rot2quat(axis=wt, theta=-angle_back)  # Rotation from from qt_min to qt_new
+qt_min = rot2quat(axis=wt_lvlh, theta=angle_min)
+qt_new = rot2quat(axis=wt_lvlh, theta=-angle_back)
 
-env.qt = quat_product(env.qt, qt_min)  # First rotate the target to place the entry point at re_min
+# env.qt = quat_product(env.qt, qt_min)  # First rotate the target to place the entry point at re_min
+env.qt = quat_product(qt_min, env.qt)
 re_lvlh_min = env.target2lvlh(re)  # LVLH
 
-env.qt = quat_product(env.qt, qt_new)  # Then rotate the target to place the entry point enough degrees ahead of re_min
+# env.qt = quat_product(env.qt, qt_new)  # Then rotate the target to place the entry point enough degrees ahead of re_min
+env.qt = quat_product(qt_new, env.qt)
 re_lvlh_back = env.target2lvlh(re)  # LVLH
 
 # Verify that the angular displacement between re_min and re_new is as large as expected:
@@ -91,6 +97,11 @@ component = wt_lvlh / wt_mag * np.linalg.norm(re_lvlh_min) * np.cos(angle_betwee
 angle_btw_min_and_back = angle_between_vectors(re_lvlh_min-component, re_lvlh_back-component)
 print(f"(Verify) Angle between re_min and re_back: "
       f"{round(degrees(angle_btw_min_and_back), 3)} deg")
+
+qt_verify = quat_product(rot2quat(axis=wt_lvlh, theta=angle_min-angle_back), qt0)
+print("New qt:")
+print(env.qt)
+print(qt_verify)
 
 # Plot the results:
 fig2 = plt.figure(num='3D', clear=True, figsize=(9, 6))
@@ -116,3 +127,40 @@ plt.legend()
 plt.title("Computing a favorable initial target orientation")
 plt.show()
 plt.close()
+
+'''
+# Implementation in RendezvousEnv():
+def wait_for_target(self):
+    """
+    Rotate the target to a more favorable attitude along its expected path.\n
+    :return: None
+    """
+
+    # Define the desired entry point:
+    re_lvlh = self.target2lvlh(self.rd / np.linalg.norm(self.rd) * self.koz_radius)
+
+    # Compute the circle that the entry point traces throughout one rotation:
+    wt_lvlh = self.target2lvlh(self.wt)
+    angles = np.linspace(0, 2 * np.pi - 0.17, 72)
+    vecs = []
+    for angle in angles:
+        vecs.append(rotate_vector_about_axis(re_lvlh, wt_lvlh, angle))
+    all_re_points = np.vstack(vecs)  # (LVLH)
+
+    # Find the point that is closest to the chaser:
+    index_min = np.argmin(np.linalg.norm(all_re_points - self.rc, axis=1))
+    angle_min = angles[index_min]
+    re_min = all_re_points[index_min]  # (LVLH)
+
+    # Estimate how long it would take the chaser to reach that point:
+    a = self.max_delta_v / self.dt
+    coef = 1.5  # Coefficient to add more time if necessary
+    min_time_to_entry = coef * np.sqrt(2 * np.linalg.norm(self.rc - re_min) / a)
+
+    # Compute the angular displacement of the entry point during that time:
+    angle_back = np.linalg.norm(wt_lvlh) * min_time_to_entry
+
+    # Rotate the target to the new orientation:
+    self.qt = quat_product(rot2quat(axis=wt_lvlh, theta=angle_min - angle_back), self.qt)
+    return
+'''

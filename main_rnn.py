@@ -29,7 +29,6 @@ def load_model(args, env):
     # Wrap the environment in a Monitor and a DummyVecEnv wrappers:
     env = Monitor(env)
     env = DummyVecEnv([lambda: env])
-    # env = DummyVecEnv([make_vec_env] * 4)
 
     if model_path == '':
         print('No model provided for training. Making new model...')
@@ -41,13 +40,10 @@ def load_model(args, env):
             "shared_lstm": False,           # whether the LSTM is shared by the actor and the critic. Default is False
             "enable_critic_lstm": True,     # must be set to True if `shared_lstm` is False, and vice-versa
             "lstm_kwargs": None,            # additional kwargs for LSTM constructor
-            # https://sb3-contrib.readthedocs.io/en/master/modules/ppo_recurrent.html#recurrentppo-policies
-            # https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html
         }
         model = RecurrentPPO(
             policy="MlpLstmPolicy",     # Network used for the policy and value function
             env=env,                    # environment where data is collected
-            n_steps=4096,                # default is 128 (for RNN)
             batch_size=128,             # Default is 128 (for RNN)
             learning_rate=3e-4,         # Default is 3e-4
             clip_range=0.2,             # Default is 0.2
@@ -56,21 +52,10 @@ def load_model(args, env):
             policy_kwargs=policy_kwargs,
             verbose=1,
         )
-        """
-        MlpPolicy is a policy object that implements actor critic, using an MLP (2 layers of 64, with tanh func).
-        In SB3, the term "policy" refers to the class that handles all the networks used for training (not only
-        the network used to predict actions).
-        Note that the PPO class automatically wraps the Gym environment into a Monitor and a DummyVecEnv.
-        """
     else:
         print(f'Loading saved model "{model_path}"...')
         try:
             custom_objects = None
-            # custom_objects = {
-            #     "lr_schedule": schedule_fn(3e-4),
-            #     "learning_rate": schedule_fn(3e-4),
-            #     "clip_range": schedule_fn(0.2),
-            # }
             model = RecurrentPPO.load(model_path, env=env, custom_objects=custom_objects)
             print('Successfully loaded model')
         except FileNotFoundError:
@@ -98,7 +83,7 @@ def main(args):
 
     # Make envs:
     reward_kwargs = None
-    env_config = {}
+    env_config = {"dt": 1, "t_max": 120}
     stochastic = True
     train_env = make_env(reward_kwargs, quiet=True, config=env_config, stochastic=stochastic)
     eval_env = copy_env(train_env)
@@ -131,14 +116,11 @@ def main(args):
         print(f"Note. The model will NOT be saved.")
 
     # Train the model:
-    if args.start > 0:  # Set the current number of timesteps (if resuming a previous run)
-        model.num_timesteps = args.start
-        print(f"Starting at num_timesteps = {model.num_timesteps}")  # Only relevant for logging
     print(f"Training the model for {steps} steps...")
     model.learn(
         total_timesteps=steps,
         callback=callback,
-        reset_num_timesteps=False,  # True if args.start == 0 else False,
+        reset_num_timesteps=False,
     )
 
     return
@@ -149,6 +131,5 @@ if __name__ == '__main__':
     # arguments.nosave = True
     # arguments.model = os.path.join("models", "rnn_model.zip")
     # arguments.wandb = True
-    # arguments.start = 0  # Define the starting training step
     # arguments.steps = 2_000_000
     main(arguments)

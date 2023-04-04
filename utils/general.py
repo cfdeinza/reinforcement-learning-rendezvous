@@ -73,15 +73,16 @@ def load_model(path, env):
     else:
         print(f'Loading saved model "{path}"...')
         try:
-            # model = PPO.load(path, env=env)
             custom_objects = {
                 "lr_schedule": get_schedule_fn(3e-4),
                 "learning_rate": get_schedule_fn(3e-4),
                 "clip_range": get_schedule_fn(0.2),
             }
             if "rnn" in path:  # HACK: find a safer way to identify if the model to be loaded is Recurrent.
+                print("RNN model detected...")
                 model = RecurrentPPO.load(path, env=env, custom_objects=custom_objects)
             else:
+                print("MLP model detected...")
                 model = PPO.load(path, env=env, custom_objects=custom_objects)
             print('Successfully loaded model')
         except FileNotFoundError:
@@ -108,10 +109,15 @@ def schedule_fn(initial_value: float, const=True):
         current_value = max(progress_remaining * initial_value, initial_value/10_000)  # Linear decrease
         return current_value
 
+    def logarithmic(progress_remaining: float) -> float:
+        current_value = initial_value * 10000**(progress_remaining - 1)
+        return current_value
+
     if const is True:
         func = constant
     else:
-        func = linear
+        # func = linear
+        func = logarithmic
 
     return func
 
