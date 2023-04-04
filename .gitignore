@@ -17,3 +17,4 @@ models/
 data/
 verification/*.xlsx
 verification/*.csv
+logs/
