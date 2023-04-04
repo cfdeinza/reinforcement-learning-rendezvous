@@ -13,3 +13,7 @@ scrap*
 models/3dof/
 db_copy/
 models_*/
+models/
+data/
+verification/*.xlsx
+verification/*.csv
