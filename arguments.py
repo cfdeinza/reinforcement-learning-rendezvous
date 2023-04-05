@@ -1,14 +1,5 @@
 """
     This file contains the arguments to parse at the command line.
-    File `main.py` will call get_main_args(), which then returns the arguments.
-    The arguments are:
-        - mode: "train" or "eval" (indicates whether to train or evaluate the model).
-        - model: Name of an existing file (to load a previously saved model).
-        - steps: Number of training steps.
-        - env: Select the environment ("rdv" for Rendezvous3DOF, or "att" for Attitude).
-        - nosave: Use this flag to NOT save the results.
-        - render: Use this flag to render the episodes.
-        - render: Use this flag to enable gSDE (Generalized State Dependent Exploration).
 
     Written by C. F. De Inza Niemeijer.
 """
@@ -23,14 +14,6 @@ def get_main_args():
     """
     parser = argparse.ArgumentParser()
 
-    # default_mode = 'train'
-    # parser.add_argument(
-    #     '--mode',
-    #     dest='mode',
-    #     type=str,
-    #     default=default_mode,
-    #     help=f'Use \'train\' to train the model, \'eval\' to evaluate the model. Default is \'{default_mode}\'.'
-    # )
     parser.add_argument(
         '--model',
         dest='model',
@@ -80,15 +63,6 @@ def get_main_args():
         default=False,
         help='Use this flag to render the episodes.'
     )
-    # parser.add_argument(
-    #     '--sde',
-    #     dest='sde',
-    #     type=bool,
-    #     nargs='?',
-    #     const=True,
-    #     default=False,
-    #     help='Use this flag to enable gSDE (Generalized State Dependent Exploration).'
-    # )
 
     args = parser.parse_args()
 
