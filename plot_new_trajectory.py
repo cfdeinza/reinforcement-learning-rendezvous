@@ -10,7 +10,7 @@ import numpy as np
 from utils.environment_utils import make_env
 from utils.general import load_model
 # from utils.quaternions import quat2mat
-from rendezvous_eval import evaluate
+from save_new_trajectory import evaluate
 from plot_2d import plot2d_response, plot2d_error
 from plot_animation import make_animation
 from time import perf_counter

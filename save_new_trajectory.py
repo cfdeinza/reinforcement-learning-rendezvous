@@ -1,5 +1,6 @@
 """
-This script generates a rendevous trajectory. The user needs to specify a controller by using the argument --model.
+This script generates a rendezvous trajectory using a user-specified controller.
+The trajectory is saved as a binary file.
 
 Written by C. F. De Inza Niemeijer.
 """
