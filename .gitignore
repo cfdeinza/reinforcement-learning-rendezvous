@@ -19,3 +19,5 @@ verification/*.xlsx
 verification/*.csv
 logs/
 ideas/
+other/
+plots/
