@@ -181,29 +181,3 @@ if __name__ == '__main__':
     plot2d_error(arguments)
 
     print('Finished')
-
-"""
-# Splicing:
-    start_index = 0
-    end_index = -1
-    if end_index != -1:
-        rc = rc[:, 0:end_index]
-        vc = vc[:, 0:end_index]
-        qc = qc[:, 0:end_index]
-        wc = wc[:, 0:end_index]
-        qt = qt[:, 0:end_index]
-        wt = wt[:, 0:end_index]
-        actions = actions[:, 0:end_index]
-        rewards = rewards[0:end_index]
-        t = t[0:end_index]
-    if start_index != 0:
-        rc = rc[:, start_index:]
-        vc = vc[:, start_index:]
-        qc = qc[:, start_index:]
-        wc = wc[:, start_index:]
-        qt = qt[:, :, start_index:]
-        wt = wt[:, start_index:]
-        actions = actions[:, start_index:]
-        rewards = rewards[start_index:]
-        t = t[start_index:]
-"""

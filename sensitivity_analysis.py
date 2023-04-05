@@ -159,7 +159,7 @@ if __name__ == "__main__":
         project_name = "sensitivity"
 
     # Set-up the sweep:
-    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
+    # wandb.login(key=None)
 
     # Select the parameters to include in the sweep:
     parameter_names = []  # "rc0", "wt0", "koz_radius", "corridor_half_angle", "h", "dt"

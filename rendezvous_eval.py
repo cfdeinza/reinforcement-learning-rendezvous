@@ -242,7 +242,7 @@ def get_args():
 
 if __name__ == '__main__':
     arguments = get_args()
-    # arguments.model = os.path.join('models', 'model_01.zip')
+    # arguments.model = os.path.join('models', 'model_mlp.zip')
     # arguments.save = True
     # arguments.render = True
 

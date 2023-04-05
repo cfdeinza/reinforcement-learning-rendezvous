@@ -152,7 +152,7 @@ if __name__ == "__main__":
         project_name = "alg_sweep"
 
     # Set-up the sweep:
-    wandb.login(key="e9d6f3f54d82d87f667aa6b5681dd5810d8a8663")
+    # wandb.login(key=None)
     sweep_configuration = configure_sweep()
     sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_name)
 

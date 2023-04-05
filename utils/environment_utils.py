@@ -1,9 +1,8 @@
 import numpy as np
 from rendezvous_env import RendezvousEnv
-from new_env import NewEnv
+from other.new_env import NewEnv
 from copy import deepcopy
 from stable_baselines3.common.monitor import Monitor
-from utils.quaternions import quat2rot
 from tabulate import tabulate
 
 

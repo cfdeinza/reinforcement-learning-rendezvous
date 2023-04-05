@@ -11,8 +11,8 @@ from utils.environment_utils import make_env
 from utils.general import load_model
 # from utils.quaternions import quat2mat
 from rendezvous_eval import evaluate
-from rendezvous_plot_2d import plot2d_response, plot2d_error
-from rendezvous_plot_vpython import make_animation
+from plot_2d import plot2d_response, plot2d_error
+from plot_animation import make_animation
 from time import perf_counter
 
 
@@ -82,18 +82,9 @@ def main(args):
 
 
 if __name__ == "__main__":
-    # qt0 = np.array([1/np.sqrt(2), 1/np.sqrt(2), 0, 0])
-    # wt0 = np.matmul(quat2mat(qt0).T, np.array([0, 0, np.radians(3)]))
-    # environment = RendezvousEnv(qt0=qt0, wt0=wt0)
 
     arguments = get_args()
     arguments.path = ""     # prevent make_animation from crashing
     arguments.save = False  # make sure we don't save a gif of the animation
-    # arguments.model = os.path.join("models_fuel_coef_sweep_02", "model01.zip")
-    # arguments.model = os.path.join("models", "mlp_model_att_01.zip")
-    # arguments.model = os.path.join("models_att_coef_sweep_01", "rew_tune_model_01.zip")
-    # arguments.model = os.path.join("models", "rnn_model_2_02.zip")
-    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_decent5.zip"
-    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_box_04_08.zip"
-    # arguments.model = r"C:\Users\charl\Downloads\rnn_model_final2_01.zip"
+    # arguments.model = os.path.join("models", "model_mlp.zip")
     main(arguments)
